@@ -270,7 +270,7 @@ class _RouteCard extends StatelessWidget {
                       Text('${route.durationMinutes} min', style: const TextStyle(fontSize: 12)),
                       const SizedBox(width: 14),
                       Flexible(
-                        child: Text('${route.stops.length} paraderos',
+                        child: Text('${route.stops.length} puntos de referencia',
                             style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis),
                       ),
                     ],

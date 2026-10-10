@@ -1,0 +1,12 @@
+Fotos de la página "Nosotros".
+
+Copia aquí tus fotos con estos nombres exactos (en .jpg) y vuelve a publicar la web:
+
+  portada.jpg     La foto grande de arriba (horizontal).
+  galeria-1.jpg   Primera foto de "Subo en la calle".
+  galeria-2.jpg   Segunda foto.
+  galeria-3.jpg   Tercera foto.
+  equipo.jpg      La foto del equipo (horizontal).
+  app.jpg         Una captura de la app, para la página "Descargar app".
+
+Mientras una foto no exista, en su lugar se ve un recuadro amarillo.

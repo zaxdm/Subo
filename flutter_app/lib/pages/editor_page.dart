@@ -10,14 +10,14 @@ import '../widgets/route_photo.dart';
 
 /// Qué añade un clic en el mapa.
 enum _MapMode {
-  stops('Añadir paraderos'),
+  stops('Añadir puntos de referencia'),
   path('Dibujar recorrido');
 
   const _MapMode(this.label);
   final String label;
 }
 
-/// Crea o edita una ruta: los datos del micro, su foto, los paraderos en orden
+/// Crea o edita una ruta: los datos del micro, su foto, los puntos de referencia en orden
 /// y, si hace falta, el recorrido exacto dibujado sobre el mapa.
 class EditorPage extends StatefulWidget {
   const EditorPage({
@@ -60,6 +60,9 @@ class _EditorPageState extends State<EditorPage> {
   late final _origin = TextEditingController(text: _route.origin);
   late final _destination = TextEditingController(text: _route.destination);
   late final _fare = TextEditingController(text: _route.fare > 0 ? _route.fare.toStringAsFixed(2) : '');
+  late final _fareSchool = TextEditingController(text: _route.fareSchool?.toStringAsFixed(2) ?? '');
+  late final _fareUniversity = TextEditingController(text: _route.fareUniversity?.toStringAsFixed(2) ?? '');
+  late final _frequency = TextEditingController(text: _route.frequencyMinutes?.toString() ?? '');
   late final _duration =
       TextEditingController(text: _route.durationMinutes > 0 ? '${_route.durationMinutes}' : '');
   late final _schedule = TextEditingController(text: _route.schedule);
@@ -78,6 +81,7 @@ class _EditorPageState extends State<EditorPage> {
   void dispose() {
     for (final controller in [
       _name, _letter, _vehicle, _origin, _destination, _fare, _duration, _schedule, _description, _imageUrl, //
+      _fareSchool, _fareUniversity, _frequency,
     ]) {
       controller.dispose();
     }
@@ -111,11 +115,11 @@ class _EditorPageState extends State<EditorPage> {
     } else {
       if (_route.stops.length >= _maxStops) return;
       _change(() => _route.stops
-          .add(RouteStop('Paradero ${_route.stops.length + 1}', point.latitude, point.longitude)));
+          .add(RouteStop('Punto ${_route.stops.length + 1}', point.latitude, point.longitude)));
     }
   }
 
-  /// Arrastrar un paradero lo mueve: la posición del dedo se traduce a un punto del mapa.
+  /// Arrastrar un punto de referencia lo mueve: la posición del dedo se traduce a un punto del mapa.
   void _onStopDragged(RouteStop stop, Offset globalPosition) {
     if (_locked) return;
     final box = _mapKey.currentContext?.findRenderObject() as RenderBox?;
@@ -137,7 +141,7 @@ class _EditorPageState extends State<EditorPage> {
     if (_route.path.isEmpty) return;
     final confirmed = await _confirm(
       title: '¿Borrar el trazado dibujado?',
-      message: 'Los paraderos se conservan.',
+      message: 'Los puntos de referencia se conservan.',
       action: 'Borrar trazado',
     );
     if (confirmed) _change(_route.path.clear);
@@ -199,11 +203,11 @@ class _EditorPageState extends State<EditorPage> {
       return;
     }
     if (_route.stops.length < 2) {
-      widget.onError(ApiException('Añade al menos dos paraderos en el mapa.'));
+      widget.onError(ApiException('Añade al menos dos puntos de referencia en el mapa.'));
       return;
     }
     if (_route.stops.any((stop) => stop.name.trim().isEmpty)) {
-      widget.onError(ApiException('Cada paradero necesita un nombre.'));
+      widget.onError(ApiException('Cada punto de referencia necesita un nombre.'));
       return;
     }
 
@@ -214,6 +218,10 @@ class _EditorPageState extends State<EditorPage> {
       ..origin = _origin.text
       ..destination = _destination.text
       ..fare = _parseNumber(_fare.text) ?? 0
+      // Vacíos se mandan como "no se sabe": la app no los enseña.
+      ..fareSchool = _parseNumber(_fareSchool.text)
+      ..fareUniversity = _parseNumber(_fareUniversity.text)
+      ..frequencyMinutes = int.tryParse(_frequency.text.trim())
       ..durationMinutes = int.tryParse(_duration.text.trim()) ?? 0
       ..schedule = _schedule.text
       ..description = _description.text
@@ -296,6 +304,14 @@ class _EditorPageState extends State<EditorPage> {
   }
 
   static double? _parseNumber(String text) => double.tryParse(text.trim().replaceAll(',', '.'));
+
+  /// Un pasaje reducido puede quedar vacío, pero nunca costar más que el regular.
+  String? _reducedFare(String? value) {
+    if ((value ?? '').trim().isEmpty) return null;
+    final reduced = _parseNumber(value!);
+    final regular = _parseNumber(_fare.text) ?? 50;
+    return reduced == null || reduced <= 0 || reduced > regular ? 'No mayor que el regular' : null;
+  }
 
   // --- Pantalla ---
 
@@ -431,6 +447,37 @@ class _EditorPageState extends State<EditorPage> {
             validator: (value) => (int.tryParse((value ?? '').trim()) ?? 0) > 0 ? null : 'Mayor que 0',
           ),
         ]),
+        _row([
+          _field(
+            _fareSchool,
+            'Pasaje escolar (S/)',
+            hint: 'Opcional',
+            keyboard: const TextInputType.numberWithOptions(decimal: true),
+            formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+            validator: _reducedFare,
+          ),
+          _field(
+            _fareUniversity,
+            'Pasaje universitario (S/)',
+            hint: 'Opcional',
+            keyboard: const TextInputType.numberWithOptions(decimal: true),
+            formatters: [FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]'))],
+            validator: _reducedFare,
+          ),
+          _field(
+            _frequency,
+            'Pasa cada (min)',
+            hint: 'Opcional',
+            keyboard: TextInputType.number,
+            formatters: [FilteringTextInputFormatter.digitsOnly],
+            validator: (value) {
+              final text = (value ?? '').trim();
+              if (text.isEmpty) return null;
+              final minutes = int.tryParse(text) ?? 0;
+              return minutes > 0 && minutes <= 240 ? null : 'Entre 1 y 240';
+            },
+          ),
+        ]),
         _field(_schedule, 'Horario', hint: '05:00 – 22:30', maxLength: 60),
         _field(_description, 'Descripción', hint: 'Por dónde pasa, cómo reconocerlo…', maxLines: 3, maxLength: 400),
         DropdownButtonFormField<RouteStatus>(
@@ -506,16 +553,16 @@ class _EditorPageState extends State<EditorPage> {
   Widget _mapPanel() {
     final text = Theme.of(context).textTheme;
     final stops = _route.stops;
-    // Sin trazado dibujado, se enseña la unión de los paraderos, como la estimará la app.
+    // Sin trazado dibujado, se enseña la unión de los puntos de referencia, como la estimará la app.
     final line = _route.path.length > 1 ? _route.path : stops;
     return _Panel(
       step: '3',
-      title: 'Paraderos y recorrido',
+      title: 'Puntos de referencia y recorrido',
       children: [
         Text(
           _mode == _MapMode.stops
-              ? 'Haz clic en el mapa para añadir paraderos en el orden del recorrido. Arrástralos para corregirlos.'
-              : 'Marca las esquinas y calles en el orden de circulación. Sin trazado, la app lo estima entre paraderos.',
+              ? 'Haz clic en el mapa para añadir puntos de referencia en el orden del recorrido. Arrástralos para corregirlos.'
+              : 'Marca las esquinas y calles en el orden de circulación. Sin trazado, la app lo estima entre puntos de referencia.',
           style: text.bodySmall,
         ),
         Wrap(
@@ -602,14 +649,14 @@ class _EditorPageState extends State<EditorPage> {
         ),
         Row(
           children: [
-            Expanded(child: Text('Paraderos', style: text.titleMedium)),
-            Text('${stops.length} paraderos', style: text.bodySmall),
+            Expanded(child: Text('Puntos de referencia', style: text.titleMedium)),
+            Text('${stops.length} puntos de referencia', style: text.bodySmall),
           ],
         ),
-        if (stops.length < 2) Text('Añade al menos dos paraderos en el mapa.', style: text.bodySmall),
+        if (stops.length < 2) Text('Añade al menos dos puntos de referencia en el mapa.', style: text.bodySmall),
         for (final (index, stop) in stops.indexed)
           _StopRow(
-            // Por identidad: al reordenar, cada campo sigue a su paradero.
+            // Por identidad: al reordenar, cada campo sigue a su punto de referencia.
             key: ObjectKey(stop),
             number: index + 1,
             stop: stop,
@@ -713,7 +760,7 @@ class _Panel extends StatelessWidget {
   }
 }
 
-/// El número de un paradero sobre el mapa; se puede arrastrar.
+/// El número de un punto de referencia sobre el mapa; se puede arrastrar.
 class _StopMarker extends StatelessWidget {
   const _StopMarker({required this.number, required this.name, required this.onDrag});
 
@@ -746,7 +793,7 @@ class _StopMarker extends StatelessWidget {
   }
 }
 
-/// Un paradero en la lista: su número, su nombre editable y cómo moverlo o quitarlo.
+/// Un punto de referencia en la lista: su número, su nombre editable y cómo moverlo o quitarlo.
 class _StopRow extends StatelessWidget {
   const _StopRow({
     super.key,
@@ -789,7 +836,7 @@ class _StopRow extends StatelessWidget {
                 onChanged: onRenamed,
                 validator: (value) => (value ?? '').trim().isEmpty ? 'Ponle un nombre' : null,
                 decoration: InputDecoration(
-                  hintText: 'Nombre del paradero $number',
+                  hintText: 'Nombre del punto de referencia $number',
                   counterText: '',
                   contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                 ),
@@ -797,17 +844,17 @@ class _StopRow extends StatelessWidget {
               ),
             ),
             IconButton(
-              tooltip: 'Subir paradero',
+              tooltip: 'Subir punto de referencia',
               onPressed: enabled ? onUp : null,
               icon: const Icon(Icons.arrow_upward, size: 18),
             ),
             IconButton(
-              tooltip: 'Bajar paradero',
+              tooltip: 'Bajar punto de referencia',
               onPressed: enabled ? onDown : null,
               icon: const Icon(Icons.arrow_downward, size: 18),
             ),
             IconButton(
-              tooltip: 'Quitar paradero',
+              tooltip: 'Quitar punto de referencia',
               onPressed: enabled ? onRemove : null,
               icon: const Icon(Icons.close, size: 18),
             ),

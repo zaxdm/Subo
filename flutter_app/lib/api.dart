@@ -52,7 +52,7 @@ class GeoPoint {
   Map<String, dynamic> toJson() => {'latitude': latitude, 'longitude': longitude};
 }
 
-/// Un paradero: un punto con nombre.
+/// Un punto de referencia: un punto con nombre.
 class RouteStop extends GeoPoint {
   RouteStop(this.name, double latitude, double longitude) : super(latitude, longitude);
 
@@ -95,6 +95,9 @@ class BusRoute {
     this.destination = '',
     this.durationMinutes = 0,
     this.fare = 0,
+    this.fareSchool,
+    this.fareUniversity,
+    this.frequencyMinutes,
     this.schedule = '',
     this.description = '',
     this.imageUrl,
@@ -114,6 +117,11 @@ class BusRoute {
   String destination;
   int durationMinutes;
   double fare;
+
+  /// Pasajes reducidos y cada cuántos minutos pasa; `null` si no se saben.
+  double? fareSchool;
+  double? fareUniversity;
+  int? frequencyMinutes;
   String schedule;
   String description;
   String? imageUrl;
@@ -121,7 +129,7 @@ class BusRoute {
   RouteStatus status;
   List<RouteStop> stops;
 
-  /// Trazado dibujado a mano; vacío si la app debe estimarlo entre paraderos.
+  /// Trazado dibujado a mano; vacío si la app debe estimarlo entre puntos de referencia.
   List<GeoPoint> path;
 
   factory BusRoute.fromJson(Map<String, dynamic> json) => BusRoute(
@@ -133,6 +141,9 @@ class BusRoute {
         destination: json['destination'] as String? ?? '',
         durationMinutes: (json['durationMinutes'] as num?)?.toInt() ?? 0,
         fare: (json['fare'] as num?)?.toDouble() ?? 0,
+        fareSchool: (json['fareSchool'] as num?)?.toDouble(),
+        fareUniversity: (json['fareUniversity'] as num?)?.toDouble(),
+        frequencyMinutes: (json['frequencyMinutes'] as num?)?.toInt(),
         schedule: json['schedule'] as String? ?? '',
         description: json['description'] as String? ?? '',
         imageUrl: (json['imageUrl'] as String?)?.trim().isEmpty ?? true ? null : json['imageUrl'] as String,
@@ -154,6 +165,9 @@ class BusRoute {
         'destination': destination.trim(),
         'durationMinutes': durationMinutes,
         'fare': fare,
+        'fareSchool': fareSchool,
+        'fareUniversity': fareUniversity,
+        'frequencyMinutes': frequencyMinutes,
         'schedule': schedule.trim(),
         'description': description.trim(),
         'imageUrl': imageUrl,
@@ -238,6 +252,8 @@ class Suggestion {
     this.device = '',
     this.userName,
     this.userEmail,
+    this.status = SuggestionStatus.fresh,
+    this.reply,
   });
 
   final String id;
@@ -246,6 +262,10 @@ class Suggestion {
   final DateTime createdAt;
   final String appVersion;
   final String device;
+  SuggestionStatus status;
+
+  /// Lo que se le contestó; quien la escribió lo ve en la app.
+  String? reply;
 
   /// `null` si la cuenta que la mandó ya no existe.
   final String? userName;
@@ -260,7 +280,106 @@ class Suggestion {
         device: json['device'] as String? ?? '',
         userName: json['userName'] as String?,
         userEmail: json['userEmail'] as String?,
+        status: SuggestionStatus.fromCode(json['status'] as String?),
+        reply: json['reply'] as String?,
       );
+}
+
+/// En qué va una sugerencia del buzón.
+enum SuggestionStatus {
+  fresh('NEW', 'Nueva'),
+  inReview('IN_REVIEW', 'En revisión'),
+  resolved('RESOLVED', 'Resuelta');
+
+  const SuggestionStatus(this.code, this.label);
+
+  /// Como lo guarda el servidor.
+  final String code;
+  final String label;
+
+  static SuggestionStatus fromCode(String? code) =>
+      values.firstWhere((status) => status.code == code, orElse: () => SuggestionStatus.fresh);
+}
+
+/// Una alerta vigente, con quién la publicó: lo que hace falta para moderarla.
+class ModerationAlert {
+  ModerationAlert({required this.alert, required this.authorId, required this.createdAt});
+
+  final CityAlert alert;
+  final String authorId;
+  final DateTime createdAt;
+  String? authorName;
+  String? authorEmail;
+  bool authorBlocked = false;
+  String? imageUrl;
+  int dismissals = 0;
+
+  /// TRUSTED, NEW o UNRELIABLE, según cómo le fue con sus alertas anteriores.
+  String reputation = 'NEW';
+
+  factory ModerationAlert.fromJson(Map<String, dynamic> json) => ModerationAlert(
+        alert: CityAlert.fromJson(json),
+        authorId: json['authorId'] as String? ?? '',
+        createdAt: DateTime.fromMillisecondsSinceEpoch((json['createdAt'] as num?)?.toInt() ?? 0),
+      )
+        ..authorName = json['authorName'] as String?
+        ..authorEmail = json['authorEmail'] as String?
+        ..authorBlocked = json['authorBlocked'] as bool? ?? false
+        ..imageUrl = json['imageUrl'] as String?
+        ..dismissals = (json['dismissals'] as num?)?.toInt() ?? 0
+        ..reputation = json['authorReputation'] as String? ?? 'NEW';
+}
+
+/// El resumen de uso que enseña el panel.
+class Stats {
+  Stats.fromJson(Map<String, dynamic> json)
+      : users = (json['users'] as num?)?.toInt() ?? 0,
+        newUsersThisWeek = (json['newUsersThisWeek'] as num?)?.toInt() ?? 0,
+        activeAlerts = (json['activeAlerts'] as num?)?.toInt() ?? 0,
+        ratings = (json['ratings'] as num?)?.toInt() ?? 0,
+        pendingRoutes = (json['pendingRoutes'] as num?)?.toInt() ?? 0,
+        newFeedback = (json['newFeedback'] as num?)?.toInt() ?? 0,
+        alertsThisWeek = {
+          for (final entry in (json['alertsThisWeek'] as Map<String, dynamic>? ?? const {}).entries)
+            entry.key: (entry.value as num).toInt(),
+        },
+        alertsByHour = [for (final value in json['alertsByHour'] as List? ?? const []) (value as num).toInt()],
+        topRoutes = [
+          for (final route in json['topRoutes'] as List? ?? const [])
+            (
+              name: (route as Map<String, dynamic>)['name'] as String? ?? '',
+              letter: route['letter'] as String? ?? '',
+              views: (route['views'] as num?)?.toInt() ?? 0,
+            ),
+        ];
+
+  final int users;
+  final int newUsersThisWeek;
+  final int activeAlerts;
+  final int ratings;
+  final int pendingRoutes;
+  final int newFeedback;
+
+  /// Alertas de los últimos 7 días, por tipo.
+  final Map<String, int> alertsThisWeek;
+
+  /// Alertas de los últimos 30 días por hora del día (0-23), en hora de Perú.
+  final List<int> alertsByHour;
+
+  /// Las rutas más abiertas en los últimos 30 días.
+  final List<({String name, String letter, int views})> topRoutes;
+}
+
+/// Una cuenta que puede grabar rutas para que un administrador las apruebe.
+class Contributor {
+  Contributor.fromJson(Map<String, dynamic> json)
+      : id = json['id'] as String? ?? '',
+        name = json['displayName'] as String? ?? '',
+        email = json['email'] as String? ?? '';
+
+  final String id;
+  final String name;
+  final String email;
 }
 
 /// Deja la dirección del servidor en su forma canónica o explica qué le pasa.
@@ -369,6 +488,42 @@ class ApiClient {
   }
 
   Future<void> deleteFeedback(String id) => _send('DELETE', '/api/admin/feedback/${Uri.encodeComponent(id)}');
+
+  /// Cambia el estado de una sugerencia y, si se quiere, la contesta.
+  Future<void> reviewFeedback(String id, SuggestionStatus status, String? reply) => _send(
+        'PUT',
+        '/api/admin/feedback/${Uri.encodeComponent(id)}',
+        body: {'status': status.code, 'reply': reply},
+      );
+
+  /// Las alertas vigentes, también las de cuentas bloqueadas.
+  Future<List<ModerationAlert>> moderationAlerts() async {
+    final data = await _send('GET', '/api/admin/alerts');
+    return [
+      for (final alert in data['alerts'] as List? ?? const []) ModerationAlert.fromJson(alert as Map<String, dynamic>),
+    ];
+  }
+
+  Future<void> deleteAlert(String id) => _send('DELETE', '/api/admin/alerts/${Uri.encodeComponent(id)}');
+
+  /// Bloquea o desbloquea una cuenta: bloqueada no publica y lo suyo deja de verse.
+  Future<void> blockUser(String id, {required bool blocked}) =>
+      _send('POST', '/api/admin/users/${Uri.encodeComponent(id)}/block', body: {'blocked': blocked});
+
+  Future<Stats> stats() async => Stats.fromJson(await _send('GET', '/api/admin/stats'));
+
+  Future<List<Contributor>> contributors() async {
+    final data = await _send('GET', '/api/admin/contributors');
+    return [
+      for (final user in data['contributors'] as List? ?? const []) Contributor.fromJson(user as Map<String, dynamic>),
+    ];
+  }
+
+  Future<Contributor> addContributor(String email) async =>
+      Contributor.fromJson(await _send('POST', '/api/admin/contributors', body: {'email': email.trim()}));
+
+  Future<void> removeContributor(String id) =>
+      _send('DELETE', '/api/admin/contributors/${Uri.encodeComponent(id)}');
 
   /// Sube una foto y devuelve su dirección pública.
   Future<String> uploadImage(Uint8List bytes, String contentType) async {

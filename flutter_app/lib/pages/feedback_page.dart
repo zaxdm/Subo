@@ -63,6 +63,30 @@ class _FeedbackPageState extends State<FeedbackPage> {
     }
   }
 
+  /// Guarda el estado y la respuesta; quien escribió la sugerencia los ve en la app.
+  Future<void> _review(Suggestion item, SuggestionStatus status, String? reply) async {
+    try {
+      await widget.api.reviewFeedback(item.id, status, reply);
+      if (!mounted) return;
+      setState(() {
+        item.status = status;
+        item.reply = reply;
+      });
+    } catch (error) {
+      widget.onError(error);
+    }
+  }
+
+  /// Pide la respuesta. Contestar deja la sugerencia como resuelta.
+  Future<void> _reply(Suggestion item) async {
+    final reply = await showDialog<String>(
+      context: context,
+      builder: (context) => _ReplyDialog(initial: item.reply ?? ''),
+    );
+    if (reply == null) return;
+    await _review(item, reply.isEmpty ? item.status : SuggestionStatus.resolved, reply.isEmpty ? null : reply);
+  }
+
   @override
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
@@ -128,7 +152,12 @@ class _FeedbackPageState extends State<FeedbackPage> {
                   itemCount: items.length,
                   separatorBuilder: (context, index) => const SizedBox(height: 14),
                   itemBuilder: (context, index) =>
-                      _FeedbackCard(item: items[index], onDelete: () => _delete(items[index])),
+                      _FeedbackCard(
+                    item: items[index],
+                    onDelete: () => _delete(items[index]),
+                    onStatus: (status) => _review(items[index], status, items[index].reply),
+                    onReply: () => _reply(items[index]),
+                  ),
                 ),
               ),
           ],
@@ -138,11 +167,60 @@ class _FeedbackPageState extends State<FeedbackPage> {
   }
 }
 
+/// El diálogo para contestar. Es suyo el campo de texto: así vive hasta que el
+/// diálogo termina de cerrarse, y no un instante menos.
+class _ReplyDialog extends StatefulWidget {
+  const _ReplyDialog({required this.initial});
+
+  final String initial;
+
+  @override
+  State<_ReplyDialog> createState() => _ReplyDialogState();
+}
+
+class _ReplyDialogState extends State<_ReplyDialog> {
+  late final _controller = TextEditingController(text: widget.initial);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Responder'),
+      content: SizedBox(
+        width: 460,
+        child: TextField(
+          controller: _controller,
+          autofocus: true,
+          maxLines: 5,
+          maxLength: 1000,
+          decoration: const InputDecoration(hintText: 'Lo verá en la app quien escribió la sugerencia'),
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        TextButton(onPressed: () => Navigator.pop(context, _controller.text.trim()), child: const Text('Guardar')),
+      ],
+    );
+  }
+}
+
 class _FeedbackCard extends StatelessWidget {
-  const _FeedbackCard({required this.item, required this.onDelete});
+  const _FeedbackCard({
+    required this.item,
+    required this.onDelete,
+    required this.onStatus,
+    required this.onReply,
+  });
 
   final Suggestion item;
   final VoidCallback onDelete;
+  final void Function(SuggestionStatus status) onStatus;
+  final VoidCallback onReply;
 
   /// "10/10/2026 16:05", en la hora de quien mira el panel.
   static String _date(DateTime date) {
@@ -187,6 +265,45 @@ class _FeedbackCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(author.isEmpty ? 'Cuenta eliminada' : author, style: text.bodySmall),
             if (origin.isNotEmpty) Text(origin, style: text.bodySmall),
+            if ((item.reply ?? '').isNotEmpty) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(10)),
+                child: Text('Respuesta: ${item.reply}', style: text.bodyMedium),
+              ),
+            ],
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 12,
+              runSpacing: 10,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 170,
+                  child: DropdownButtonFormField<SuggestionStatus>(
+                    // Con la clave, el desplegable se rehace cuando el estado cambia por fuera.
+                    key: ValueKey(item.status),
+                    initialValue: item.status,
+                    isExpanded: true,
+                    decoration: const InputDecoration(),
+                    items: [
+                      for (final status in SuggestionStatus.values)
+                        DropdownMenuItem(value: status, child: Text(status.label)),
+                    ],
+                    onChanged: (status) {
+                      if (status != null && status != item.status) onStatus(status);
+                    },
+                  ),
+                ),
+                OutlinedButton.icon(
+                  onPressed: onReply,
+                  icon: const Icon(Icons.reply, size: 16),
+                  label: Text((item.reply ?? '').isEmpty ? 'Responder' : 'Cambiar respuesta'),
+                ),
+              ],
+            ),
           ],
         ),
       ),

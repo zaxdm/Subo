@@ -10,13 +10,17 @@ import '../theme.dart';
 /// servidor decide a dónde va cada uno. Solo se recuerda la dirección del
 /// servidor; ni la contraseña ni la sesión se guardan en el navegador.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.api, required this.onSignedIn, this.reason});
+  const LoginPage({super.key, required this.api, required this.onSignedIn, this.reason, this.onClose});
 
   final ApiClient api;
   final void Function(Session session, List<BusRoute> routes) onSignedIn;
 
   /// Por qué se pide entrar, si alguien llegó aquí queriendo hacer algo.
   final String? reason;
+
+  /// Con valor, el acceso es una ventana emergente: solo el formulario, con
+  /// su botón de cerrar.
+  final VoidCallback? onClose;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -113,6 +117,7 @@ class _LoginPageState extends State<LoginPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.onClose != null) return _card(context);
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 860;
@@ -154,8 +159,21 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(_registering ? 'CUENTA NUEVA' : 'BIENVENIDO',
-                    style: text.labelSmall?.copyWith(color: Palette.accentText)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(_registering ? 'CUENTA NUEVA' : 'BIENVENIDO',
+                          style: text.labelSmall?.copyWith(color: Palette.accentText)),
+                    ),
+                    if (widget.onClose != null)
+                      IconButton(
+                        tooltip: 'Cerrar',
+                        onPressed: _busy ? null : widget.onClose,
+                        icon: const Icon(Icons.close, size: 20),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                  ],
+                ),
                 const SizedBox(height: 10),
                 Text(_registering ? 'Crea tu cuenta' : 'Inicia sesión', style: text.titleLarge?.copyWith(fontSize: 23)),
                 const SizedBox(height: 6),
@@ -300,7 +318,7 @@ class _Intro extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final narrow = MediaQuery.sizeOf(context).width < 860;
-    final headline = (narrow ? text.headlineMedium : text.headlineLarge?.copyWith(fontSize: 48))!;
+    final headline = (narrow ? text.headlineMedium : text.headlineLarge?.copyWith(fontSize: 44))!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -329,7 +347,7 @@ class _Intro extends StatelessWidget {
         ),
         const SizedBox(height: 26),
         const _Perk(icon: Icons.alt_route, label: 'El recorrido de cada línea, en el mapa'),
-        const _Perk(icon: Icons.place_outlined, label: 'Paraderos por donde pasa'),
+        const _Perk(icon: Icons.place_outlined, label: 'Lugares por donde pasa'),
         const _Perk(icon: Icons.payments_outlined, label: 'Pasaje, horario y cuánto demora'),
       ],
     );

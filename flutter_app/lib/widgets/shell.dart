@@ -67,20 +67,22 @@ class AdminShell extends StatelessWidget {
                     width: double.infinity,
                     color: Palette.sidebar,
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                    child: Row(
-                      children: [
-                        for (final item in AdminSection.values) ...[
-                          Expanded(
-                            child: _NavItem(
+                    // Son varias: en una pantalla estrecha se deslizan de lado.
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (final item in AdminSection.values) ...[
+                            _NavItem(
                               label: item.label,
                               icon: item.icon,
                               active: item == section,
                               onTap: () => onSection!(item),
                             ),
-                          ),
-                          if (item != AdminSection.values.last) const SizedBox(width: 8),
+                            if (item != AdminSection.values.last) const SizedBox(width: 8),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                 Expanded(child: content),
@@ -104,7 +106,10 @@ class AdminShell extends StatelessWidget {
 /// Las secciones del panel.
 enum AdminSection {
   routes('Rutas y micros', Icons.north_east),
-  feedback('Sugerencias', Icons.mail_outline);
+  alerts('Alertas', Icons.report_outlined),
+  feedback('Sugerencias', Icons.mail_outline),
+  stats('Estadísticas', Icons.insights),
+  team('Colaboradores', Icons.group_outlined);
 
   const AdminSection(this.label, this.icon);
 

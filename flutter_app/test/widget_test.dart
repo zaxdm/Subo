@@ -269,18 +269,78 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
 
+      // Nosotros cuenta lo que ya hay en el mapa y deja sitio para las fotos.
+      expect(find.text('líneas en el mapa'), findsOneWidget);
+      expect(find.text('Foto de portada'), findsOneWidget);
+      expect(find.text('Foto del equipo'), findsOneWidget);
+
+      // La descarga de la app tiene su página.
+      await tester.tap(find.text('Descargar app').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Lleva Subo en tu celular'), findsOneWidget);
+      expect(find.text('Descargar para Android'), findsOneWidget);
+      expect(find.text('Para Android · Versión 1.0 · 4 MB'), findsOneWidget);
+
+      // Las páginas de texto llevan el pie completo al final.
+      await tester.ensureVisible(find.text('Privacidad'));
       await tester.tap(find.text('Privacidad'));
       await tester.pumpAndSettle();
       expect(find.text('Qué datos usamos y para qué'), findsOneWidget);
 
+      await tester.ensureVisible(find.text('Términos'));
       await tester.tap(find.text('Términos'));
       await tester.pumpAndSettle();
       expect(find.text('Las reglas para usar Subo'), findsOneWidget);
 
-      // Escribir al equipo sí pide cuenta.
-      await tester.tap(find.text('Contacto').last);
+      await tester.tap(find.text('Contacto').first);
       await tester.pumpAndSettle();
-      expect(find.text('Entrar para escribirnos'), findsOneWidget);
+      expect(find.text('Envíanos un mensaje'), findsOneWidget);
+      expect(find.text('WhatsApp'), findsOneWidget);
+      expect(find.text('Correo'), findsOneWidget);
+    });
+
+    testWidgets('el acceso es una ventana sobre la página y se puede cerrar', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Iniciar sesión'));
+      await tester.pumpAndSettle();
+
+      // El mapa sigue debajo.
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Cerrar'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsNothing);
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+    });
+
+    testWidgets('escribir al equipo sin cuenta pide entrar y no pierde el mensaje', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final log = <http.Request>[];
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Contacto').first);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tu mensaje'), 'Falta la línea a Laredo');
+      await tester.tap(find.text('Enviar mensaje'));
+      await tester.pumpAndSettle();
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(log.any((request) => request.url.path.endsWith('/api/feedback')), isFalse);
+
+      await _signIn(tester, password: 'pasajero-2026');
+      await tester.tap(find.text('Enviar mensaje'));
+      await tester.pumpAndSettle();
+      final sent = jsonDecode(log.lastWhere((request) => request.url.path.endsWith('/api/feedback')).body) as Map;
+      expect(sent['message'], 'Falta la línea a Laredo');
     });
 
     testWidgets('con cuenta se puede escribir al equipo', (tester) async {
@@ -291,7 +351,7 @@ void main() {
       final log = <http.Request>[];
       await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
       await _signIn(tester, password: 'pasajero-2026');
-      await tester.tap(find.text('Contacto').last);
+      await tester.tap(find.text('Contacto').first);
       await tester.pumpAndSettle();
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Tu mensaje'), 'La línea B ya no pasa por Mansiche');
@@ -425,6 +485,41 @@ void main() {
       expect(find.text('Iniciar sesión'), findsOneWidget);
       expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
       expect(find.text('Editar ruta'), findsNothing);
+    });
+  });
+
+  group('enlace compartido', () {
+    test('solo /ruta/<id> apunta a una línea', () {
+      expect(sharedLineOf(Uri.parse('https://subo.pe/ruta/california-porvenir')), 'california-porvenir');
+      expect(sharedLineOf(Uri.parse('https://subo.pe/')), isNull);
+      expect(sharedLineOf(Uri.parse('https://subo.pe/ruta/')), isNull);
+      expect(sharedLineOf(Uri.parse('https://subo.pe/otra/california-porvenir')), isNull);
+    });
+
+    testWidgets('quien llega por el enlace va directo a esa línea', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi(), sharedLine: 'california-porvenir'));
+      await tester.pumpAndSettle();
+
+      // Sin cuenta, lo mismo que al tocarla: se le pide entrar y luego la ve.
+      expect(find.text('Entra para ver el recorrido de la línea.'), findsOneWidget);
+      await _signIn(tester, password: 'pasajero-2026');
+      expect(find.text('PARADEROS'), findsOneWidget);
+    });
+
+    testWidgets('un enlace a una línea que ya no existe deja el mapa como siempre', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi(), sharedLine: 'borrada'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+      expect(find.text('Entra para ver el recorrido de la línea.'), findsNothing);
     });
   });
 }

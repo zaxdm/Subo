@@ -144,7 +144,7 @@ class _HomePageState extends State<HomePage> {
   Color _colorOf(BusRoute route) => _lineColors[widget.routes.indexOf(route) % _lineColors.length];
 
   static List<LatLng> _lineOf(BusRoute route) {
-    // Sin trazado dibujado, la línea une los paraderos.
+    // Sin trazado dibujado, la línea une los puntos de referencia.
     final points = route.path.length >= 2 ? route.path : route.stops;
     return [for (final point in points) LatLng(point.latitude, point.longitude)];
   }
@@ -231,6 +231,9 @@ class _HomePageState extends State<HomePage> {
       options: MapOptions(
         initialCenter: _trujillo,
         initialZoom: 12.5,
+        // Más lejos que esto ya no se distingue la ciudad.
+        minZoom: 10,
+        maxZoom: 18,
         onMapReady: () {
           _mapReady = true;
           _frame();
@@ -376,7 +379,7 @@ class _HomePageState extends State<HomePage> {
                 controller: _search,
                 onChanged: (_) => setState(() {}),
                 decoration: const InputDecoration(
-                  hintText: 'Busca una línea, zona o paradero',
+                  hintText: 'Busca una línea, zona o punto de referencia',
                   prefixIcon: Icon(Icons.search, size: 20),
                 ),
               ),
@@ -488,7 +491,7 @@ class _HomePageState extends State<HomePage> {
               child: _Fact(label: 'Demora', value: route.durationMinutes > 0 ? '${route.durationMinutes} min' : '—'),
             ),
             const SizedBox(width: 8),
-            Expanded(child: _Fact(label: 'Paraderos', value: '${route.stops.length}')),
+            Expanded(child: _Fact(label: 'Puntos de referencia', value: '${route.stops.length}')),
           ],
         ),
         if (route.schedule.isNotEmpty) ...[
@@ -562,7 +565,7 @@ class _HomePageState extends State<HomePage> {
               ? ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    Text('Pregunta como le preguntarías a alguien en el paradero.',
+                    Text('Pregunta como le preguntarías a alguien en el punto de referencia.',
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Palette.muted)),
                     const SizedBox(height: 14),
                     for (final idea in ideas)
