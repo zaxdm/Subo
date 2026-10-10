@@ -52,9 +52,20 @@ ApiClient _fakeApi({List<http.Request>? log}) {
       if (path == '/api/auth/register') {
         return json({'token': 'token-de-pasajero', 'user': {'displayName': 'Rosa Díaz'}}, 201);
       }
-      // Las líneas publicadas las ve cualquiera, con o sin cuenta.
+      // Las líneas publicadas y las alertas las ve cualquiera, con o sin cuenta.
       if (request.method == 'GET' && path == '/api/routes') return json({'routes': [_route]});
+      if (request.method == 'GET' && path == '/api/alerts') {
+        return json({
+          'alerts': [
+            {'id': 'a1', 'type': 'TRAFFIC', 'latitude': -8.11, 'longitude': -79.03, 'placeName': 'Av. España'},
+          ],
+        });
+      }
       if (request.headers['Authorization'] == 'Bearer token-de-pasajero') {
+        if (path == '/api/assistant') {
+          return json({'answer': 'Toma la California hasta Huanchaco.', 'routeId': 'california-porvenir'});
+        }
+        if (path == '/api/feedback') return json({'id': 'sugerencia-2'}, 201);
         return json({'error': 'solo_administrador', 'message': 'Tu cuenta no tiene acceso de administrador'}, 403);
       }
       if (request.headers['Authorization'] != 'Bearer token-de-prueba') {
@@ -87,6 +98,11 @@ ApiClient _fakeApi({List<http.Request>? log}) {
 }
 
 Future<void> _signIn(WidgetTester tester, {String password = 'micro-2026'}) async {
+  // Se entra a la web por el mapa; el acceso se abre desde la barra de arriba.
+  if (find.text('Entrar').evaluate().isEmpty) {
+    await tester.tap(find.text('Iniciar sesión'));
+    await tester.pumpAndSettle();
+  }
   await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'ana@correo.pe');
   await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), password);
   await tester.tap(find.text('Entrar'));
@@ -174,7 +190,7 @@ void main() {
       await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
       await _signIn(tester, password: 'pasajero-2026');
 
-      expect(find.text('HOLA, LUIS'), findsOneWidget);
+      expect(find.text('Hola, Luis. ¿Qué micro tomas hoy?'), findsOneWidget);
       expect(find.text('California'), findsOneWidget);
       // Nada del panel: ni sus secciones ni la forma de cambiar una ruta.
       expect(find.text('Sugerencias'), findsNothing);
@@ -184,10 +200,108 @@ void main() {
       // Y tampoco pidió el catálogo de administración.
       expect(log.any((request) => request.url.path.endsWith('/api/admin/routes')), isFalse);
 
-      await tester.tap(find.text('Ver recorrido'));
+      await tester.tap(find.text('California'));
       await tester.pumpAndSettle();
       expect(find.text('PARADEROS'), findsOneWidget);
       expect(find.text('Huanchaco'), findsOneWidget);
+    });
+
+    testWidgets('se entra directo al mapa, pero abrir una línea pide sesión', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+
+      // Sin cuenta ya se ven el mapa y las líneas.
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+      expect(find.text('El Porvenir – Huanchaco'), findsOneWidget);
+
+      // Tocar una línea lleva al acceso, no a su recorrido.
+      await tester.tap(find.text('California'));
+      await tester.pumpAndSettle();
+      expect(find.text('PARADEROS'), findsNothing);
+      expect(find.text('Entra para ver el recorrido de la línea.'), findsOneWidget);
+
+      // Al entrar, la línea que quería ver ya está abierta.
+      await _signIn(tester, password: 'pasajero-2026');
+      expect(find.text('PARADEROS'), findsOneWidget);
+      expect(find.text('Todas las líneas'), findsOneWidget);
+    });
+
+    testWidgets('el asistente pide sesión y recomienda una línea', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Asistente'));
+      await tester.pumpAndSettle();
+      expect(find.text('Entrar para preguntar'), findsOneWidget);
+
+      await _signIn(tester, password: 'pasajero-2026');
+      await tester.tap(find.text('Asistente'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('¿Qué micro va a Huanchaco?'));
+      await tester.pumpAndSettle();
+      expect(find.text('Toma la California hasta Huanchaco.'), findsOneWidget);
+
+      await tester.tap(find.text('Ver California en el mapa'));
+      await tester.pumpAndSettle();
+      expect(find.text('PARADEROS'), findsOneWidget);
+    });
+
+    testWidgets('las alertas y las páginas del pie se ven sin cuenta', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Alertas'));
+      await tester.pumpAndSettle();
+      expect(find.text('Tráfico'), findsOneWidget);
+      expect(find.text('Av. España'), findsOneWidget);
+
+      await tester.tap(find.text('Nosotros').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
+
+      await tester.tap(find.text('Privacidad'));
+      await tester.pumpAndSettle();
+      expect(find.text('Qué datos usamos y para qué'), findsOneWidget);
+
+      await tester.tap(find.text('Términos'));
+      await tester.pumpAndSettle();
+      expect(find.text('Las reglas para usar Subo'), findsOneWidget);
+
+      // Escribir al equipo sí pide cuenta.
+      await tester.tap(find.text('Contacto').last);
+      await tester.pumpAndSettle();
+      expect(find.text('Entrar para escribirnos'), findsOneWidget);
+    });
+
+    testWidgets('con cuenta se puede escribir al equipo', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final log = <http.Request>[];
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _signIn(tester, password: 'pasajero-2026');
+      await tester.tap(find.text('Contacto').last);
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tu mensaje'), 'La línea B ya no pasa por Mansiche');
+      await tester.tap(find.text('Enviar mensaje'));
+      await tester.pumpAndSettle();
+
+      final sent = jsonDecode(log.lastWhere((request) => request.url.path.endsWith('/api/feedback')).body) as Map;
+      expect(sent['subject'], 'Una ruta está mal');
+      expect(sent['message'], 'La línea B ya no pasa por Mansiche');
+      expect(find.text('Mensaje enviado. Gracias por ayudarnos a mejorar.'), findsOneWidget);
     });
 
     testWidgets('se puede crear una cuenta, que es de pasajero', (tester) async {
@@ -197,6 +311,8 @@ void main() {
 
       final log = <http.Request>[];
       await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await tester.tap(find.text('Iniciar sesión'));
+      await tester.pumpAndSettle();
       await tester.tap(find.text('Crea tu cuenta'));
       await tester.pumpAndSettle();
 
@@ -207,7 +323,7 @@ void main() {
       await tester.tap(find.text('Crear mi cuenta'));
       await tester.pumpAndSettle();
       expect(find.text('Usa al menos 8 caracteres'), findsOneWidget);
-      expect(log, isEmpty);
+      expect(log.any((request) => request.url.path.endsWith('/register')), isFalse);
 
       await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), 'micro-seguro-1');
       await tester.tap(find.text('Crear mi cuenta'));
@@ -215,27 +331,8 @@ void main() {
 
       final sent = jsonDecode(log.firstWhere((request) => request.url.path.endsWith('/register')).body) as Map;
       expect(sent, {'displayName': 'Rosa Díaz', 'email': 'rosa@correo.pe', 'password': 'micro-seguro-1'});
-      expect(find.text('HOLA, ROSA'), findsOneWidget);
+      expect(find.text('Hola, Rosa. ¿Qué micro tomas hoy?'), findsOneWidget);
       expect(find.text('Editar ruta'), findsNothing);
-    });
-
-    testWidgets('sin cuenta se pueden mirar las líneas', (tester) async {
-      tester.view.physicalSize = const Size(1400, 1000);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.reset);
-
-      await tester.pumpWidget(AdminApp(api: _fakeApi()));
-      await tester.tap(find.text('Ver las líneas sin cuenta'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('LÍNEAS DE TRUJILLO'), findsOneWidget);
-      expect(find.text('California'), findsOneWidget);
-      expect(find.text('Editar ruta'), findsNothing);
-
-      // Desde ahí se vuelve al acceso.
-      await tester.tap(find.text('Iniciar sesión'));
-      await tester.pumpAndSettle();
-      expect(find.text('Entrar'), findsOneWidget);
     });
 
     testWidgets('al entrar se ve el catálogo y se puede filtrar', (tester) async {
@@ -324,7 +421,10 @@ void main() {
       await tester.tap(find.text('Cerrar sesión'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Inicia sesión'), findsOneWidget);
+      // De vuelta en el mapa, como cualquier visitante.
+      expect(find.text('Iniciar sesión'), findsOneWidget);
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+      expect(find.text('Editar ruta'), findsNothing);
     });
   });
 }

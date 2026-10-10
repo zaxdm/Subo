@@ -175,6 +175,58 @@ class BusRoute {
   }
 }
 
+/// Un aviso de la calle: tráfico, un accidente, obras…
+class CityAlert {
+  CityAlert({
+    required this.id,
+    required this.type,
+    required this.latitude,
+    required this.longitude,
+    this.placeName,
+    this.comment,
+    this.confirmations = 0,
+  });
+
+  final String id;
+  final String type;
+  final double latitude;
+  final double longitude;
+  final String? placeName;
+  final String? comment;
+
+  /// Cuánta gente dijo que sigue ahí.
+  final int confirmations;
+
+  /// El tipo, dicho como en la app.
+  String get label => switch (type) {
+        'TRAFFIC' => 'Tráfico',
+        'ACCIDENT' => 'Accidente',
+        'OVERCHARGE' => 'Cobro de más',
+        'ROADWORK' => 'Obras',
+        'CROWDED' => 'Micro lleno',
+        'DANGER' => 'Zona peligrosa',
+        _ => 'Aviso',
+      };
+
+  factory CityAlert.fromJson(Map<String, dynamic> json) => CityAlert(
+        id: json['id'] as String? ?? '',
+        type: json['type'] as String? ?? '',
+        latitude: (json['latitude'] as num).toDouble(),
+        longitude: (json['longitude'] as num).toDouble(),
+        placeName: json['placeName'] as String?,
+        comment: json['comment'] as String?,
+        confirmations: (json['confirmations'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Lo que contesta el asistente y, si recomienda una línea, cuál.
+class AssistantAnswer {
+  const AssistantAnswer(this.text, this.routeId);
+
+  final String text;
+  final String? routeId;
+}
+
 /// Una sugerencia que alguien mandó desde Soporte en la app.
 class Suggestion {
   Suggestion({
@@ -324,6 +376,24 @@ class ApiClient {
     final url = data['url'] as String?;
     if (url == null) throw ApiException('El servidor no devolvió la dirección de la foto.');
     return url;
+  }
+
+  /// Las alertas que la gente dejó en la calle y siguen vigentes. No pide sesión.
+  Future<List<CityAlert>> alerts() async {
+    // Todo Trujillo desde su centro; el servidor recorta el radio a su máximo.
+    final data = await _send('GET', '/api/alerts?lat=-8.112&lon=-79.0288&radius=30000');
+    return [for (final alert in data['alerts'] as List? ?? const []) CityAlert.fromJson(alert as Map<String, dynamic>)];
+  }
+
+  /// Le pregunta al asistente. Pide sesión.
+  Future<AssistantAnswer> ask(String question) async {
+    final data = await _send('POST', '/api/assistant', body: {'question': question.trim(), 'language': 'es'});
+    return AssistantAnswer(data['answer'] as String? ?? '', data['routeId'] as String?);
+  }
+
+  /// Manda un mensaje al buzón del equipo. Pide sesión.
+  Future<void> sendFeedback({required String subject, required String message}) {
+    return _send('POST', '/api/feedback', body: {'subject': subject, 'message': message.trim(), 'appVersion': 'web'});
   }
 
   Future<Map<String, dynamic>> _send(

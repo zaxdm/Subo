@@ -4,10 +4,12 @@ import 'api.dart';
 import 'pages/catalog_page.dart';
 import 'pages/editor_page.dart';
 import 'pages/feedback_page.dart';
-import 'pages/lines_page.dart';
+import 'pages/home_page.dart';
+import 'pages/info_pages.dart';
 import 'pages/login_page.dart';
 import 'theme.dart';
 import 'widgets/shell.dart';
+import 'widgets/site_shell.dart';
 
 void main() => runApp(const AdminApp());
 
@@ -28,12 +30,11 @@ class AdminApp extends StatelessWidget {
   }
 }
 
-/// Decide qué se ve. Sin sesión, el acceso. Un pasajero (o quien mira sin
-/// cuenta) ve las líneas; un administrador, el panel: el catálogo, el editor
-/// de una ruta o el buzón.
+/// Decide qué se ve.
 ///
-/// El catálogo se guarda aquí para que al volver del editor no haya que
-/// pedirlo otra vez al servidor.
+/// Cualquiera entra directo a la web de los pasajeros: el mapa con las líneas
+/// y las páginas de información. Con una cuenta de administrador se pasa al
+/// panel: el catálogo, el editor de una ruta o el buzón.
 class AdminHome extends StatefulWidget {
   const AdminHome({super.key, required this.api});
 
@@ -47,8 +48,26 @@ class _AdminHomeState extends State<AdminHome> {
   /// Quién entró; `null` sin sesión.
   Session? _session;
 
-  /// Mirando las líneas sin cuenta.
-  bool _guest = false;
+  // --- La web de los pasajeros ---
+
+  /// Las líneas publicadas, las que ve todo el mundo.
+  List<BusRoute> _lines = [];
+  bool _loadingLines = true;
+  String? _linesError;
+  SitePage _page = SitePage.map;
+
+  /// Se está viendo el acceso en lugar de una página.
+  bool _signingIn = false;
+
+  /// La línea abierta en el mapa.
+  String? _openLine;
+
+  /// La línea que alguien quiso abrir sin sesión: se abre al entrar.
+  String? _wantedLine;
+
+  // --- El panel de administración ---
+
+  /// El catálogo completo, con las rutas pendientes y ocultas.
   List<BusRoute> _routes = [];
 
   /// La ruta abierta en el editor; `null` si se ve el catálogo.
@@ -60,34 +79,77 @@ class _AdminHomeState extends State<AdminHome> {
 
   bool get _isAdmin => _session?.isAdmin ?? false;
 
+  @override
+  void initState() {
+    super.initState();
+    _loadLines();
+  }
+
+  Future<void> _loadLines() async {
+    setState(() {
+      _loadingLines = true;
+      _linesError = null;
+    });
+    try {
+      final lines = await _api.publicRoutes();
+      if (!mounted) return;
+      setState(() => _lines = lines);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => _linesError = error is ApiException ? error.message : 'No se pudieron cargar las líneas.');
+    } finally {
+      if (mounted) setState(() => _loadingLines = false);
+    }
+  }
+
   void _onSignedIn(Session session, List<BusRoute> routes) {
     setState(() {
       _session = session;
-      _guest = false;
-      _routes = routes;
+      _signingIn = false;
+      if (session.isAdmin) {
+        _routes = routes;
+      } else {
+        _lines = routes;
+        _linesError = null;
+        // Vuelve a donde estaba, con la línea que quería ver ya abierta.
+        if (_wantedLine != null) {
+          _openLine = _wantedLine;
+          _page = SitePage.map;
+        }
+      }
+      _wantedLine = null;
     });
     if (session.isAdmin) _notify('Sesión iniciada. El catálogo está actualizado.');
-  }
-
-  void _onGuest(List<BusRoute> routes) {
-    setState(() {
-      _guest = true;
-      _routes = routes;
-    });
   }
 
   void _signOut() {
     _api.signOut();
     setState(() {
       _session = null;
-      _guest = false;
       _routes = [];
       _editing = null;
       _section = AdminSection.routes;
+      _openLine = null;
+      _wantedLine = null;
+      _page = SitePage.map;
     });
+    // Lo que cambió el administrador ya se ve en el mapa.
+    _loadLines();
   }
 
-  /// Enseña el fallo y, si la sesión caducó, vuelve a la pantalla de acceso.
+  /// Abrir el recorrido de una línea pide sesión.
+  void _selectLine(String? id) {
+    if (id != null && _session == null) {
+      setState(() {
+        _wantedLine = id;
+        _signingIn = true;
+      });
+      return;
+    }
+    setState(() => _openLine = id);
+  }
+
+  /// Enseña el fallo y, si la sesión caducó, vuelve a pedir que se entre.
   void _onError(Object error) {
     _notify(error is ApiException ? error.message : 'Algo falló. Inténtalo de nuevo.', error: true);
     if (error is ApiException && error.unauthorized) _signOut();
@@ -109,10 +171,10 @@ class _AdminHomeState extends State<AdminHome> {
 
   Future<void> _refresh() async {
     try {
-      final routes = _isAdmin ? await _api.routes() : await _api.publicRoutes();
+      final routes = await _api.routes();
       if (!mounted) return;
       setState(() => _routes = routes);
-      _notify(_isAdmin ? 'Catálogo actualizado.' : 'Líneas actualizadas.');
+      _notify('Catálogo actualizado.');
     } catch (error) {
       _onError(error);
     }
@@ -135,17 +197,59 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => _isAdmin ? _buildPanel() : _buildSite();
+
+  Widget _buildSite() {
     final session = _session;
-    final editing = _editing;
-    final inside = session != null || _guest;
+    void signIn() => setState(() => _signingIn = true);
 
     final Widget page;
-    if (!inside) {
-      page = LoginPage(api: _api, onSignedIn: _onSignedIn, onGuest: _onGuest);
-    } else if (!_isAdmin) {
-      page = LinesPage(routes: _routes, onRefresh: _refresh, greeting: session?.name);
-    } else if (_section == AdminSection.feedback) {
+    if (_signingIn) {
+      page = LoginPage(
+        api: _api,
+        onSignedIn: _onSignedIn,
+        reason: _wantedLine == null ? null : 'Entra para ver el recorrido de la línea.',
+      );
+    } else {
+      page = switch (_page) {
+        SitePage.map => HomePage(
+            api: _api,
+            routes: _lines,
+            loading: _loadingLines,
+            loadError: _linesError,
+            onRetry: _loadLines,
+            session: session,
+            selectedId: _openLine,
+            onSelect: _selectLine,
+            onSignIn: signIn,
+            onError: _onError,
+          ),
+        SitePage.about => const AboutPage(),
+        SitePage.privacy => const PrivacyPage(),
+        SitePage.terms => const TermsPage(),
+        SitePage.contact => ContactPage(api: _api, signedIn: session != null, onSignIn: signIn, onError: _onError),
+      };
+    }
+
+    return SiteShell(
+      page: _signingIn ? null : _page,
+      onPage: (page) => setState(() {
+        _page = page;
+        _signingIn = false;
+        _wantedLine = null;
+      }),
+      accountName: session?.name,
+      onSignIn: signIn,
+      onSignOut: session == null ? null : _signOut,
+      child: page,
+    );
+  }
+
+  Widget _buildPanel() {
+    final editing = _editing;
+
+    final Widget page;
+    if (_section == AdminSection.feedback) {
       page = FeedbackPage(api: _api, onError: _onError);
     } else if (editing != null) {
       page = EditorPage(
@@ -168,13 +272,12 @@ class _AdminHomeState extends State<AdminHome> {
     }
 
     return AdminShell(
-      accountName: session?.name,
-      onSignOut: inside ? _signOut : null,
-      signOutLabel: _guest ? 'Iniciar sesión' : 'Cerrar sesión',
-      admin: _isAdmin,
+      accountName: _session?.name,
+      onSignOut: _signOut,
+      admin: true,
       section: _section,
       // Una ruta a medio editar se queda esperando al volver de Sugerencias.
-      onSection: _isAdmin ? (section) => setState(() => _section = section) : null,
+      onSection: (section) => setState(() => _section = section),
       child: page,
     );
   }

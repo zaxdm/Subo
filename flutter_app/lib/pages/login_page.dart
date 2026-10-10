@@ -4,20 +4,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api.dart';
 import '../theme.dart';
 
-/// La puerta de Subo: entrar, crear una cuenta de pasajero o mirar las líneas
-/// sin cuenta.
+/// La puerta de Subo: entrar o crear una cuenta de pasajero.
 ///
 /// Pasajeros y administradores entran por aquí con el mismo formulario; el
 /// servidor decide a dónde va cada uno. Solo se recuerda la dirección del
 /// servidor; ni la contraseña ni la sesión se guardan en el navegador.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.api, required this.onSignedIn, required this.onGuest});
+  const LoginPage({super.key, required this.api, required this.onSignedIn, this.reason});
 
   final ApiClient api;
   final void Function(Session session, List<BusRoute> routes) onSignedIn;
 
-  /// Alguien que solo quiere mirar las líneas, sin cuenta.
-  final void Function(List<BusRoute> routes) onGuest;
+  /// Por qué se pide entrar, si alguien llegó aquí queriendo hacer algo.
+  final String? reason;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -105,11 +104,6 @@ class _LoginPageState extends State<LoginPage> {
     }, _registering ? 'No se pudo crear la cuenta. Inténtalo de nuevo.' : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
   }
 
-  Future<void> _browse() => _run(() async {
-        final routes = await widget.api.publicRoutes(server: _server.text);
-        if (mounted) widget.onGuest(routes);
-      }, 'No se pudieron cargar las líneas. Inténtalo de nuevo.');
-
   void _toggleMode() {
     setState(() {
       _registering = !_registering;
@@ -168,7 +162,7 @@ class _LoginPageState extends State<LoginPage> {
                 Text(
                   _registering
                       ? 'Es gratis y te sirve también en la app del celular.'
-                      : 'Entra con tu cuenta de Subo, la misma de la app.',
+                      : widget.reason ?? 'Entra con tu cuenta de Subo, la misma de la app.',
                   style: text.bodySmall?.copyWith(fontSize: 13),
                 ),
                 const SizedBox(height: 24),
@@ -248,11 +242,6 @@ class _LoginPageState extends State<LoginPage> {
                           : const Icon(Icons.arrow_forward, size: 18),
                     ],
                   ),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: _busy ? null : _browse,
-                  child: const Text('Ver las líneas sin cuenta'),
                 ),
                 const SizedBox(height: 14),
                 Wrap(
