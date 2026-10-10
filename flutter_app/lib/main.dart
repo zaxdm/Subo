@@ -71,7 +71,8 @@ class _AdminHomeState extends State<AdminHome> {
   List<BusRoute> _lines = [];
   bool _loadingLines = true;
   String? _linesError;
-  SitePage _page = SitePage.map;
+  /// Se abre por Inicio; quien llega por el enlace de una línea va al mapa.
+  late SitePage _page = widget.sharedLine == null ? SitePage.about : SitePage.map;
 
   /// La línea abierta en el mapa.
   String? _openLine;
@@ -157,7 +158,7 @@ class _AdminHomeState extends State<AdminHome> {
       _section = AdminSection.routes;
       _openLine = null;
       _wantedLine = null;
-      _page = SitePage.map;
+      _page = SitePage.about;
     });
     // Lo que cambió el administrador ya se ve en el mapa.
     _loadLines();

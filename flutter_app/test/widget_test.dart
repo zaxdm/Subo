@@ -97,6 +97,13 @@ ApiClient _fakeApi({List<http.Request>? log}) {
   );
 }
 
+/// Se entra por Inicio; al mapa se va desde la barra de arriba.
+Future<void> _openMap(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  await tester.tap(find.text('Mapa').first);
+  await tester.pumpAndSettle();
+}
+
 Future<void> _signIn(WidgetTester tester, {String password = 'micro-2026'}) async {
   // Se entra a la web por el mapa; el acceso se abre desde la barra de arriba.
   if (find.text('Entrar').evaluate().isEmpty) {
@@ -188,6 +195,7 @@ void main() {
 
       final log = <http.Request>[];
       await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _openMap(tester);
       await _signIn(tester, password: 'pasajero-2026');
 
       expect(find.text('Hola, Luis. ¿Qué micro tomas hoy?'), findsOneWidget);
@@ -206,12 +214,31 @@ void main() {
       expect(find.text('Huanchaco'), findsOneWidget);
     });
 
-    testWidgets('se entra directo al mapa, pero abrir una línea pide sesión', (tester) async {
+    testWidgets('se abre por Inicio, y el mapa es la segunda pestaña', (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
+      expect(find.text('¿Qué micro tomas hoy?'), findsNothing);
+      // En la barra, Inicio va antes que Mapa.
+      expect(tester.getTopLeft(find.text('Inicio').first).dx, lessThan(tester.getTopLeft(find.text('Mapa').first).dx));
+
+      await tester.tap(find.text('Ver el mapa'));
+      await tester.pumpAndSettle();
+      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+    });
+
+    testWidgets('el mapa se ve sin cuenta, pero abrir una línea pide sesión', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _openMap(tester);
       await tester.pumpAndSettle();
 
       // Sin cuenta ya se ven el mapa y las líneas.
@@ -236,6 +263,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _openMap(tester);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Asistente'));
       await tester.pumpAndSettle();
@@ -259,17 +287,18 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _openMap(tester);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Alertas'));
       await tester.pumpAndSettle();
       expect(find.text('Tráfico'), findsOneWidget);
       expect(find.text('Av. España'), findsOneWidget);
 
-      await tester.tap(find.text('Nosotros').last);
+      await tester.tap(find.text('Inicio').last);
       await tester.pumpAndSettle();
       expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
 
-      // Nosotros cuenta lo que ya hay en el mapa y deja sitio para las fotos.
+      // Inicio cuenta lo que ya hay en el mapa y deja sitio para las fotos.
       expect(find.text('líneas en el mapa'), findsOneWidget);
       expect(find.text('Foto de portada'), findsOneWidget);
       expect(find.text('Foto del equipo'), findsOneWidget);
@@ -305,6 +334,7 @@ void main() {
       addTearDown(tester.view.reset);
 
       await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _openMap(tester);
       await tester.pumpAndSettle();
       await tester.tap(find.text('Iniciar sesión'));
       await tester.pumpAndSettle();
@@ -371,6 +401,7 @@ void main() {
 
       final log = <http.Request>[];
       await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _openMap(tester);
       await tester.tap(find.text('Iniciar sesión'));
       await tester.pumpAndSettle();
       await tester.tap(find.text('Crea tu cuenta'));
@@ -481,9 +512,9 @@ void main() {
       await tester.tap(find.text('Cerrar sesión'));
       await tester.pumpAndSettle();
 
-      // De vuelta en el mapa, como cualquier visitante.
+      // De vuelta en Inicio, como cualquier visitante.
       expect(find.text('Iniciar sesión'), findsOneWidget);
-      expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
+      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
       expect(find.text('Editar ruta'), findsNothing);
     });
   });

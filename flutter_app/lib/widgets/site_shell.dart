@@ -6,8 +6,9 @@ import '../theme.dart';
 
 /// Las páginas de la web pública.
 enum SitePage {
+  /// La portada: quiénes somos y qué hace Subo. Es lo primero que se ve.
+  about('Inicio'),
   map('Mapa'),
-  about('Nosotros'),
   download('Descargar app'),
   privacy('Privacidad'),
   terms('Términos'),
@@ -87,7 +88,7 @@ class SiteShell extends StatelessWidget {
   final VoidCallback? onSignOut;
 
   /// Las páginas que caben en la barra de arriba; las legales van en el pie.
-  static const _navPages = [SitePage.map, SitePage.about, SitePage.download, SitePage.contact];
+  static const _navPages = [SitePage.about, SitePage.map, SitePage.download, SitePage.contact];
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +118,7 @@ class SiteShell extends StatelessWidget {
       child: Row(
         children: [
           InkWell(
-            onTap: () => onPage(SitePage.map),
+            onTap: () => onPage(SitePage.about),
             borderRadius: BorderRadius.circular(10),
             child: const _Brand(),
           ),
@@ -278,7 +279,7 @@ class SiteFooter extends StatelessWidget {
       ],
     );
     final site = column('El sitio', [
-      for (final item in [SitePage.map, SitePage.about, SitePage.download, SitePage.contact])
+      for (final item in [SitePage.about, SitePage.map, SitePage.download, SitePage.contact])
         _FooterLink(item.label, () => onPage(item)),
     ]);
     final legal = column('Legal', [

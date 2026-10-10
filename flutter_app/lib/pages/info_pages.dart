@@ -267,7 +267,7 @@ class AboutPage extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const _Heading(
-          kicker: 'NOSOTROS',
+          kicker: 'SUBO · TRUJILLO',
           title: 'Hecho en Trujillo, para moverse por Trujillo',
           lead: 'Subo nació de una pregunta que todos hemos hecho en la calle: «¿este micro me lleva?». '
               'Queremos que la respuesta esté en tu celular o en tu computadora, antes de salir de casa.',
@@ -278,7 +278,7 @@ class AboutPage extends StatelessWidget {
           runSpacing: 12,
           children: [
             FilledButton(onPressed: () => onPage(SitePage.map), child: const Text('Ver el mapa')),
-            OutlinedButton(onPressed: () => onPage(SitePage.contact), child: const Text('Escríbenos')),
+            OutlinedButton(onPressed: () => onPage(SitePage.download), child: const Text('Descargar la app')),
           ],
         ),
       ],
