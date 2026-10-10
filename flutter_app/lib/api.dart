@@ -6,8 +6,7 @@ import 'package:http/http.dart' as http;
 
 /// Dirección del servidor de Subo (la función `server` de Supabase).
 ///
-/// Se puede cambiar al compilar con `--dart-define=SERVER_URL=...`, y también
-/// desde "Opciones avanzadas" en la pantalla de acceso.
+/// Se puede cambiar al compilar con `--dart-define=SERVER_URL=...`.
 const defaultServerUrl = String.fromEnvironment(
   'SERVER_URL',
   defaultValue: 'https://ibgbrgeesrtrytmtygtz.supabase.co/functions/v1/server',
@@ -413,14 +412,38 @@ class ApiClient {
 
   /// Entra con una cuenta. Todos usan el mismo acceso: es el servidor quien
   /// dice si la cuenta es de administrador o de pasajero.
-  Future<Session> signIn({required String server, required String email, required String password}) {
+  Future<Session> signIn({String? server, required String email, required String password}) {
     return _open(server, '/api/auth/login', {'email': email.trim(), 'password': password}, email);
+  }
+
+  /// El desafío de un solo uso con el que se firma un acceso con Google.
+  Future<String> googleChallenge() async {
+    final data = await _send('POST', '/api/auth/google/challenge');
+    final nonce = data['nonce'] as String?;
+    if (nonce == null) throw ApiException('El acceso con Google no está disponible ahora.');
+    return nonce;
+  }
+
+  /// Entra con la credencial que dio Google. Si el correo ya tenía cuenta con
+  /// contraseña, el servidor pide esa contraseña ([existingPassword]) para
+  /// unirlas.
+  Future<Session> signInWithGoogle({required String idToken, required String nonce, String? existingPassword}) {
+    return _open(
+      null,
+      '/api/auth/google',
+      {
+        'idToken': idToken,
+        'nonce': nonce,
+        if (existingPassword != null && existingPassword.isNotEmpty) 'existingPassword': existingPassword,
+      },
+      'Tu cuenta',
+    );
   }
 
   /// Crea una cuenta de pasajero y entra con ella. Por aquí nunca sale una
   /// cuenta de administrador: esas las da el administrador principal.
   Future<Session> register({
-    required String server,
+    String? server,
     required String displayName,
     required String email,
     required String password,
@@ -433,8 +456,8 @@ class ApiClient {
     );
   }
 
-  Future<Session> _open(String server, String path, Map<String, dynamic> body, String email) async {
-    baseUrl = normalizeServerUrl(server);
+  Future<Session> _open(String? server, String path, Map<String, dynamic> body, String email) async {
+    if (server != null) baseUrl = normalizeServerUrl(server);
     _token = null;
     try {
       final opened = await _send('POST', path, body: body);

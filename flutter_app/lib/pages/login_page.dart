@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../api.dart';
 import '../theme.dart';
+import '../widgets/google_button.dart';
 
 /// La puerta de Subo: entrar o crear una cuenta de pasajero.
 ///
 /// Pasajeros y administradores entran por aquí con el mismo formulario; el
-/// servidor decide a dónde va cada uno. Solo se recuerda la dirección del
-/// servidor; ni la contraseña ni la sesión se guardan en el navegador.
+/// servidor decide a dónde va cada uno. En el navegador también se entra con
+/// Google. Ni la contraseña ni la sesión se guardan en el navegador.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key, required this.api, required this.onSignedIn, this.reason, this.onClose});
 
@@ -27,11 +27,9 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  static const _serverKey = 'ruta-norte-server';
   static const _passwordMinLength = 8;
 
   final _form = GlobalKey<FormState>();
-  final _server = TextEditingController(text: defaultServerUrl);
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
@@ -42,24 +40,11 @@ class _LoginPageState extends State<LoginPage> {
   bool _showPassword = false;
   String? _error;
 
-  @override
-  void initState() {
-    super.initState();
-    _restoreServer();
-  }
-
-  Future<void> _restoreServer() async {
-    try {
-      final saved = (await SharedPreferences.getInstance()).getString(_serverKey);
-      if (saved != null && saved.isNotEmpty && mounted) _server.text = saved;
-    } catch (_) {
-      // Sin almacenamiento (modo privado): se usa la dirección por defecto.
-    }
-  }
+  /// Cada intento con Google gasta su desafío: al cambiar, el botón pide otro.
+  int _googleAttempt = 0;
 
   @override
   void dispose() {
-    _server.dispose();
     _name.dispose();
     _email.dispose();
     _password.dispose();
@@ -89,23 +74,33 @@ class _LoginPageState extends State<LoginPage> {
     await _run(() async {
       final api = widget.api;
       final session = _registering
-          ? await api.register(
-              server: _server.text,
-              displayName: _name.text,
-              email: _email.text,
-              password: _password.text,
-            )
-          : await api.signIn(server: _server.text, email: _email.text, password: _password.text);
-      final routes = session.isAdmin ? await api.routes() : await api.publicRoutes();
-      try {
-        (await SharedPreferences.getInstance()).setString(_serverKey, api.baseUrl);
-      } catch (_) {
-        // No poder recordarla no impide entrar.
-      }
-      if (!mounted) return;
-      _password.clear();
-      widget.onSignedIn(session, routes);
+          ? await api.register(displayName: _name.text, email: _email.text, password: _password.text)
+          : await api.signIn(email: _email.text, password: _password.text);
+      await _enter(session);
     }, _registering ? 'No se pudo crear la cuenta. Inténtalo de nuevo.' : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
+  }
+
+  /// Google ya confirmó la cuenta; el servidor comprueba su credencial.
+  Future<void> _withGoogle(String idToken, String nonce) async {
+    await _run(() async {
+      // Si el correo ya tenía cuenta, la contraseña escrita sirve para unirlas.
+      final session = await widget.api.signInWithGoogle(
+        idToken: idToken,
+        nonce: nonce,
+        existingPassword: _password.text,
+      );
+      await _enter(session);
+    }, 'No se pudo entrar con Google. Inténtalo de nuevo.');
+    if (mounted) setState(() => _googleAttempt++);
+  }
+
+  /// Con la sesión abierta, carga lo que le toca ver a esa cuenta y entra.
+  Future<void> _enter(Session session) async {
+    final api = widget.api;
+    final routes = session.isAdmin ? await api.routes() : await api.publicRoutes();
+    if (!mounted) return;
+    _password.clear();
+    widget.onSignedIn(session, routes);
   }
 
   void _toggleMode() {
@@ -261,6 +256,30 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
+                if (googleSignInAvailable) ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('o', style: text.bodySmall),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  LayoutBuilder(
+                    builder: (context, constraints) => Center(
+                      child: GoogleButton(
+                        key: ValueKey(_googleAttempt),
+                        nonce: widget.api.googleChallenge,
+                        onToken: _withGoogle,
+                        width: constraints.maxWidth.clamp(200, 400).toDouble(),
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(height: 14),
                 Wrap(
                   alignment: WrapAlignment.center,
@@ -273,34 +292,6 @@ class _LoginPageState extends State<LoginPage> {
                       child: Text(_registering ? 'Inicia sesión' : 'Crea tu cuenta'),
                     ),
                   ],
-                ),
-                // Casi nadie necesita tocar la dirección del servidor: va plegada.
-                Theme(
-                  data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                  child: ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: const EdgeInsets.only(bottom: 8),
-                    title: Text('Opciones avanzadas', style: text.bodySmall),
-                    children: [
-                      TextFormField(
-                        controller: _server,
-                        enabled: !_busy,
-                        keyboardType: TextInputType.url,
-                        decoration: const InputDecoration(
-                          labelText: 'Servidor de la app',
-                          hintText: 'https://tu-proyecto.supabase.co/functions/v1/server',
-                        ),
-                        validator: (value) {
-                          try {
-                            normalizeServerUrl(value ?? '');
-                            return null;
-                          } on ApiException catch (error) {
-                            return error.message;
-                          }
-                        },
-                      ),
-                    ],
-                  ),
                 ),
               ],
             ),

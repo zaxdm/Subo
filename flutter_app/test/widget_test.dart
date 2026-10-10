@@ -136,6 +136,53 @@ void main() {
     });
   });
 
+  group('acceso con Google', () {
+    test('pide un desafío y entra con la credencial de Google', () async {
+      final log = <http.Request>[];
+      final api = ApiClient(
+        client: MockClient((request) async {
+          log.add(request);
+          final path = request.url.path.split('/server').last;
+          http.Response json(Object body, [int status = 200]) =>
+              http.Response(jsonEncode(body), status, headers: {'content-type': 'application/json'});
+          return switch (path) {
+            '/api/auth/google/challenge' => json({'nonce': 'desafio-de-un-solo-uso'}),
+            '/api/auth/google' => json({'token': 't', 'user': {'displayName': 'Luis Rojas'}}),
+            // No es administrador: es un pasajero.
+            _ => json({'error': 'solo_administrador', 'message': 'Sin acceso'}, 403),
+          };
+        }),
+      );
+
+      final nonce = await api.googleChallenge();
+      final session = await api.signInWithGoogle(idToken: 'credencial', nonce: nonce, existingPassword: '');
+
+      expect(session.name, 'Luis Rojas');
+      expect(session.isAdmin, isFalse);
+      final sent = jsonDecode(log.firstWhere((r) => r.url.path.endsWith('/api/auth/google')).body) as Map;
+      // Sin contraseña escrita no se manda ninguna.
+      expect(sent, {'idToken': 'credencial', 'nonce': 'desafio-de-un-solo-uso'});
+    });
+
+    test('si el correo ya tenía cuenta, dice que hace falta su contraseña', () async {
+      final api = ApiClient(
+        client: MockClient((request) async => http.Response.bytes(
+              utf8.encode(jsonEncode({
+                'error': 'google_vinculacion_requerida',
+                'message': 'Este correo ya tiene una cuenta. Escribe su contraseña',
+              })),
+              409,
+              headers: {'content-type': 'application/json; charset=utf-8'},
+            )),
+      );
+      await expectLater(
+        api.signInWithGoogle(idToken: 'credencial', nonce: 'n'),
+        throwsA(isA<ApiException>().having((e) => e.message, 'mensaje', contains('Escribe su contraseña'))),
+      );
+      expect(api.isSignedIn, isFalse);
+    });
+  });
+
   group('ruta', () {
     test('se lee y se manda con el formato del servidor', () {
       final route = BusRoute.fromJson(_route);

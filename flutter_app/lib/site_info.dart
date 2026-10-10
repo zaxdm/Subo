@@ -3,6 +3,14 @@
 /// Un dato vacío se muestra como «Próximamente»: basta escribirlo aquí para
 /// que aparezca en Contacto y en el pie de página.
 abstract final class SiteInfo {
+  /// El cliente OAuth de tipo Web de Google, el mismo que usa la app. No es
+  /// un secreto: va en la página. En Google Cloud tiene que tener autorizada
+  /// la dirección de esta web como «origen de JavaScript».
+  static const googleClientId = String.fromEnvironment(
+    'GOOGLE_CLIENT_ID',
+    defaultValue: '608487070231-84hnjf4mr3rollfpdat0ev4vqa5ud6ot.apps.googleusercontent.com',
+  );
+
   /// Correo al que escribe la gente.
   static const email = '';
 
