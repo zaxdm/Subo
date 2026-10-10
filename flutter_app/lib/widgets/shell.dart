@@ -11,6 +11,8 @@ class AdminShell extends StatelessWidget {
     required this.child,
     this.accountName,
     this.onSignOut,
+    this.admin = false,
+    this.signOutLabel = 'Cerrar sesión',
     this.section = AdminSection.routes,
     this.onSection,
   });
@@ -20,6 +22,13 @@ class AdminShell extends StatelessWidget {
   /// `null` antes de entrar.
   final String? accountName;
   final VoidCallback? onSignOut;
+
+  /// `true` con una cuenta de administrador: el marco enseña el panel. Si no,
+  /// es la web de los pasajeros.
+  final bool admin;
+
+  /// Lo que dice el botón de salir: quien mira sin cuenta va a iniciar sesión.
+  final String signOutLabel;
 
   /// La sección que se está viendo.
   final AdminSection section;
@@ -37,7 +46,13 @@ class AdminShell extends StatelessWidget {
           final wide = constraints.maxWidth >= _wideBreakpoint;
           final content = Column(
             children: [
-              _Header(accountName: accountName, onSignOut: onSignOut, compact: !wide),
+              _Header(
+                accountName: accountName,
+                onSignOut: onSignOut,
+                signOutLabel: signOutLabel,
+                admin: admin,
+                compact: !wide,
+              ),
               const Divider(),
               Expanded(child: child),
             ],
@@ -45,7 +60,7 @@ class AdminShell extends StatelessWidget {
           if (!wide) {
             return Column(
               children: [
-                const _Brand(compact: true),
+                _Brand(compact: true, admin: admin),
                 // Sin barra lateral, las secciones van en una franja bajo la marca.
                 if (onSection != null)
                   Container(
@@ -56,7 +71,12 @@ class AdminShell extends StatelessWidget {
                       children: [
                         for (final item in AdminSection.values) ...[
                           Expanded(
-                            child: _NavItem(section: item, active: item == section, onTap: () => onSection!(item)),
+                            child: _NavItem(
+                              label: item.label,
+                              icon: item.icon,
+                              active: item == section,
+                              onTap: () => onSection!(item),
+                            ),
                           ),
                           if (item != AdminSection.values.last) const SizedBox(width: 8),
                         ],
@@ -69,7 +89,7 @@ class AdminShell extends StatelessWidget {
           }
           return Row(
             children: [
-              SizedBox(width: 230, child: _Sidebar(section: section, onSection: onSection)),
+              SizedBox(width: 230, child: _Sidebar(section: section, onSection: onSection, admin: admin)),
               Expanded(
                 child: Padding(padding: const EdgeInsets.symmetric(horizontal: 44), child: content),
               ),
@@ -94,12 +114,13 @@ enum AdminSection {
 
 /// Una sección en la navegación; la activa va resaltada.
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.section, required this.active, required this.onTap});
+  const _NavItem({required this.label, required this.icon, required this.active, required this.onTap});
 
-  final AdminSection section;
+  final String label;
+  final IconData icon;
   final bool active;
 
-  /// `null` antes de entrar: se ve, pero no lleva a ningún sitio.
+  /// `null` si no hay otra sección a la que ir.
   final VoidCallback? onTap;
 
   @override
@@ -117,10 +138,10 @@ class _NavItem extends StatelessWidget {
           padding: const EdgeInsets.all(16),
           child: Row(
             children: [
-              Icon(section.icon, size: 16, color: active ? Palette.accent : Palette.sidebarMuted),
+              Icon(icon, size: 16, color: active ? Palette.accent : Palette.sidebarMuted),
               const SizedBox(width: 12),
               Flexible(
-                child: Text(section.label,
+                child: Text(label,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: active ? Colors.white : Palette.sidebarMuted,
@@ -136,8 +157,9 @@ class _NavItem extends StatelessWidget {
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.section, required this.onSection});
+  const _Sidebar({required this.section, required this.onSection, required this.admin});
 
+  final bool admin;
   final AdminSection section;
   final void Function(AdminSection section)? onSection;
 
@@ -149,20 +171,19 @@ class _Sidebar extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _Brand(compact: false),
+          _Brand(compact: false, admin: admin),
           const SizedBox(height: 60),
           Text('TU CIUDAD, CONECTADA',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.sidebarMuted, fontSize: 9)),
           const SizedBox(height: 16),
-          // Antes de entrar solo se ve la sección de rutas, como adelanto.
-          for (final item in onSection == null ? [AdminSection.routes] : AdminSection.values) ...[
-            _NavItem(
-              section: item,
-              active: item == section,
-              onTap: onSection == null ? null : () => onSection!(item),
-            ),
-            const SizedBox(height: 6),
-          ],
+          // Los pasajeros solo tienen las líneas; las secciones son del panel.
+          if (onSection == null)
+            const _NavItem(label: 'Líneas', icon: Icons.alt_route, active: true, onTap: null)
+          else
+            for (final item in AdminSection.values) ...[
+              _NavItem(label: item.label, icon: item.icon, active: item == section, onTap: () => onSection!(item)),
+              const SizedBox(height: 6),
+            ],
           const Spacer(),
           const Row(
             children: [
@@ -186,9 +207,10 @@ class _Sidebar extends StatelessWidget {
 }
 
 class _Brand extends StatelessWidget {
-  const _Brand({required this.compact});
+  const _Brand({required this.compact, required this.admin});
 
   final bool compact;
+  final bool admin;
 
   @override
   Widget build(BuildContext context) {
@@ -212,9 +234,9 @@ class _Brand extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: compact ? 17 : 19)),
               const SizedBox(height: 3),
-              const Text('ADMINISTRACIÓN',
+              Text(admin ? 'ADMINISTRACIÓN' : 'TRUJILLO',
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Color(0xFFCFC5A3), fontSize: 10, letterSpacing: 2)),
+                  style: const TextStyle(color: Color(0xFFCFC5A3), fontSize: 10, letterSpacing: 2)),
             ],
           ),
         ),
@@ -231,10 +253,18 @@ class _Brand extends StatelessWidget {
 }
 
 class _Header extends StatelessWidget {
-  const _Header({required this.accountName, required this.onSignOut, required this.compact});
+  const _Header({
+    required this.accountName,
+    required this.onSignOut,
+    required this.signOutLabel,
+    required this.admin,
+    required this.compact,
+  });
 
   final String? accountName;
   final VoidCallback? onSignOut;
+  final String signOutLabel;
+  final bool admin;
   final bool compact;
 
   @override
@@ -245,7 +275,7 @@ class _Header extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text('CENTRO DE CONTROL',
+            child: Text(admin ? 'CENTRO DE CONTROL' : 'TRANSPORTE PÚBLICO DE TRUJILLO',
                 overflow: TextOverflow.ellipsis,
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.accentText)),
           ),
@@ -253,14 +283,14 @@ class _Header extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 260),
             child: Text(
-              accountName ?? 'Acceso de administrador',
+              accountName ?? '',
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(color: Palette.muted, fontSize: 12),
             ),
           ),
           if (onSignOut != null) ...[
             const SizedBox(width: 12),
-            TextButton(onPressed: onSignOut, child: const Text('Cerrar sesión')),
+            TextButton(onPressed: onSignOut, child: Text(signOutLabel)),
           ],
         ],
       ),

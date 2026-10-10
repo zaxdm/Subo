@@ -4,6 +4,7 @@ import 'api.dart';
 import 'pages/catalog_page.dart';
 import 'pages/editor_page.dart';
 import 'pages/feedback_page.dart';
+import 'pages/lines_page.dart';
 import 'pages/login_page.dart';
 import 'theme.dart';
 import 'widgets/shell.dart';
@@ -19,7 +20,7 @@ class AdminApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Subo · Administración',
+      title: 'Subo',
       debugShowCheckedModeBanner: false,
       theme: buildTheme(),
       home: AdminHome(api: api ?? ApiClient()),
@@ -27,7 +28,9 @@ class AdminApp extends StatelessWidget {
   }
 }
 
-/// Decide qué se ve: el acceso, el catálogo, el editor de una ruta o el buzón.
+/// Decide qué se ve. Sin sesión, el acceso. Un pasajero (o quien mira sin
+/// cuenta) ve las líneas; un administrador, el panel: el catálogo, el editor
+/// de una ruta o el buzón.
 ///
 /// El catálogo se guarda aquí para que al volver del editor no haya que
 /// pedirlo otra vez al servidor.
@@ -41,7 +44,11 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
-  String? _accountName;
+  /// Quién entró; `null` sin sesión.
+  Session? _session;
+
+  /// Mirando las líneas sin cuenta.
+  bool _guest = false;
   List<BusRoute> _routes = [];
 
   /// La ruta abierta en el editor; `null` si se ve el catálogo.
@@ -51,18 +58,29 @@ class _AdminHomeState extends State<AdminHome> {
 
   ApiClient get _api => widget.api;
 
-  void _onSignedIn(String name, List<BusRoute> routes) {
+  bool get _isAdmin => _session?.isAdmin ?? false;
+
+  void _onSignedIn(Session session, List<BusRoute> routes) {
     setState(() {
-      _accountName = name;
+      _session = session;
+      _guest = false;
       _routes = routes;
     });
-    _notify('Sesión iniciada. El catálogo está actualizado.');
+    if (session.isAdmin) _notify('Sesión iniciada. El catálogo está actualizado.');
+  }
+
+  void _onGuest(List<BusRoute> routes) {
+    setState(() {
+      _guest = true;
+      _routes = routes;
+    });
   }
 
   void _signOut() {
     _api.signOut();
     setState(() {
-      _accountName = null;
+      _session = null;
+      _guest = false;
       _routes = [];
       _editing = null;
       _section = AdminSection.routes;
@@ -91,10 +109,10 @@ class _AdminHomeState extends State<AdminHome> {
 
   Future<void> _refresh() async {
     try {
-      final routes = await _api.routes();
+      final routes = _isAdmin ? await _api.routes() : await _api.publicRoutes();
       if (!mounted) return;
       setState(() => _routes = routes);
-      _notify('Catálogo actualizado.');
+      _notify(_isAdmin ? 'Catálogo actualizado.' : 'Líneas actualizadas.');
     } catch (error) {
       _onError(error);
     }
@@ -118,12 +136,15 @@ class _AdminHomeState extends State<AdminHome> {
 
   @override
   Widget build(BuildContext context) {
-    final name = _accountName;
+    final session = _session;
     final editing = _editing;
+    final inside = session != null || _guest;
 
     final Widget page;
-    if (name == null) {
-      page = LoginPage(api: _api, onSignedIn: _onSignedIn);
+    if (!inside) {
+      page = LoginPage(api: _api, onSignedIn: _onSignedIn, onGuest: _onGuest);
+    } else if (!_isAdmin) {
+      page = LinesPage(routes: _routes, onRefresh: _refresh, greeting: session?.name);
     } else if (_section == AdminSection.feedback) {
       page = FeedbackPage(api: _api, onError: _onError);
     } else if (editing != null) {
@@ -147,11 +168,13 @@ class _AdminHomeState extends State<AdminHome> {
     }
 
     return AdminShell(
-      accountName: name,
-      onSignOut: name == null ? null : _signOut,
+      accountName: session?.name,
+      onSignOut: inside ? _signOut : null,
+      signOutLabel: _guest ? 'Iniciar sesión' : 'Cerrar sesión',
+      admin: _isAdmin,
       section: _section,
       // Una ruta a medio editar se queda esperando al volver de Sugerencias.
-      onSection: name == null ? null : (section) => setState(() => _section = section),
+      onSection: _isAdmin ? (section) => setState(() => _section = section) : null,
       child: page,
     );
   }

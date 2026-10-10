@@ -43,9 +43,19 @@ ApiClient _fakeApi({List<http.Request>? log}) {
       final path = request.url.path.split('/server').last;
       if (path == '/api/auth/login') {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
-        return body['password'] == 'micro-2026'
-            ? json({'token': 'token-de-prueba', 'user': {'displayName': 'Ana'}})
-            : json({'error': 'credenciales_invalidas', 'message': 'Correo o contraseña incorrectos'}, 401);
+        return switch (body['password']) {
+          'micro-2026' => json({'token': 'token-de-prueba', 'user': {'displayName': 'Ana'}}),
+          'pasajero-2026' => json({'token': 'token-de-pasajero', 'user': {'displayName': 'Luis Rojas'}}),
+          _ => json({'error': 'credenciales_invalidas', 'message': 'Correo o contraseña incorrectos'}, 401),
+        };
+      }
+      if (path == '/api/auth/register') {
+        return json({'token': 'token-de-pasajero', 'user': {'displayName': 'Rosa Díaz'}}, 201);
+      }
+      // Las líneas publicadas las ve cualquiera, con o sin cuenta.
+      if (request.method == 'GET' && path == '/api/routes') return json({'routes': [_route]});
+      if (request.headers['Authorization'] == 'Bearer token-de-pasajero') {
+        return json({'error': 'solo_administrador', 'message': 'Tu cuenta no tiene acceso de administrador'}, 403);
       }
       if (request.headers['Authorization'] != 'Bearer token-de-prueba') {
         return json({'error': 'no_autorizado', 'message': 'Inicia sesión para continuar'}, 401);
@@ -79,7 +89,7 @@ ApiClient _fakeApi({List<http.Request>? log}) {
 Future<void> _signIn(WidgetTester tester, {String password = 'micro-2026'}) async {
   await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'ana@correo.pe');
   await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), password);
-  await tester.tap(find.text('Entrar al panel'));
+  await tester.tap(find.text('Entrar'));
   await tester.pumpAndSettle();
 }
 
@@ -152,7 +162,80 @@ void main() {
       await _signIn(tester, password: 'otra-cosa');
 
       expect(find.text('Correo o contraseña incorrectos'), findsOneWidget);
-      expect(find.text('Ingresa al panel'), findsOneWidget);
+      expect(find.text('Inicia sesión'), findsOneWidget);
+    });
+
+    testWidgets('un pasajero entra por el mismo acceso y no ve el panel', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final log = <http.Request>[];
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _signIn(tester, password: 'pasajero-2026');
+
+      expect(find.text('HOLA, LUIS'), findsOneWidget);
+      expect(find.text('California'), findsOneWidget);
+      // Nada del panel: ni sus secciones ni la forma de cambiar una ruta.
+      expect(find.text('Sugerencias'), findsNothing);
+      expect(find.text('Editar ruta'), findsNothing);
+      expect(find.text('Nueva ruta'), findsNothing);
+      expect(find.text('CENTRO DE CONTROL'), findsNothing);
+      // Y tampoco pidió el catálogo de administración.
+      expect(log.any((request) => request.url.path.endsWith('/api/admin/routes')), isFalse);
+
+      await tester.tap(find.text('Ver recorrido'));
+      await tester.pumpAndSettle();
+      expect(find.text('PARADEROS'), findsOneWidget);
+      expect(find.text('Huanchaco'), findsOneWidget);
+    });
+
+    testWidgets('se puede crear una cuenta, que es de pasajero', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final log = <http.Request>[];
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await tester.tap(find.text('Crea tu cuenta'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tu nombre'), 'Rosa Díaz');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'rosa@correo.pe');
+      // Una contraseña corta no llega a mandarse.
+      await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), 'corta');
+      await tester.tap(find.text('Crear mi cuenta'));
+      await tester.pumpAndSettle();
+      expect(find.text('Usa al menos 8 caracteres'), findsOneWidget);
+      expect(log, isEmpty);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), 'micro-seguro-1');
+      await tester.tap(find.text('Crear mi cuenta'));
+      await tester.pumpAndSettle();
+
+      final sent = jsonDecode(log.firstWhere((request) => request.url.path.endsWith('/register')).body) as Map;
+      expect(sent, {'displayName': 'Rosa Díaz', 'email': 'rosa@correo.pe', 'password': 'micro-seguro-1'});
+      expect(find.text('HOLA, ROSA'), findsOneWidget);
+      expect(find.text('Editar ruta'), findsNothing);
+    });
+
+    testWidgets('sin cuenta se pueden mirar las líneas', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.tap(find.text('Ver las líneas sin cuenta'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('LÍNEAS DE TRUJILLO'), findsOneWidget);
+      expect(find.text('California'), findsOneWidget);
+      expect(find.text('Editar ruta'), findsNothing);
+
+      // Desde ahí se vuelve al acceso.
+      await tester.tap(find.text('Iniciar sesión'));
+      await tester.pumpAndSettle();
+      expect(find.text('Entrar'), findsOneWidget);
     });
 
     testWidgets('al entrar se ve el catálogo y se puede filtrar', (tester) async {
@@ -241,7 +324,7 @@ void main() {
       await tester.tap(find.text('Cerrar sesión'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Ingresa al panel'), findsOneWidget);
+      expect(find.text('Inicia sesión'), findsOneWidget);
     });
   });
 }

@@ -15,15 +15,28 @@ const defaultServerUrl = String.fromEnvironment(
 
 /// Fallo con un mensaje listo para enseñar al administrador.
 class ApiException implements Exception {
-  ApiException(this.message, {this.unauthorized = false});
+  ApiException(this.message, {this.unauthorized = false, this.forbidden = false});
 
   final String message;
+
+  /// La cuenta existe, pero no tiene permiso para eso.
+  final bool forbidden;
 
   /// La sesión ya no vale: hay que volver a la pantalla de acceso.
   final bool unauthorized;
 
   @override
   String toString() => message;
+}
+
+/// La cuenta con la que se entró.
+class Session {
+  const Session(this.name, {required this.isAdmin});
+
+  final String name;
+
+  /// `false`: un pasajero, que no ve el panel de administración.
+  final bool isAdmin;
 }
 
 /// Un punto del mapa.
@@ -227,17 +240,45 @@ class ApiClient {
 
   bool get isSignedIn => _token != null;
 
-  /// Entra con una cuenta y comprueba que es de administrador.
-  /// Devuelve el nombre con el que se ve la cuenta.
-  Future<String> signIn({required String server, required String email, required String password}) async {
+  /// Entra con una cuenta. Todos usan el mismo acceso: es el servidor quien
+  /// dice si la cuenta es de administrador o de pasajero.
+  Future<Session> signIn({required String server, required String email, required String password}) {
+    return _open(server, '/api/auth/login', {'email': email.trim(), 'password': password}, email);
+  }
+
+  /// Crea una cuenta de pasajero y entra con ella. Por aquí nunca sale una
+  /// cuenta de administrador: esas las da el administrador principal.
+  Future<Session> register({
+    required String server,
+    required String displayName,
+    required String email,
+    required String password,
+  }) {
+    return _open(
+      server,
+      '/api/auth/register',
+      {'displayName': displayName.trim(), 'email': email.trim(), 'password': password},
+      email,
+    );
+  }
+
+  Future<Session> _open(String server, String path, Map<String, dynamic> body, String email) async {
     baseUrl = normalizeServerUrl(server);
     _token = null;
     try {
-      final login = await _send('POST', '/api/auth/login', body: {'email': email.trim(), 'password': password});
-      _token = login['token'] as String?;
+      final opened = await _send('POST', path, body: body);
+      _token = opened['token'] as String?;
       if (_token == null) throw ApiException('El servidor no devolvió una sesión. Revisa su dirección.');
-      final admin = await _send('GET', '/api/admin/me');
-      return admin['displayName'] as String? ?? email.trim();
+      final user = opened['user'];
+      final name = (user is Map ? user['displayName'] as String? : null) ?? email.trim();
+      try {
+        final admin = await _send('GET', '/api/admin/me');
+        return Session(admin['displayName'] as String? ?? name, isAdmin: true);
+      } on ApiException catch (error) {
+        // Que no sea administrador no es un fallo: es un pasajero.
+        if (!error.forbidden) rethrow;
+        return Session(name, isAdmin: false);
+      }
     } catch (_) {
       _token = null;
       rethrow;
@@ -245,6 +286,13 @@ class ApiClient {
   }
 
   void signOut() => _token = null;
+
+  /// Las líneas publicadas, tal como las ve cualquier pasajero. No pide sesión.
+  Future<List<BusRoute>> publicRoutes({String? server}) async {
+    if (server != null) baseUrl = normalizeServerUrl(server);
+    final data = await _send('GET', '/api/routes');
+    return [for (final route in data['routes'] as List? ?? const []) BusRoute.fromJson(route as Map<String, dynamic>)];
+  }
 
   Future<List<BusRoute>> routes() async {
     final data = await _send('GET', '/api/admin/routes');
@@ -319,11 +367,12 @@ class ApiClient {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       // Un 401 al entrar es una contraseña mala; en cualquier otro momento, la sesión caducó.
-      final expired = response.statusCode == 401 && path != '/api/auth/login';
+      final expired = response.statusCode == 401 && !path.startsWith('/api/auth/');
       if (expired) _token = null;
       throw ApiException(
         data['message'] as String? ?? 'No se pudo completar la operación (${response.statusCode}).',
         unauthorized: expired,
+        forbidden: response.statusCode == 403,
       );
     }
     return data;

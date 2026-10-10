@@ -4,15 +4,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../api.dart';
 import '../theme.dart';
 
-/// Acceso al panel con una cuenta de Subo marcada como administrador.
+/// La puerta de Subo: entrar, crear una cuenta de pasajero o mirar las líneas
+/// sin cuenta.
 ///
-/// Solo se recuerda la dirección del servidor; ni la contraseña ni la sesión
-/// se guardan en el navegador.
+/// Pasajeros y administradores entran por aquí con el mismo formulario; el
+/// servidor decide a dónde va cada uno. Solo se recuerda la dirección del
+/// servidor; ni la contraseña ni la sesión se guardan en el navegador.
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key, required this.api, required this.onSignedIn});
+  const LoginPage({super.key, required this.api, required this.onSignedIn, required this.onGuest});
 
   final ApiClient api;
-  final void Function(String accountName, List<BusRoute> routes) onSignedIn;
+  final void Function(Session session, List<BusRoute> routes) onSignedIn;
+
+  /// Alguien que solo quiere mirar las líneas, sin cuenta.
+  final void Function(List<BusRoute> routes) onGuest;
 
   @override
   State<LoginPage> createState() => _LoginPageState();
@@ -20,12 +25,16 @@ class LoginPage extends StatefulWidget {
 
 class _LoginPageState extends State<LoginPage> {
   static const _serverKey = 'ruta-norte-server';
+  static const _passwordMinLength = 8;
 
   final _form = GlobalKey<FormState>();
   final _server = TextEditingController(text: defaultServerUrl);
+  final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
 
+  /// `true`: se está creando una cuenta en lugar de entrar con una.
+  bool _registering = false;
   bool _busy = false;
   bool _showPassword = false;
   String? _error;
@@ -48,35 +57,64 @@ class _LoginPageState extends State<LoginPage> {
   @override
   void dispose() {
     _server.dispose();
+    _name.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
   }
 
-  Future<void> _submit() async {
-    if (_busy || !_form.currentState!.validate()) return;
+  /// Hace [work] con el formulario bloqueado y enseña el fallo si lo hay.
+  Future<void> _run(Future<void> Function() work, String fallback) async {
+    if (_busy) return;
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      final name = await widget.api.signIn(server: _server.text, email: _email.text, password: _password.text);
-      final routes = await widget.api.routes();
+      await work();
+    } catch (error) {
+      widget.api.signOut();
+      if (!mounted) return;
+      setState(() => _error = error is ApiException ? error.message : fallback);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _submit() async {
+    if (!_form.currentState!.validate()) return;
+    await _run(() async {
+      final api = widget.api;
+      final session = _registering
+          ? await api.register(
+              server: _server.text,
+              displayName: _name.text,
+              email: _email.text,
+              password: _password.text,
+            )
+          : await api.signIn(server: _server.text, email: _email.text, password: _password.text);
+      final routes = session.isAdmin ? await api.routes() : await api.publicRoutes();
       try {
-        (await SharedPreferences.getInstance()).setString(_serverKey, widget.api.baseUrl);
+        (await SharedPreferences.getInstance()).setString(_serverKey, api.baseUrl);
       } catch (_) {
         // No poder recordarla no impide entrar.
       }
       if (!mounted) return;
       _password.clear();
-      widget.onSignedIn(name, routes);
-    } catch (error) {
-      widget.api.signOut();
-      if (!mounted) return;
-      setState(() => _error = error is ApiException ? error.message : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
+      widget.onSignedIn(session, routes);
+    }, _registering ? 'No se pudo crear la cuenta. Inténtalo de nuevo.' : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
+  }
+
+  Future<void> _browse() => _run(() async {
+        final routes = await widget.api.publicRoutes(server: _server.text);
+        if (mounted) widget.onGuest(routes);
+      }, 'No se pudieron cargar las líneas. Inténtalo de nuevo.');
+
+  void _toggleMode() {
+    setState(() {
+      _registering = !_registering;
+      _error = null;
+    });
   }
 
   @override
@@ -122,20 +160,37 @@ class _LoginPageState extends State<LoginPage> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text('BIENVENIDO', style: text.labelSmall?.copyWith(color: Palette.accentText)),
+                Text(_registering ? 'CUENTA NUEVA' : 'BIENVENIDO',
+                    style: text.labelSmall?.copyWith(color: Palette.accentText)),
                 const SizedBox(height: 10),
-                Text('Ingresa al panel', style: text.titleLarge?.copyWith(fontSize: 23)),
+                Text(_registering ? 'Crea tu cuenta' : 'Inicia sesión', style: text.titleLarge?.copyWith(fontSize: 23)),
                 const SizedBox(height: 6),
-                Text('Usa tu cuenta de Subo con permisos de administrador.',
-                    style: text.bodySmall?.copyWith(fontSize: 13)),
+                Text(
+                  _registering
+                      ? 'Es gratis y te sirve también en la app del celular.'
+                      : 'Entra con tu cuenta de Subo, la misma de la app.',
+                  style: text.bodySmall?.copyWith(fontSize: 13),
+                ),
                 const SizedBox(height: 24),
+                if (_registering) ...[
+                  TextFormField(
+                    controller: _name,
+                    enabled: !_busy,
+                    textCapitalization: TextCapitalization.words,
+                    autofillHints: const [AutofillHints.name],
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(labelText: 'Tu nombre'),
+                    validator: (value) => (value ?? '').trim().isEmpty ? 'Escribe tu nombre' : null,
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 TextFormField(
                   controller: _email,
                   enabled: !_busy,
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.username, AutofillHints.email],
                   textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(labelText: 'Correo', hintText: 'admin@correo.pe'),
+                  decoration: const InputDecoration(labelText: 'Correo', hintText: 'tucorreo@gmail.com'),
                   validator: (value) => (value ?? '').trim().contains('@') ? null : 'Escribe tu correo',
                 ),
                 const SizedBox(height: 16),
@@ -143,18 +198,74 @@ class _LoginPageState extends State<LoginPage> {
                   controller: _password,
                   enabled: !_busy,
                   obscureText: !_showPassword,
-                  autofillHints: const [AutofillHints.password],
+                  autofillHints: [_registering ? AutofillHints.newPassword : AutofillHints.password],
                   textInputAction: TextInputAction.done,
                   onFieldSubmitted: (_) => _submit(),
                   decoration: InputDecoration(
                     labelText: 'Contraseña',
+                    helperText: _registering ? 'Al menos $_passwordMinLength caracteres' : null,
                     suffixIcon: IconButton(
                       tooltip: _showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña',
                       icon: Icon(_showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined, size: 20),
                       onPressed: () => setState(() => _showPassword = !_showPassword),
                     ),
                   ),
-                  validator: (value) => (value ?? '').isEmpty ? 'Escribe tu contraseña' : null,
+                  validator: (value) {
+                    final password = value ?? '';
+                    if (password.isEmpty) return 'Escribe tu contraseña';
+                    if (_registering && password.length < _passwordMinLength) {
+                      return 'Usa al menos $_passwordMinLength caracteres';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                if (_error != null) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Palette.dangerSoft,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFE8C3B9)),
+                    ),
+                    child: Text(_error!, style: const TextStyle(color: Palette.danger, fontSize: 13)),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                FilledButton(
+                  onPressed: _busy ? null : _submit,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Flexible(
+                        child: Text(
+                          _busy ? 'Un momento…' : (_registering ? 'Crear mi cuenta' : 'Entrar'),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      _busy
+                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          : const Icon(Icons.arrow_forward, size: 18),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                OutlinedButton(
+                  onPressed: _busy ? null : _browse,
+                  child: const Text('Ver las líneas sin cuenta'),
+                ),
+                const SizedBox(height: 14),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(_registering ? '¿Ya tienes cuenta?' : '¿Primera vez en Subo?',
+                        style: text.bodySmall?.copyWith(fontSize: 13)),
+                    TextButton(
+                      onPressed: _busy ? null : _toggleMode,
+                      child: Text(_registering ? 'Inicia sesión' : 'Crea tu cuenta'),
+                    ),
+                  ],
                 ),
                 // Casi nadie necesita tocar la dirección del servidor: va plegada.
                 Theme(
@@ -162,7 +273,7 @@ class _LoginPageState extends State<LoginPage> {
                   child: ExpansionTile(
                     tilePadding: EdgeInsets.zero,
                     childrenPadding: const EdgeInsets.only(bottom: 8),
-                    title: Text('Opciones avanzadas', style: text.bodySmall?.copyWith(fontSize: 13)),
+                    title: Text('Opciones avanzadas', style: text.bodySmall),
                     children: [
                       TextFormField(
                         controller: _server,
@@ -184,33 +295,6 @@ class _LoginPageState extends State<LoginPage> {
                     ],
                   ),
                 ),
-                if (_error != null) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Palette.dangerSoft,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFE8C3B9)),
-                    ),
-                    child: Text(_error!, style: const TextStyle(color: Palette.danger, fontSize: 13)),
-                  ),
-                  const SizedBox(height: 12),
-                ],
-                const SizedBox(height: 4),
-                FilledButton(
-                  onPressed: _busy ? null : _submit,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(child: Text(_busy ? 'Entrando…' : 'Entrar al panel', overflow: TextOverflow.ellipsis)),
-                      _busy
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.arrow_forward, size: 18),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text('Los permisos se comprueban en el servidor.', textAlign: TextAlign.center, style: text.bodySmall),
               ],
             ),
           ),
@@ -241,20 +325,52 @@ class _Intro extends StatelessWidget {
         const SizedBox(height: 22),
         Text.rich(
           TextSpan(
-            text: 'Las rutas de tu ciudad,\n',
-            children: const [TextSpan(text: 'en tus manos.', style: TextStyle(color: Palette.accentText))],
+            text: 'Sube al micro correcto,\n',
+            children: const [TextSpan(text: 'sin dar vueltas.', style: TextStyle(color: Palette.accentText))],
           ),
           style: headline,
         ),
         const SizedBox(height: 18),
         ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 400),
+          constraints: const BoxConstraints(maxWidth: 420),
           child: Text(
-            'Actualiza los recorridos, identifica cada micro y ayuda a más personas a llegar a su destino.',
+            'Mira las líneas de Trujillo antes de salir: por dónde pasan, dónde paran, cuánto cuesta el pasaje y en qué horario.',
             style: text.bodyMedium?.copyWith(color: Palette.muted, fontSize: narrow ? 14 : 16, height: 1.7),
           ),
         ),
+        const SizedBox(height: 26),
+        const _Perk(icon: Icons.alt_route, label: 'El recorrido de cada línea, en el mapa'),
+        const _Perk(icon: Icons.place_outlined, label: 'Paraderos por donde pasa'),
+        const _Perk(icon: Icons.payments_outlined, label: 'Pasaje, horario y cuánto demora'),
       ],
+    );
+  }
+}
+
+/// Una de las cosas que se pueden hacer en Subo, en una línea.
+class _Perk extends StatelessWidget {
+  const _Perk({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(9)),
+            child: Icon(icon, size: 17, color: Palette.accentText),
+          ),
+          const SizedBox(width: 12),
+          Flexible(child: Text(label, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500))),
+        ],
+      ),
     );
   }
 }

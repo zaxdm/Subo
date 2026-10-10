@@ -1,11 +1,11 @@
 {
-    "name": "Subo · Administración",
+    "name": "Subo · Micros de Trujillo",
     "short_name": "Subo",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#FBF8EE",
     "theme_color": "#F5B800",
-    "description": "Panel de administración de Subo",
+    "description": "Las líneas de micro de Trujillo: recorrido, paraderos, pasaje y horario.",
     "orientation": "any",
     "prefer_related_applications": false,
     "icons": [
