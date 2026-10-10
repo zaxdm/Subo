@@ -2,10 +2,10 @@
 # Compila la web para Cloudflare Pages.
 #
 # Cloudflare no trae Flutter instalado, así que se descarga en cada despliegue.
-# En Cloudflare Pages:
+# En Cloudflare (Workers & Pages):
 #   Directorio raíz:        flutter_app
 #   Comando de compilación: bash cloudflare-build.sh
-#   Directorio de salida:   build/web
+#   Comando de despliegue:  npx wrangler deploy (usa wrangler.jsonc)
 set -euo pipefail
 
 # La misma versión con la que se desarrolla; se puede cambiar con una variable

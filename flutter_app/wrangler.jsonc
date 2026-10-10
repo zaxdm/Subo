@@ -1,0 +1,10 @@
+// Publica la web ya compilada (build/web) en Cloudflare como sitio estático.
+// La compila antes cloudflare-build.sh.
+{
+  "name": "subo",
+  "compatibility_date": "2026-10-01",
+  "assets": {
+    "directory": "./build/web",
+    "not_found_handling": "single-page-application"
+  }
+}
