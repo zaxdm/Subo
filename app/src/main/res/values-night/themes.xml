@@ -1,7 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.Expresdm" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your dark theme here. -->
-        <!-- <item name="colorPrimary">@color/my_dark_primary</item> -->
+
+    <!--
+      Modo oscuro. Mismo nombre que el tema claro: Android elige este cuando el
+      sistema (o el ajuste de la app) está en oscuro.
+
+      Sobre negro el amarillo sí se lee, así que aquí también hace de color
+      principal para textos y marcas.
+    -->
+    <style name="Theme.Expresdm" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="colorPrimary">@color/yellow_500</item>
+        <item name="colorOnPrimary">@color/ink_950</item>
+        <item name="colorPrimaryContainer">@color/amber_900</item>
+        <item name="colorOnPrimaryContainer">@color/yellow_100</item>
+
+        <item name="colorSecondary">@color/yellow_300</item>
+        <item name="colorOnSecondary">@color/ink_950</item>
+        <item name="colorSecondaryContainer">@color/amber_900</item>
+        <item name="colorOnSecondaryContainer">@color/yellow_100</item>
+
+        <item name="colorTertiary">@color/yellow_500</item>
+        <item name="colorOnTertiary">@color/ink_950</item>
+        <item name="colorTertiaryContainer">@color/amber_900</item>
+        <item name="colorOnTertiaryContainer">@color/yellow_100</item>
+
+        <item name="android:colorBackground">@color/ink_950</item>
+        <item name="colorSurface">@color/ink_900</item>
+        <item name="colorOnSurface">@color/paper_100</item>
+        <item name="colorSurfaceVariant">@color/ink_800</item>
+        <item name="colorOnSurfaceVariant">@color/stone_400</item>
+        <item name="colorOutline">@color/ink_700</item>
+        <item name="colorOutlineVariant">@color/ink_700</item>
+
+        <item name="android:statusBarColor">@color/ink_950</item>
+        <item name="android:navigationBarColor">@color/ink_900</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
+
+        <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Expresdm.Small</item>
+        <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Expresdm.Medium</item>
+        <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Expresdm.Large</item>
+
+        <item name="materialCardViewStyle">@style/Widget.Expresdm.Card</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Expresdm.Fab</item>
+        <item name="bottomNavigationStyle">@style/Widget.Expresdm.BottomNav</item>
     </style>
+
 </resources>

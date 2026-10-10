@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Administración de rutas y micros de Ruta Norte, Trujillo.">
+  <title>Ruta Norte · Administración</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+  <script defer src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script defer src="app.js"></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="./"><span class="brand-icon">RN</span><span>Ruta Norte<small>ADMINISTRACIÓN</small></span></a>
+    <div class="nav-label">TU CIUDAD, CONECTADA</div>
+    <div class="nav-active"><span>↗</span> Rutas y micros</div>
+    <div class="sidebar-bottom"><span class="city-dot"></span> Trujillo, La Libertad<p>Un buen viaje empieza<br>con una buena ruta.</p></div>
+  </aside>
+  <main>
+    <header><span class="eyebrow">CENTRO DE CONTROL</span><div class="account"><span id="account-name">Acceso de administrador</span><button id="logout" class="text-button" hidden>Salir</button></div></header>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section id="login-section" class="login-layout">
+      <div class="intro"><span class="pill">RUTA NORTE · TRUJILLO</span><h1>Las rutas de tu ciudad,<br><em>en tus manos.</em></h1><p>Actualiza los recorridos, identifica cada micro y ayuda a más personas a llegar a su destino.</p><div class="intro-line"><span>01</span> Rutas claras <span>02</span> Micros reconocibles <span>03</span> Mejores viajes</div></div>
+      <form id="login-form" class="login-card">
+        <span class="eyebrow">BIENVENIDO</span><h2>Ingresa al panel</h2><p>Usa tu cuenta de Ruta Norte con permisos de administrador.</p>
+        <label>Servidor de la app<input id="server-url" type="url" required placeholder="https://tu-proyecto.supabase.co/functions/v1/server" autocomplete="url"></label>
+        <label>Correo<input id="email" type="email" required autocomplete="username" placeholder="admin@correo.pe"></label>
+        <label>Contraseña<input id="password" type="password" required autocomplete="current-password"></label>
+        <button class="primary" type="submit">Entrar al panel <span>→</span></button>
+        <small>Los permisos se comprueban en el servidor.</small>
+      </form>
+    </section>
+    <section id="dashboard" hidden>
+      <div class="page-heading"><div><span class="eyebrow">CATÁLOGO DE TRANSPORTE</span><h1>Rutas y micros</h1><p>Los recorridos que conectan Trujillo.</p></div><button id="new-route" class="primary">＋ Nueva ruta</button></div>
+      <div class="metrics"><div><span>Rutas en el catálogo</span><strong id="total-count">0</strong></div><div><span>Publicadas en la app</span><strong id="published-count">0</strong></div><div><span>Con foto del micro</span><strong id="photo-count">0</strong></div></div>
+      <div class="catalog-toolbar"><label class="search-label">⌕ <input id="route-search" placeholder="Buscar ruta, micro o destino" aria-label="Buscar rutas"></label><select id="status-filter" aria-label="Filtrar por estado"><option value="">Todos los estados</option><option value="APPROVED">Publicadas</option><option value="PENDING">Pendientes</option><option value="REJECTED">Ocultas</option></select><button id="refresh" class="secondary">Actualizar</button></div>
+      <div id="route-grid" class="route-grid"></div><p id="empty-catalog" class="empty" hidden>No hay rutas que coincidan. Crea una ruta o cambia los filtros.</p>
+    </section>
+    <section id="editor" hidden>
+      <div class="page-heading"><div><button id="back" class="text-button">← Volver al catálogo</button><h1 id="editor-title">Nueva ruta</h1><p>Define el micro, sus paraderos y su recorrido.</p></div><button id="save" class="primary" form="route-form" type="submit">Guardar ruta →</button></div>
+      <form id="route-form" class="editor-layout">
+        <div class="editor-fields">
+          <section class="panel"><div class="section-heading"><span class="step">01</span><h2>El micro y la ruta</h2></div>
+            <div class="two-columns"><label>Nombre de la ruta<input name="name" required maxlength="160" placeholder="California · Huanchaco"></label><label>Letra o código<input name="letter" required maxlength="12" placeholder="A"></label></div>
+            <label>Nombre del micro / empresa<input name="vehicleName" maxlength="120" placeholder="Empresa California"></label>
+            <div class="two-columns"><label>Origen<input name="origin" required maxlength="160" placeholder="El Porvenir"></label><label>Destino<input name="destination" required maxlength="160" placeholder="Huanchaco"></label></div>
+            <div class="two-columns"><label>Pasaje (S/)<input name="fare" type="number" min="0.1" max="50" step="0.1" required value="2"></label><label>Duración completa (min)<input name="durationMinutes" type="number" min="1" max="1440" step="1" required value="40"></label></div>
+            <label>Horario<input name="schedule" required maxlength="160" placeholder="05:00 – 22:00"></label>
+            <label>Descripción<textarea name="description" maxlength="1000" rows="3" placeholder="Colores del micro, referencias o detalles para reconocerlo"></textarea></label>
+            <label class="checkbox"><input name="bidirectional" type="checkbox" checked> Circula por este recorrido en ambos sentidos</label>
+            <label>Estado<select name="status"><option value="APPROVED">Publicada: visible en la app</option><option value="PENDING">Pendiente de revisión</option><option value="REJECTED">Oculta</option></select></label>
+          </section>
+          <section class="panel"><div class="section-heading"><span class="step">02</span><h2>Foto del micro</h2></div><div class="image-preview" id="image-preview"><span>Una foto ayuda a reconocer el micro</span></div><label>Subir imagen<input id="image-file" type="file" accept="image/jpeg,image/png,image/webp"></label><small>JPG, PNG o WebP · máximo 5 MB</small><label>O usar una imagen por URL<input name="imageUrl" type="url" placeholder="https://..."></label><button id="clear-image" type="button" class="text-button">Quitar foto</button></section>
+          <button id="delete-route" class="danger" type="button" hidden>Eliminar esta ruta</button>
+        </div>
+        <div class="editor-map-column"><section class="panel map-panel"><div class="section-heading"><span class="step">03</span><h2>Paraderos y recorrido</h2></div><p>Haz clic en el mapa para añadir puntos en el orden en que circula el micro.</p><div class="map-toolbar"><select id="map-mode" aria-label="Qué añadir al mapa"><option value="stops">Añadir paraderos</option><option value="path">Dibujar recorrido</option></select><button id="undo-point" class="secondary" type="button">Deshacer punto</button><button id="clear-path" class="text-button" type="button">Borrar trazado</button></div><div id="map" aria-label="Mapa para editar la ruta"></div><small>Los paraderos se usan para calcular dónde subir, cambiar y bajar. El trazado une los puntos dibujados; marca también las esquinas para seguir las calles.</small><div class="stops-heading"><h3>Paraderos en orden</h3><span id="stop-count">0 paraderos</span></div><div id="stop-list"></div><p id="no-stops" class="empty">Añade al menos dos paraderos en el mapa.</p></section></div>
+      </form>
+    </section>
+    <footer>Ruta Norte <span>·</span> Movemos Trujillo, una ruta a la vez.</footer>
+  </main>
+</body></html>

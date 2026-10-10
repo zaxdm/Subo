@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Línea que une la salida con el destino: del color de la salida al del destino. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <gradient
+        android:angle="270"
+        android:endColor="?attr/colorSecondary"
+        android:startColor="?attr/colorPrimary" />
+    <corners android:radius="2dp" />
+</shape>

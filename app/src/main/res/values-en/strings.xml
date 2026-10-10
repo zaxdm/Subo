@@ -1,0 +1,442 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="account_google">Continue with Google</string>
+    <string name="account_google_pending">Google sign-in will be available soon. You can sign in with your email.</string>
+    <string name="account_google_error">We could not open your Google account. Check your connection and that a Google account is available on your phone.</string>
+    <string name="account_google_working">Verifying your account…</string>
+    <string name="account_or_email">Or use your email and password</string>
+    <string name="destination_map">Destination selected on the map</string>
+    <string name="destination_needs_location">Enable your location to calculate directions from where you are.</string>
+    <string name="destination_tap_hint">Tap the map to choose where to go</string>
+    <string name="journey_ride_step">Take %1$s at %2$s and get off at %3$s (%4$d min)</string>
+    <string name="journey_walk_step">Walk %1$s (%2$d min)</string>
+    <!-- Traducción al inglés. El español vive en values/strings.xml. -->
+
+    <string name="app_name">Subo</string>
+
+    <!-- Buscador de lugares del inicio -->
+    <string name="search_hint">Where to?</string>
+    <string name="search_clear">Clear search</string>
+    <string name="search_label">SEARCH</string>
+    <string name="search_query_title">“%1$s”</string>
+    <string name="search_searching">Searching the map…</string>
+    <string name="search_pick_place">Pick the place to see which buses go there</string>
+    <string name="search_no_results">We couldn\'t find that place in Trujillo. Try another name.</string>
+    <string name="search_offline">Offline: showing known stops only</string>
+    <string name="search_too_short">Type at least 2 letters</string>
+    <string name="search_stop_detail">Stop on %1$s</string>
+    <plurals name="places_count">
+        <item quantity="one">%d place</item>
+        <item quantity="other">%d places</item>
+    </plurals>
+    <!-- Cómo llegar -->
+    <string name="journey_label">HOW TO GET THERE</string>
+    <string name="journey_status">Times are estimates: buses here have no published timetable</string>
+    <string name="journey_none">We couldn\'t find a way there with the buses we know</string>
+    <plurals name="journey_count">
+        <item quantity="one">%d option</item>
+        <item quantity="other">%d options</item>
+    </plurals>
+    <plurals name="journey_transfers">
+        <item quantity="one">%d TRANSFER</item>
+        <item quantity="other">%d TRANSFERS</item>
+    </plurals>
+    <string name="journey_chain_separator">›</string>
+    <string name="journey_board">Take %1$s at %2$s</string>
+    <string name="journey_change">Change to %1$s at %2$s</string>
+    <string name="journey_exit">Get off at %1$s</string>
+    <string name="journey_total_walk">%1$s on foot</string>
+    <string name="journey_walk_only">It\'s close: %1$s on foot</string>
+    <string name="journey_walk_to_stop">Walk %1$s</string>
+
+    <string name="place_routes_label">GOES THROUGH HERE</string>
+    <string name="place_routes_radius">Buses stopping within %1$s of this place</string>
+    <string name="place_no_routes">No known bus goes near this place</string>
+    <string name="place_close">Close search</string>
+
+    <!-- Inicio: rutas cercanas sobre el mapa -->
+    <string name="nearby_label">NEAR YOU</string>
+    <string name="nearby_title">Lines passing near you</string>
+    <string name="all_routes_title">All routes</string>
+    <string name="nearby_status_radius">Within %1$s of you</string>
+    <string name="nearby_status_none">No route passes within %1$s. These are the closest.</string>
+    <string name="location_status_waiting">Finding your location…</string>
+    <string name="location_status_no_permission">Turn on location to see only nearby routes</string>
+    <string name="location_status_off">Your phone\'s location is turned off</string>
+    <string name="location_action_enable">Turn on</string>
+    <string name="location_action_settings">Settings</string>
+    <string name="nearby_walk">%1$s · %2$d min walk · %3$s</string>
+    <string name="nearby_far">%1$s · %2$s</string>
+    <string name="distance_meters">%1$d m</string>
+    <string name="distance_km">%1$.1f km</string>
+    <string name="stop_marker">Stop: %1$s</string>
+    <string name="my_location">My location</string>
+    <string name="map_attribution">© OpenStreetMap contributors</string>
+    <string name="map_attribution_routing">© OpenStreetMap contributors · Routing: FOSSGIS</string>
+
+    <!-- Listado de rutas -->
+    <string name="routes_section_label">AVAILABLE ROUTES</string>
+    <plurals name="routes_count">
+        <item quantity="one">%d option</item>
+        <item quantity="other">%d options</item>
+    </plurals>
+    <string name="see_route">View route</string>
+    <string name="duration_minutes">%d min</string>
+    <string name="fare_format">S/ %.2f</string>
+    <string name="empty_routes">No routes to show</string>
+    <string name="empty_favorites">This fills itself: the routes you check most will show up here.</string>
+    <string name="route_stops">Stops along the way</string>
+    <string name="route_schedule">Hours</string>
+    <string name="route_fare">Fare</string>
+    <string name="route_duration">Duration</string>
+
+    <!-- Ruta elegida, trazada en el mapa del inicio -->
+    <string name="selected_walk">Walk %1$s · %2$d min to %3$s</string>
+    <string name="selected_walk_far">Your closest stop is %2$s, %1$s away</string>
+    <string name="selected_no_location">Turn on location to see where to walk to the stop</string>
+    <string name="selected_board_here">GET ON HERE</string>
+    <string name="selected_close">Close route</string>
+    <string name="selected_approximate">Approximate path: it couldn\'t be traced along the streets</string>
+    <!-- Aviso de llegada -->
+    <string name="arrival_card_idle">Tell me when I\'m arriving: an alert near my stop</string>
+    <string name="arrival_card_active">We\'ll let you know when you reach %1$s</string>
+    <string name="arrival_card_active_distance">We\'ll let you know when you reach %1$s · %2$s to go</string>
+    <string name="arrival_bar">Arrival alert · %1$s</string>
+    <string name="arrival_bar_distance">Arrival alert · %1$s · %2$s to go</string>
+    <string name="arrival_action_enable">Turn on</string>
+    <string name="arrival_action_cancel">Cancel</string>
+    <string name="arrival_pick_hint">Tap the map where you get off, on the route line</string>
+    <string name="arrival_pick_far">This bus does not go there: tap on its route line</string>
+    <string name="arrival_pick_point">Point on the route</string>
+    <string name="arrival_pick_chosen">You get off at %1$s · tap to move</string>
+    <string name="arrival_pick_confirm">Alert me here</string>
+    <string name="arrival_pick_close">Stop choosing</string>
+    <string name="arrival_pick_no_line">This route has no line on the map yet</string>
+    <string name="arrival_started">We\'ll let you know when you\'re arriving at %1$s</string>
+    <string name="arrival_cancelled">Arrival alert cancelled</string>
+    <string name="arrival_already_there">You\'re already within %1$s of %2$s</string>
+    <string name="arrival_needs_location">We need your location to tell you when you arrive</string>
+    <string name="arrival_location_off">Turn on your phone\'s location to get the arrival alert</string>
+    <string name="arrival_no_notifications">Alert on, but without notification permission you\'ll only see it with the app open</string>
+    <string name="arrival_failed">The alert couldn\'t be turned on. Check your phone\'s location.</string>
+    <string name="arrival_arrived">You\'re arriving at %1$s: get ready to get off</string>
+    <string name="arrival_channel_tracking_name">Arrival alert tracking</string>
+    <string name="arrival_channel_tracking_description">Ongoing notice while we wait for you to reach your stop</string>
+    <string name="arrival_channel_alert_name">Arrival alert</string>
+    <string name="arrival_channel_alert_description">Lets you know when you\'re arriving at your stop</string>
+    <string name="arrival_notification_tracking_title">We\'ll let you know when you reach %1$s</string>
+    <string name="arrival_notification_tracking_text">%1$s · %2$s to go</string>
+    <string name="arrival_notification_tracking_waiting">%1$s · finding your location…</string>
+    <string name="arrival_notification_title">You\'re arriving at %1$s</string>
+    <string name="arrival_notification_text">Get ready to get off the %1$s</string>
+
+    <plurals name="selected_alerts_on_route">
+        <item quantity="one">%d active alert on this route</item>
+        <item quantity="other">%d active alerts on this route</item>
+    </plurals>
+
+    <!-- Asistente -->
+    <string name="assistant_bubble_label">Assistant</string>
+    <string name="assistant_title">Assistant</string>
+    <string name="assistant_subtitle">Ask me which bus to take</string>
+    <string name="assistant_hint">Where do you want to go?</string>
+    <string name="assistant_send">Send</string>
+    <string name="assistant_thinking">Finding the best route…</string>
+    <string name="assistant_welcome">Hi. Tell me where you\'re heading and I\'ll tell you which bus to take, what it costs and how long it takes.</string>
+    <string name="assistant_see_route">View %1$s</string>
+    <string name="assistant_disabled">The assistant needs a Gemini key in local.properties to work.</string>
+    <string name="assistant_suggestion_1">How do I get to Huanchaco?</string>
+    <string name="assistant_suggestion_2">Which bus goes to UNT?</string>
+    <string name="assistant_suggestion_3">Cheapest route downtown</string>
+    <string name="assistant_ai_notice">AI-generated answers: check the timetable before travelling.</string>
+
+    <!-- Moderación -->
+    <string name="moderation_checking">Checking your alert…</string>
+    <string name="moderation_local_reason">Your comment contains offensive language ("%1$s"). Please rewrite it without insults.</string>
+
+    <!-- Agregar ruta: grabación en tiempo real -->
+    <string name="add_route">Add route</string>
+    <string name="add_route_dialog_title">Record a new route</string>
+    <string name="add_route_dialog_message">Get on the bus and tap Start. We\'ll record where it goes, even with the screen locked. When you reach the end, tap Finish and save.</string>
+    <string name="add_route_start">Start</string>
+    <string name="recording_title">Recording route</string>
+    <string name="recording_waiting_gps">Waiting for GPS signal…</string>
+    <string name="recording_weak_gps">Weak GPS signal (±%1$d m): move near a window or step outside</string>
+    <string name="recording_summary">%1$s · %2$d min · %3$d points</string>
+    <string name="recording_finish">Finish and save</string>
+    <string name="recording_save">Save</string>
+    <string name="recording_complete">Complete</string>
+    <string name="recording_discard">Discard recording</string>
+    <string name="recording_discard_title">Discard the recording?</string>
+    <string name="recording_discard_message">The recorded trip will be deleted. This can\'t be undone.</string>
+    <string name="recording_discard_confirm">Discard</string>
+    <string name="recording_interrupted_title">Unfinished recording</string>
+    <string name="recording_interrupted_summary">The app closed while you were recording: %1$s saved</string>
+    <string name="recording_pending_title">Route not saved</string>
+    <string name="recording_pending_summary">%1$s recorded. Fill in the details to save it.</string>
+    <string name="recording_too_short">The recording was too short to create a route</string>
+    <string name="recording_failed">Recording couldn\'t start. Check the location permission.</string>
+    <string name="recording_needs_location">We need your precise location to record the route</string>
+    <string name="recording_location_off">Turn on your phone\'s location to record the route</string>
+    <string name="recorder_channel_name">Route recording</string>
+    <string name="recorder_channel_description">Ongoing notice while you record a new route</string>
+    <string name="recorder_notification_title">Recording new route</string>
+    <string name="recorder_notification_text">%1$s travelled</string>
+
+    <!-- Formulario de la ruta nueva -->
+    <string name="new_route_title">New route</string>
+    <string name="new_route_summary">%1$s · %2$d min · %3$d stops</string>
+    <string name="new_route_local_note">For now the route is saved on this phone only.</string>
+    <string name="new_route_shared_note">This route will be shared with other users.</string>
+    <string name="new_route_shared_note_signed_out">Sign in from Profile if you want to share this route with others.</string>
+    <string name="new_route_path_snapping">Fitting the trip to the streets… It can take a couple of minutes; you can save without waiting.</string>
+    <string name="new_route_path_snapped">Trip fitted to the streets</string>
+    <string name="new_route_path_cleaned">Couldn\'t fit it to the streets (offline?). The cleaned trip will be saved and fitted later, when you view it on the map.</string>
+    <string name="new_route_section_data">ROUTE DETAILS</string>
+    <string name="new_route_name">Name (e.g. Micro 202)</string>
+    <string name="new_route_origin">From</string>
+    <string name="new_route_destination">To</string>
+    <string name="new_route_fare">Fare</string>
+    <string name="new_route_fare_prefix">S/ </string>
+    <string name="new_route_schedule">Hours (optional)</string>
+    <string name="new_route_schedule_placeholder">05:00 – 22:00</string>
+    <string name="new_route_schedule_unknown">Hours not given</string>
+    <string name="new_route_section_stops">STOPS</string>
+    <string name="new_route_stops_hint">We marked where the bus stood still for 30 seconds or more. Fix the names or remove the extra ones.</string>
+    <string name="new_route_stop_name">Stop name</string>
+    <string name="new_route_stop_resolving">Looking up the street name…</string>
+    <string name="new_route_stop_default">Stop %1$d</string>
+    <string name="new_route_remove_stop">Remove stop</string>
+    <string name="new_route_min_stops">A route needs at least 2 stops</string>
+    <string name="new_route_required">Required</string>
+    <string name="new_route_fare_invalid">Enter a valid fare, for example 1.50</string>
+    <string name="new_route_save">Save route</string>
+    <string name="new_route_discard">Discard</string>
+    <string name="new_route_saved">Route saved. It\'s on the map now.</string>
+    <string name="new_route_leave_title">Leave without saving?</string>
+    <string name="new_route_leave_message">The recording stays pending on the map so you can save it later.</string>
+    <string name="new_route_leave">Leave</string>
+    <string name="new_route_keep_editing">Keep editing</string>
+
+    <!-- Alertas -->
+    <string name="reports_title">Alerts</string>
+    <string name="reports_subtitle">What\'s happening on the streets now. Each alert expires on its own.</string>
+    <string name="reports_local_note">For now alerts are saved on this phone only.</string>
+    <string name="reports_shared_note">Alerts are shared with other users.</string>
+    <string name="reports_filter_all">All</string>
+    <string name="reports_filter_count">%1$s · %2$d</string>
+    <string name="reports_empty_title">No alerts right now</string>
+    <string name="reports_empty_body">Traffic, a crash or roadworks? Let others know and it\'ll show up on the map.</string>
+    <string name="reports_empty_filtered">No alerts of this type right now</string>
+    <string name="reports_published">Alert posted on the map</string>
+    <string name="report_action">Report</string>
+    <string name="alert_type_traffic">Traffic</string>
+    <string name="alert_type_accident">Accident</string>
+    <string name="alert_type_overcharge">Overcharging</string>
+    <string name="alert_type_roadwork">Roadworks</string>
+    <string name="alert_type_crowded">Crowded bus</string>
+    <string name="alert_type_danger">Unsafe area</string>
+    <string name="alert_type_other">Other</string>
+    <string name="alert_still_there">Still there · %1$d</string>
+    <string name="alert_still_there_short">Still there</string>
+    <string name="alert_confirmed_count">Confirmed · %1$d</string>
+    <string name="alert_gone">It\'s gone</string>
+    <string name="alert_close">Close</string>
+    <string name="alert_show_on_map">Show on map</string>
+    <string name="alert_created_by_me">You</string>
+    <string name="alert_distance">%1$s away</string>
+    <string name="alert_unknown_place">Point marked on the map</string>
+    <string name="alert_you_confirmed">Thanks: you confirmed it\'s still there</string>
+    <string name="alert_hidden">Alert hidden</string>
+    <plurals name="alert_confirmations">
+        <item quantity="one">%d person confirmed it\'s still there</item>
+        <item quantity="other">%d people confirmed it\'s still there</item>
+    </plurals>
+    <string name="time_now">Just now</string>
+    <string name="time_minutes">%1$d min ago</string>
+    <string name="time_hours">%1$d h ago</string>
+    <string name="time_days">%1$d d ago</string>
+
+    <!-- Cuenta y servidor -->
+    <string name="account_sign_in">Sign in</string>
+    <string name="account_sign_up">Create account</string>
+    <string name="account_sign_out">Sign out</string>
+    <string name="account_email">Email</string>
+    <string name="account_password">Password</string>
+    <string name="account_name">Your name</string>
+    <string name="account_have_account">Already have an account? Sign in</string>
+    <string name="account_no_account">No account yet? Create one</string>
+    <string name="account_why">With an account, the alerts and routes you post are seen by other users.</string>
+    <string name="account_welcome">Hi, %1$s</string>
+    <string name="account_signed_out">Signed out</string>
+    <string name="account_offline">We couldn\'t reach the server. Check your connection.</string>
+    <string name="account_no_server">This build has no server configured: everything stays on your phone.</string>
+    <string name="account_email_invalid">Enter a valid email</string>
+    <string name="account_password_short">The password needs at least 8 characters</string>
+    <string name="account_name_required">Enter your name</string>
+    <string name="publish_needs_account">Sign in to post alerts</string>
+    <string name="publish_failed">Couldn\'t post it. Check your connection.</string>
+    <string name="assistant_needs_account">Sign in to use the assistant</string>
+
+    <!-- Nueva alerta -->
+    <string name="create_alert_title">New alert</string>
+    <string name="create_alert_type">WHAT\'S HAPPENING?</string>
+    <string name="create_alert_type_error">Pick the type of alert</string>
+    <string name="create_alert_locating">Finding your location…</string>
+    <string name="create_alert_location">It\'ll be marked where you are: %1$s</string>
+    <string name="create_alert_location_generic">It\'ll be marked where you are now</string>
+    <string name="create_alert_no_location">We need your location to mark the alert on the map</string>
+    <string name="create_alert_no_fix">We couldn\'t get your location</string>
+    <string name="create_alert_retry">Retry</string>
+    <string name="create_alert_comment">Details (optional)</string>
+    <string name="create_alert_publish">Post alert</string>
+
+    <!-- Perfil -->
+    <string name="profile_title">Profile</string>
+    <string name="profile_guest">Guest</string>
+    <string name="profile_guest_subtitle">Sign in to sync your routes</string>
+    <string name="profile_saved_routes">Favourite routes</string>
+    <string name="profile_settings">Settings</string>
+    <string name="profile_about">About</string>
+    <string name="profile_about_body">Subo uses OpenStreetMap maps and search, an open and free mapping project.</string>
+    <string name="profile_activity">Your activity</string>
+    <string name="profile_stat_recorded">Routes recorded</string>
+    <string name="profile_stat_alerts">Active alerts</string>
+    <string name="profile_stat_used">Routes used</string>
+    <string name="profile_activity_empty">What you do shows up here: the routes you record, the alerts you post and the routes you check.</string>
+    <string name="action_save">Save</string>
+    <string name="profile_edit_name">Change name</string>
+    <string name="profile_name_saved">Done, that is your name now</string>
+    <string name="profile_name_failed">We could not change your name</string>
+    <string name="profile_name_session_expired">Your session expired. Please sign in again.</string>
+    <string name="profile_avatar">Your initial</string>
+
+    <!-- Ajustes -->
+    <string name="settings_arrival_label">ARRIVAL ALERT</string>
+    <string name="settings_arrival">Drop-off alerts</string>
+    <string name="settings_arrival_100">100 m before</string>
+    <string name="settings_arrival_200">200 m before (Recommended)</string>
+    <string name="settings_arrival_500">500 m before</string>
+    <string name="settings_arrival_vibration">Strong vibration</string>
+    <string name="settings_arrival_sound">Loud sound</string>
+    <string name="settings_arrival_tone">Alert sound</string>
+    <string name="settings_arrival_tone_bell">Bell</string>
+    <string name="settings_arrival_tone_chime">Chime</string>
+    <string name="settings_arrival_tone_beep">Beeps</string>
+    <string name="settings_arrival_tone_siren">Siren</string>
+    <string name="settings_arrival_tone_melody">Melody</string>
+    <string name="settings_arrival_tone_add">Add another sound</string>
+    <string name="settings_arrival_tone_custom">My sound</string>
+    <string name="settings_arrival_tone_remove_hint">Press and hold one of your sounds to remove it.</string>
+    <string name="settings_arrival_tone_removed">Sound removed</string>
+    <string name="settings_arrival_tone_failed">That file couldn\'t be used</string>
+    <string name="settings_arrival_tone_limit">You can keep up to %1$d sounds of your own. Remove one to add another.</string>
+    <string name="settings_arrival_test">Test alert</string>
+    <string name="settings_arrival_test_done">This is how we\'ll warn you %1$d m before your stop</string>
+    <string name="settings_arrival_test_silent">With vibration and sound off you\'ll only see the notification</string>
+    <string name="settings_notifications_label">NOTIFICATIONS</string>
+    <string name="settings_alert_types">Alert types</string>
+    <string name="settings_alert_types_note">Types you turn off stop showing on the map and in the alerts list.</string>
+    <string name="settings_appearance">APPEARANCE</string>
+    <string name="settings_theme">Theme</string>
+    <string name="settings_theme_system">Follow the system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_language_label">LANGUAGE</string>
+    <string name="settings_language">App language</string>
+    <string name="settings_language_system">Phone language</string>
+    <string name="settings_language_spanish">Español</string>
+    <string name="settings_language_english">English</string>
+    <string name="settings_language_note">The app restarts to apply the language. On Android 13 or later you can also change it from the system Settings.</string>
+    <string name="settings_palette">Palette</string>
+
+    <!-- Soporte -->
+    <string name="profile_support">Support</string>
+    <string name="support_help_label">HELP</string>
+    <string name="support_faq">Frequently asked questions</string>
+    <string name="support_faq_save_q">How can I save routes?</string>
+    <string name="support_faq_save_a">You don\'t need to mark them: the routes you check the most show up on their own in your profile, under Favourite routes.</string>
+    <string name="support_faq_report_q">How do I report something?</string>
+    <string name="support_faq_report_a">In the Alerts tab, create a new alert: pick what\'s happening and it\'s marked where you are. You need to be signed in.</string>
+    <string name="support_faq_assistant_q">How does the Assistant work?</string>
+    <string name="support_faq_assistant_a">Tap the assistant bubble over the map and ask which bus to take or how to get somewhere. You need to be signed in.</string>
+    <string name="support_faq_arrival_q">How do I turn on the drop-off alert?</string>
+    <string name="support_faq_arrival_a">Pick a route on the map, tap Turn on in the arrival alert and mark where you get off. In Settings you choose how far ahead it warns you and whether it vibrates or rings.</string>
+    <string name="support_faq_location_q">Why doesn\'t the map show where I am?</string>
+    <string name="support_faq_location_a">Check that the app has location permission and that GPS is on. The app works without location, but it can\'t centre the map on you.</string>
+    <string name="support_more_questions">See more questions</string>
+    <string name="support_feedback_label">SUGGESTION BOX</string>
+    <string name="support_feedback">Help us improve the app</string>
+    <string name="support_feedback_subject">Subject</string>
+    <string-array name="support_feedback_subjects">
+        <item>General</item>
+        <item>Routes</item>
+        <item>Alerts</item>
+        <item>Assistant</item>
+        <item>Report a bug</item>
+    </string-array>
+    <string name="support_feedback_message">Write your message…</string>
+    <string name="support_feedback_send">Send</string>
+    <string name="support_feedback_empty">Write your message before sending it</string>
+    <string name="support_feedback_sent">Thanks! We got your suggestion</string>
+    <string name="support_feedback_failed">Couldn\'t send it. Check your connection.</string>
+    <string name="support_feedback_needs_account">Sign in to send your suggestion</string>
+    <string name="support_feedback_no_address">This build has no support email configured</string>
+    <string name="support_email_subject">Subo · %1$s</string>
+    <string name="support_email_body">%1$s\n\n—\nVersion %2$s · Android %3$s · %4$s</string>
+    <string name="support_no_email_app">We couldn\'t find an email app on your phone</string>
+    <string name="support_version">Version %1$s</string>
+
+    <!-- Ficha del micro -->
+    <string name="route_detail_title">Bus details</string>
+    <string name="route_detail_open">See bus details</string>
+    <string name="route_detail_trip">Full trip</string>
+    <string name="route_detail_fares">Fares</string>
+    <string name="route_detail_fare_school">School</string>
+    <string name="route_detail_fare_university">University</string>
+    <string name="route_detail_fare_regular">Regular</string>
+    <string name="route_detail_fares_note">School and university fares are indicative, worked out from the regular fare.</string>
+
+    <!-- Navegación inferior -->
+    <string name="nav_routes">Routes</string>
+    <string name="nav_reports">Alerts</string>
+    <string name="nav_profile">Profile</string>
+    <string name="back">Back</string>
+    <!-- "Where to?" -->
+    <string name="planner_title">Where to?</string>
+    <string name="planner_subtitle">Tell us your destination and we show which bus to take</string>
+    <string name="planner_close">Close</string>
+    <string name="planner_origin_hint">From my location</string>
+    <string name="planner_origin_here">Leave from my location</string>
+    <string name="planner_destination_hint">Search a place, street or stop</string>
+    <string name="planner_search">Search</string>
+    <string name="planner_swap">Swap origin and destination</string>
+    <string name="planner_go">See how to get there</string>
+    <string name="planner_pick_on_map">Choose destination on the map</string>
+    <string name="planner_pick_on_map_detail">Tap the exact spot you want to reach</string>
+    <string name="planner_recents">RECENT</string>
+    <string name="planner_recents_clear">Clear</string>
+    <string name="planner_popular">POPULAR DESTINATIONS</string>
+    <string name="planner_stops_label">STOPS</string>
+    <string name="planner_typing_label">KEEP TYPING</string>
+    <string name="planner_typing_hint">Press search to also see streets and places on the map</string>
+    <string name="planner_group_universities">Universities</string>
+    <string name="planner_group_malls">Shopping and markets</string>
+    <string name="planner_group_center">Downtown</string>
+    <string name="planner_group_health">Hospitals</string>
+    <string name="planner_group_transport">Terminals</string>
+    <string name="planner_group_tourism">Beach and sights</string>
+    <string name="planner_trip_title">%1$s → %2$s</string>
+    <string name="route_card_duration_fare">%1$s · %2$s</string>
+    <string name="journey_card_walk">On foot</string>
+    <string name="journey_card_walk_detail">It\'s close: no bus needed</string>
+    <string name="journey_card_board">Board at %1$s</string>
+    <string name="journey_point_near">near %1$s</string>
+    <string name="journey_point_board">the point closest to you</string>
+    <string name="journey_point_exit">the point closest to your destination</string>
+    <string name="journey_point_transfer">where the two lines cross</string>
+    <string name="planner_places_label">PLACES</string>
+    <string name="planner_places_hint">Pick the right place to see how to get there</string>
+    <string name="planner_places_none">We couldn\'t find that place. Try another name or mark it on the map.</string>
+    <string name="planner_places_offline">Offline: we can\'t search places right now</string>
+</resources>

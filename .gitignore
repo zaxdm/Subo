@@ -14,3 +14,12 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Logs y cache de la herramienta Kotlin
+.kotlin/
+# Ajustes locales del editor
+.vscode/
+
+# Keystore de firma: nunca al repositorio
+*.jks
+*.keystore

@@ -1,46 +1,65 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Tema principal de la app: basado en MaterialComponents (hereda de AppCompat) -->
+    <!--
+      Tema claro. values-night/themes.xml redefine este mismo nombre para el
+      modo oscuro; ninguna pantalla referencia un color fijo, solo estos roles.
+    -->
     <style name="Theme.Expresdm" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Material 3 color scheme -->
-        <item name="colorPrimary">@color/indigo_600</item>
+        <!--
+          Negro: lo que se lee y se marca (enlaces, opciones elegidas). El
+          amarillo de marca no sirve de texto sobre blanco, así que los rellenos
+          amarillos se piden aparte con @color/brand y aquí queda su versión
+          suave para los fondos.
+        -->
+        <item name="colorPrimary">@color/stone_900</item>
         <item name="colorOnPrimary">@color/white</item>
-        <item name="colorPrimaryContainer">@color/indigo_200</item>
-        <item name="colorOnPrimaryContainer">@color/indigo_900</item>
+        <item name="colorPrimaryContainer">@color/yellow_100</item>
+        <item name="colorOnPrimaryContainer">@color/amber_900</item>
 
-        <item name="colorSecondary">@color/green_500</item>
+        <!-- Ámbar: acentos que tienen que leerse -->
+        <item name="colorSecondary">@color/amber_700</item>
         <item name="colorOnSecondary">@color/white</item>
-        <item name="colorSecondaryContainer">@color/green_200</item>
-        <item name="colorOnSecondaryContainer">@color/green_900</item>
+        <item name="colorSecondaryContainer">@color/yellow_100</item>
+        <item name="colorOnSecondaryContainer">@color/amber_900</item>
 
-        <item name="colorTertiary">@color/violet_500</item>
-        <item name="colorOnTertiary">@color/white</item>
-        <item name="colorTertiaryContainer">@color/violet_200</item>
-        <item name="colorOnTertiaryContainer">@color/violet_900</item>
+        <!-- Amarillo: el de la marca, tal cual -->
+        <item name="colorTertiary">@color/yellow_500</item>
+        <item name="colorOnTertiary">@color/stone_900</item>
+        <item name="colorTertiaryContainer">@color/yellow_100</item>
+        <item name="colorOnTertiaryContainer">@color/amber_900</item>
 
-        <item name="colorSurface">@color/surface_light</item>
-        <item name="colorOnSurface">@color/on_surface_light</item>
-        <item name="colorSurfaceVariant">@color/surface_variant_light</item>
+        <!-- Blanco y piedra: fondo, tarjetas y texto -->
+        <item name="android:colorBackground">@color/stone_50</item>
+        <item name="colorSurface">@color/white</item>
+        <item name="colorOnSurface">@color/stone_900</item>
+        <item name="colorSurfaceVariant">@color/stone_100</item>
+        <item name="colorOnSurfaceVariant">@color/stone_500</item>
+        <item name="colorOutline">@color/stone_200</item>
+        <item name="colorOutlineVariant">@color/stone_200</item>
 
-        <!-- Component shapes and styles -->
+        <item name="android:statusBarColor">@color/stone_50</item>
+        <item name="android:navigationBarColor">@color/white</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+
         <item name="shapeAppearanceSmallComponent">@style/ShapeAppearance.Expresdm.Small</item>
         <item name="shapeAppearanceMediumComponent">@style/ShapeAppearance.Expresdm.Medium</item>
         <item name="shapeAppearanceLargeComponent">@style/ShapeAppearance.Expresdm.Large</item>
 
-        <!-- Default component styles overrides -->
-        <item name="materialButtonStyle">@style/Widget.Material3.Button</item>
-        <item name="floatingActionButtonStyle">@style/Widget.Material3.FloatingActionButton.Primary</item>
+        <item name="materialCardViewStyle">@style/Widget.Expresdm.Card</item>
+        <item name="floatingActionButtonStyle">@style/Widget.Expresdm.Fab</item>
+        <item name="bottomNavigationStyle">@style/Widget.Expresdm.BottomNav</item>
     </style>
 
     <style name="ShapeAppearance.Expresdm.Small" parent="ShapeAppearance.Material3.SmallComponent">
-        <item name="cornerSize">12dp</item>
+        <item name="cornerSize">14dp</item>
     </style>
     <style name="ShapeAppearance.Expresdm.Medium" parent="ShapeAppearance.Material3.MediumComponent">
-        <item name="cornerSize">16dp</item>
+        <item name="cornerSize">20dp</item>
     </style>
     <style name="ShapeAppearance.Expresdm.Large" parent="ShapeAppearance.Material3.LargeComponent">
-        <item name="cornerSize">24dp</item>
+        <item name="cornerSize">28dp</item>
     </style>
 
 </resources>

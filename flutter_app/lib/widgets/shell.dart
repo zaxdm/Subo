@@ -1,0 +1,269 @@
+import 'package:flutter/material.dart';
+
+import '../theme.dart';
+
+/// El marco común de todas las pantallas: la barra lateral de la marca y la
+/// cabecera con la cuenta. En pantallas estrechas la barra lateral se queda en
+/// una franja arriba.
+class AdminShell extends StatelessWidget {
+  const AdminShell({
+    super.key,
+    required this.child,
+    this.accountName,
+    this.onSignOut,
+    this.section = AdminSection.routes,
+    this.onSection,
+  });
+
+  final Widget child;
+
+  /// `null` antes de entrar.
+  final String? accountName;
+  final VoidCallback? onSignOut;
+
+  /// La sección que se está viendo.
+  final AdminSection section;
+
+  /// `null` antes de entrar: sin sesión no hay a dónde ir.
+  final void Function(AdminSection section)? onSection;
+
+  static const _wideBreakpoint = 900.0;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: LayoutBuilder(
+        builder: (context, constraints) {
+          final wide = constraints.maxWidth >= _wideBreakpoint;
+          final content = Column(
+            children: [
+              _Header(accountName: accountName, onSignOut: onSignOut, compact: !wide),
+              const Divider(),
+              Expanded(child: child),
+            ],
+          );
+          if (!wide) {
+            return Column(
+              children: [
+                const _Brand(compact: true),
+                // Sin barra lateral, las secciones van en una franja bajo la marca.
+                if (onSection != null)
+                  Container(
+                    width: double.infinity,
+                    color: Palette.sidebar,
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+                    child: Row(
+                      children: [
+                        for (final item in AdminSection.values) ...[
+                          Expanded(
+                            child: _NavItem(section: item, active: item == section, onTap: () => onSection!(item)),
+                          ),
+                          if (item != AdminSection.values.last) const SizedBox(width: 8),
+                        ],
+                      ],
+                    ),
+                  ),
+                Expanded(child: content),
+              ],
+            );
+          }
+          return Row(
+            children: [
+              SizedBox(width: 230, child: _Sidebar(section: section, onSection: onSection)),
+              Expanded(
+                child: Padding(padding: const EdgeInsets.symmetric(horizontal: 44), child: content),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// Las secciones del panel.
+enum AdminSection {
+  routes('Rutas y micros', Icons.north_east),
+  feedback('Sugerencias', Icons.mail_outline);
+
+  const AdminSection(this.label, this.icon);
+
+  final String label;
+  final IconData icon;
+}
+
+/// Una sección en la navegación; la activa va resaltada.
+class _NavItem extends StatelessWidget {
+  const _NavItem({required this.section, required this.active, required this.onTap});
+
+  final AdminSection section;
+  final bool active;
+
+  /// `null` antes de entrar: se ve, pero no lleva a ningún sitio.
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: active ? Palette.sidebarActive : Colors.transparent,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: BorderSide(color: active ? const Color(0xFF54471F) : Colors.transparent),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(section.icon, size: 16, color: active ? Palette.accent : Palette.sidebarMuted),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(section.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: active ? Colors.white : Palette.sidebarMuted,
+                      fontWeight: FontWeight.w600,
+                    )),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({required this.section, required this.onSection});
+
+  final AdminSection section;
+  final void Function(AdminSection section)? onSection;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: Palette.sidebar,
+      padding: const EdgeInsets.fromLTRB(24, 36, 24, 32),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const _Brand(compact: false),
+          const SizedBox(height: 60),
+          Text('TU CIUDAD, CONECTADA',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.sidebarMuted, fontSize: 9)),
+          const SizedBox(height: 16),
+          // Antes de entrar solo se ve la sección de rutas, como adelanto.
+          for (final item in onSection == null ? [AdminSection.routes] : AdminSection.values) ...[
+            _NavItem(
+              section: item,
+              active: item == section,
+              onTap: onSection == null ? null : () => onSection!(item),
+            ),
+            const SizedBox(height: 6),
+          ],
+          const Spacer(),
+          const Row(
+            children: [
+              CircleAvatar(radius: 3, backgroundColor: Palette.accent),
+              SizedBox(width: 8),
+              Flexible(
+                child: Text('Trujillo, La Libertad',
+                    overflow: TextOverflow.ellipsis, style: TextStyle(color: Color(0xFFD6CDB0), fontSize: 12)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Text(
+            'Un buen viaje empieza\ncon una buena ruta.',
+            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500, height: 1.5),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Brand extends StatelessWidget {
+  const _Brand({required this.compact});
+
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final brand = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: compact ? 36 : 43,
+          height: compact ? 36 : 43,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(13)),
+          child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w800, fontSize: 15)),
+        ),
+        const SizedBox(width: 12),
+        Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('Subo',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: compact ? 17 : 19)),
+              const SizedBox(height: 3),
+              const Text('ADMINISTRACIÓN',
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: Color(0xFFCFC5A3), fontSize: 10, letterSpacing: 2)),
+            ],
+          ),
+        ),
+      ],
+    );
+    if (!compact) return brand;
+    return Container(
+      width: double.infinity,
+      color: Palette.sidebar,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: brand,
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  const _Header({required this.accountName, required this.onSignOut, required this.compact});
+
+  final String? accountName;
+  final VoidCallback? onSignOut;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: compact ? 60 : 88,
+      padding: EdgeInsets.symmetric(horizontal: compact ? 20 : 0),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text('CENTRO DE CONTROL',
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.accentText)),
+          ),
+          // La cuenta va pegada a la derecha y, si el nombre es largo, se recorta.
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 260),
+            child: Text(
+              accountName ?? 'Acceso de administrador',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Palette.muted, fontSize: 12),
+            ),
+          ),
+          if (onSignOut != null) ...[
+            const SizedBox(width: 12),
+            TextButton(onPressed: onSignOut, child: const Text('Cerrar sesión')),
+          ],
+        ],
+      ),
+    );
+  }
+}

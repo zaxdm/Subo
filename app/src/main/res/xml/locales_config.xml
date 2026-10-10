@@ -1,0 +1,9 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Idiomas que la app ofrece. Android 13+ lo usa para mostrar Subo en el
+  ajuste de "Idioma por aplicacion" del sistema.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="es" />
+    <locale android:name="en" />
+</locale-config>

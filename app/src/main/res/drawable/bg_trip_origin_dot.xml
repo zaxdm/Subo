@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Punto de salida del viaje: un anillo, como la posición del usuario en el mapa. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="oval">
+    <solid android:color="?attr/colorSurface" />
+    <stroke
+        android:width="3dp"
+        android:color="?attr/colorPrimary" />
+</shape>

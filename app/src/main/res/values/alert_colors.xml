@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      Colores de los tipos de alerta. Salen de la paleta de la app salvo el rojo
+      de accidente y el naranja de peligro, que son avisos de seguridad y se
+      tienen que reconocer al instante, y el verde de cobro de más, que es el
+      color del dinero.
+    -->
+    <color name="alert_traffic">#7C3AED</color>
+    <color name="alert_accident">#DC2626</color>
+    <color name="alert_overcharge">#047857</color>
+    <color name="alert_roadwork">#0284C7</color>
+    <color name="alert_crowded">#2563EB</color>
+    <color name="alert_danger">#C2410C</color>
+    <color name="alert_other">#64748B</color>
+</resources>

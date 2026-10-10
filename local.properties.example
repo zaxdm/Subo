@@ -1,0 +1,19 @@
+## Plantilla: copia este archivo como local.properties y rellena los valores.
+## local.properties NO se sube a git, para que las claves no acaben en el repo.
+
+sdk.dir=C\:\\Users\\TU_USUARIO\\AppData\\Local\\Android\\Sdk
+
+# Clave de la API de Gemini: https://aistudio.google.com/apikey
+# Sin ella la app compila y funciona, pero el asistente queda desactivado.
+GEMINI_API_KEY=pon_aqui_tu_clave
+
+# Servidor (carpeta ../backend, desplegado en Supabase). Con él, las alertas y
+# las rutas se comparten entre usuarios y la clave de Gemini deja de viajar en
+# el APK. Si se deja vacío, la app guarda todo en el teléfono y funciona igual.
+# Es la URL de la función `server`, sin barra final:
+#   BACKEND_URL=https://TU_PROYECTO.supabase.co/functions/v1/server
+BACKEND_URL=
+
+# ID OAuth de tipo Web usado por Credential Manager y verificado por el backend.
+# No es un secreto. Déjalo vacío hasta configurar Google Cloud.
+GOOGLE_WEB_CLIENT_ID=

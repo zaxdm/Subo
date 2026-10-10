@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/routesFragment">
+
+    <!--
+      Tres pestañas: el mapa (inicio), las alertas y el perfil. Las rutas no
+      tienen pantalla propia: se trazan en el mapa. El asistente es una burbuja
+      sobre el mapa y crear una alerta es una hoja que se abre encima.
+    -->
+    <fragment
+        android:id="@+id/routesFragment"
+        android:name="com.peru.expresdm.ui.routes.RoutesFragment"
+        android:label="@string/nav_routes"
+        tools:layout="@layout/fragment_routes">
+
+        <action
+            android:id="@+id/action_routes_to_new_route"
+            app:destination="@id/newRouteFragment" />
+
+        <action
+            android:id="@+id/action_routes_to_route_detail"
+            app:destination="@id/routeDetailFragment" />
+    </fragment>
+
+    <!-- Ficha del micro: foto, horario, tarifas y paradas -->
+    <fragment
+        android:id="@+id/routeDetailFragment"
+        android:name="com.peru.expresdm.ui.routes.RouteDetailFragment"
+        android:label="@string/route_detail_title"
+        tools:layout="@layout/fragment_route_detail" />
+
+    <fragment
+        android:id="@+id/reportsFragment"
+        android:name="com.peru.expresdm.ui.reports.ReportsFragment"
+        android:label="@string/nav_reports"
+        tools:layout="@layout/fragment_reports" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.peru.expresdm.ui.profile.ProfileFragment"
+        android:label="@string/nav_profile"
+        tools:layout="@layout/fragment_profile">
+
+        <action
+            android:id="@+id/action_profile_to_settings"
+            app:destination="@id/settingsFragment" />
+
+        <action
+            android:id="@+id/action_profile_to_support"
+            app:destination="@id/supportFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/supportFragment"
+        android:name="com.peru.expresdm.ui.support.SupportFragment"
+        android:label="@string/profile_support"
+        tools:layout="@layout/fragment_support" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.peru.expresdm.ui.settings.SettingsFragment"
+        android:label="@string/profile_settings"
+        tools:layout="@layout/fragment_settings" />
+
+    <!-- Formulario al terminar de grabar una ruta nueva -->
+    <fragment
+        android:id="@+id/newRouteFragment"
+        android:name="com.peru.expresdm.ui.newroute.NewRouteFragment"
+        android:label="@string/new_route_title"
+        tools:layout="@layout/fragment_new_route" />
+
+</navigation>

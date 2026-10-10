@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Insignias de ruta: colores vivos y bien distintos entre sí, para que
+         dos rutas seguidas nunca se confundan. Todos aguantan letra blanca. -->
+    <color name="route_accent_1">#0F766E</color>
+    <color name="route_accent_2">#C2410C</color>
+    <color name="route_accent_3">#1D4ED8</color>
+    <color name="route_accent_4">#A21CAF</color>
+    <color name="route_accent_5">#15803D</color>
+    <color name="route_accent_6">#44403C</color>
+</resources>

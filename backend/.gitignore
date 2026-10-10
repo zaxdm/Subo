@@ -1,0 +1,11 @@
+# Supabase: secretos y archivos locales de la CLI
+supabase/functions/.env
+supabase/.branches
+supabase/.temp
+
+# Servidor Ktor anterior: compilación, cache, claves y base de datos local
+ktor/build
+ktor/.gradle
+ktor/.kotlin
+ktor/local.properties
+ktor/pgdata

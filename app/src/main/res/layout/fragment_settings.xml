@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?android:attr/colorBackground">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="?android:attr/colorBackground"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:navigationIcon="@drawable/ic_arrow_back"
+        app:navigationIconTint="?attr/colorOnSurface"
+        app:title="@string/profile_settings"
+        app:titleTextColor="?attr/colorOnSurface" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:clipToPadding="false"
+        android:fillViewport="true"
+        android:paddingBottom="24dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/toolbar">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp">
+
+            <!-- Alertas de bajada -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_arrival_label"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/settings_arrival"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp">
+
+                    <RadioGroup
+                        android:id="@+id/arrivalDistanceGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical">
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/arrivalDistance100"
+                            style="@style/Widget.Expresdm.Choice"
+                            android:text="@string/settings_arrival_100" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/arrivalDistance200"
+                            style="@style/Widget.Expresdm.Choice"
+                            android:text="@string/settings_arrival_200" />
+
+                        <com.google.android.material.radiobutton.MaterialRadioButton
+                            android:id="@+id/arrivalDistance500"
+                            style="@style/Widget.Expresdm.Choice"
+                            android:text="@string/settings_arrival_500" />
+                    </RadioGroup>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:background="?attr/colorOutline" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/arrivalVibration"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_arrival_vibration" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/arrivalSound"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_arrival_sound" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Con qué suena -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:text="@string/settings_arrival_tone"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp">
+
+                    <!-- Los cinco tonos de la app y los que añada el usuario; los pone SettingsFragment. -->
+                    <RadioGroup
+                        android:id="@+id/arrivalToneGroup"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginStart="16dp"
+                        android:layout_marginEnd="16dp"
+                        android:background="?attr/colorOutline" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnAddSound"
+                        style="@style/Widget.Material3.Button.TextButton"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="@string/settings_arrival_tone_add"
+                        app:icon="@drawable/ic_add" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/customSoundsNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_arrival_tone_remove_hint"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
+            <!-- Para oír y sentir el aviso tal como quedó configurado arriba. -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTestArrival"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:minHeight="52dp"
+                android:text="@string/settings_arrival_test"
+                app:cornerRadius="18dp"
+                app:icon="@drawable/ic_arrival_alarm"
+                app:iconGravity="textStart" />
+
+            <!-- Notificaciones -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_notifications_label"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/settings_alert_types"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <!-- Una casilla por tipo de alerta; las pone SettingsFragment. -->
+                <LinearLayout
+                    android:id="@+id/alertTypesContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp" />
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_alert_types_note"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp" />
+
+            <!-- Apariencia -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_appearance"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/settings_theme"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <RadioGroup
+                    android:id="@+id/themeGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeSystem"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_theme_system" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeLight"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_theme_light" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/themeDark"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_theme_dark" />
+                </RadioGroup>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Idioma -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_language_label"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/settings_language"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <RadioGroup
+                    android:id="@+id/languageGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp">
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/languageSystem"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_language_system" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/languageSpanish"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_language_spanish" />
+
+                    <com.google.android.material.radiobutton.MaterialRadioButton
+                        android:id="@+id/languageEnglish"
+                        style="@style/Widget.Expresdm.Choice"
+                        android:text="@string/settings_language_english" />
+                </RadioGroup>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_language_note"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp" />
+
+            <!-- Muestra de la paleta -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_palette"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <View
+                        android:id="@+id/swatchPrimary"
+                        style="@style/Widget.Expresdm.Swatch" />
+
+                    <View
+                        android:id="@+id/swatchTertiary"
+                        style="@style/Widget.Expresdm.Swatch" />
+
+                    <View
+                        android:id="@+id/swatchSecondary"
+                        style="@style/Widget.Expresdm.Swatch" />
+
+                    <View
+                        android:id="@+id/swatchNeutral"
+                        style="@style/Widget.Expresdm.Swatch" />
+
+                    <View
+                        android:id="@+id/swatchSurface"
+                        style="@style/Widget.Expresdm.Swatch" />
+
+                    <View
+                        android:id="@+id/swatchInk"
+                        style="@style/Widget.Expresdm.Swatch" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</androidx.constraintlayout.widget.ConstraintLayout>

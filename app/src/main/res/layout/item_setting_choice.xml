@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una opción de Ajustes que se crea desde código, como los sonidos del aviso. -->
+<com.google.android.material.radiobutton.MaterialRadioButton
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.Expresdm.Choice"
+    android:ellipsize="end"
+    android:maxLines="1"
+    tools:text="Campana" />

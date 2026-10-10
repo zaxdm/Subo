@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una parada de la ruta elegida, en la hoja del inicio. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="48dp"
+    android:orientation="horizontal"
+    android:paddingTop="6dp"
+    android:paddingBottom="6dp">
+
+    <TextView
+        android:id="@+id/stopNumber"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:background="@drawable/bg_circle_badge"
+        android:gravity="center"
+        android:importantForAccessibility="no"
+        android:textColor="@color/white"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        tools:text="4" />
+
+    <TextView
+        android:id="@+id/stopName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:paddingStart="14dp"
+        android:paddingEnd="8dp"
+        android:textColor="?attr/colorOnSurface"
+        android:textSize="15sp"
+        tools:text="Plaza de Armas" />
+
+    <TextView
+        android:id="@+id/stopTag"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_pill_surface"
+        android:letterSpacing="0.08"
+        android:paddingStart="8dp"
+        android:paddingTop="3dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="3dp"
+        android:text="@string/selected_board_here"
+        android:textColor="@color/white"
+        android:textSize="10sp"
+        android:textStyle="bold"
+        android:visibility="gone"
+        tools:visibility="visible" />
+</LinearLayout>

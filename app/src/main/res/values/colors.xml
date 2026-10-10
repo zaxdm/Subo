@@ -1,27 +1,46 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Modern palette: indigo, violet, green -->
-    <color name="indigo_900">#1E293B</color>
-    <color name="indigo_700">#4338CA</color>
-    <color name="indigo_600">#4F46E5</color>
-    <color name="indigo_200">#C7D2FE</color>
+    <!--
+      Paleta "Subo": amarillo, negro y blanco, con grises cálidos.
 
-    <color name="violet_900">#4C1D95</color>
-    <color name="violet_700">#7C3AED</color>
-    <color name="violet_500">#8B5CF6</color>
-    <color name="violet_200">#DDD6FE</color>
+      Los nombres describen el color, no su uso. Quién usa cada uno se decide
+      en themes.xml, para que cambiar la identidad sea tocar un solo archivo.
+    -->
 
-    <color name="green_900">#064E3B</color>
-    <color name="green_700">#15803D</color>
-    <color name="green_500">#22C55E</color>
-    <color name="green_200">#BBF7D0</color>
-    <color name="green_900_alpha">#33064E3B</color>
+    <!-- Amarillo: el color de la marca -->
+    <color name="yellow_500">#FFC400</color>
+    <color name="yellow_300">#FFD54F</color>
+    <color name="yellow_100">#FFF1BF</color>
 
-    <!-- Surfaces -->
-    <color name="surface_light">#F7F7F9</color>
-    <color name="on_surface_light">#1F2937</color>
-    <color name="surface_variant_light">#E6E8EF</color>
+    <!-- Ámbar: el amarillo cuando tiene que leerse como texto sobre blanco -->
+    <color name="amber_700">#8A6500</color>
+    <color name="amber_900">#4A3800</color>
+
+    <!-- Piedra: textos, bordes y superficies neutras, tirando a cálido -->
+    <color name="stone_900">#1C1917</color>
+    <color name="stone_700">#44403C</color>
+    <color name="stone_500">#78716C</color>
+    <color name="stone_400">#A8A29E</color>
+    <color name="stone_300">#D6D3D1</color>
+    <color name="stone_200">#E7E5E4</color>
+    <color name="stone_100">#F2F0ED</color>
+    <color name="stone_50">#FAF9F7</color>
+
+    <!-- Negros del modo oscuro -->
+    <color name="ink_950">#100F0E</color>
+    <color name="ink_900">#1A1917</color>
+    <color name="ink_800">#252321</color>
+    <color name="ink_700">#3A3734</color>
+    <color name="paper_100">#F2EFEA</color>
 
     <color name="white">#FFFFFF</color>
     <color name="black">#000000</color>
+
+    <!--
+      El amarillo de marca y lo que va encima. Son iguales de día y de noche:
+      los botones principales y las insignias siempre son amarillos con el
+      contenido en negro, porque blanco sobre amarillo no se lee.
+    -->
+    <color name="brand">@color/yellow_500</color>
+    <color name="on_brand">@color/stone_900</color>
 </resources>
