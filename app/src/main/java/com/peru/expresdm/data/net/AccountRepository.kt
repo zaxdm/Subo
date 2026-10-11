@@ -36,13 +36,35 @@ object AccountRepository {
         if (!::store.isInitialized) store = SessionStore.get(context)
     }
 
-    suspend fun register(email: String, password: String, displayName: String): ApiResult<Session> =
+    /**
+     * Pide una cuenta nueva. `true`: quedó creada y con la sesión abierta.
+     * `false`: el servidor mandó un código al correo y la cuenta se crea al
+     * confirmarlo con [confirmRegistration].
+     */
+    suspend fun register(email: String, password: String, displayName: String): ApiResult<Boolean> {
+        val body = JSONObject()
+            .put("email", email.trim())
+            .put("password", password)
+            .put("displayName", displayName.trim())
+        return when (val result = ApiClient.post("/api/auth/register", body)) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success ->
+                if (result.data.optBoolean("verificationRequired")) {
+                    ApiResult.Success(false)
+                } else {
+                    when (val opened = open(result.data)) {
+                        is ApiResult.Failure -> opened
+                        is ApiResult.Success -> ApiResult.Success(true)
+                    }
+                }
+        }
+    }
+
+    /** El segundo paso del registro: con el código del correo, la cuenta se crea y se entra. */
+    suspend fun confirmRegistration(email: String, code: String): ApiResult<Session> =
         authenticate(
-            "/api/auth/register",
-            JSONObject()
-                .put("email", email.trim())
-                .put("password", password)
-                .put("displayName", displayName.trim())
+            "/api/auth/register/verify",
+            JSONObject().put("email", email.trim()).put("code", code.trim())
         )
 
     suspend fun login(email: String, password: String): ApiResult<Session> =
@@ -96,28 +118,74 @@ object AccountRepository {
      */
     suspend fun refresh() {
         if (!isSignedIn || !ApiClient.isConfigured) return
-        val result = ApiClient.get("/api/me", token)
-        if (result is ApiResult.Failure && result.reason == ApiFailure.UNAUTHORIZED) signOut()
+        when (val result = ApiClient.get("/api/me", token)) {
+            is ApiResult.Failure -> if (result.reason == ApiFailure.UNAUTHORIZED) signOut()
+            is ApiResult.Success -> {
+                // El permiso de administrador se da y se quita en el servidor:
+                // aquí se pone al día sin obligar a cerrar sesión.
+                val current = session.value ?: return
+                val updated = current.copy(isAdmin = isAdminRole(result.data), avatarUrl = avatarOf(result.data))
+                if (updated != current) store.save(updated)
+            }
+        }
     }
+
+    /**
+     * Pone la foto de perfil (ya subida y revisada) o la quita con `null`.
+     * Devuelve la sesión con la foto que el servidor dejó guardada.
+     */
+    suspend fun setAvatar(avatarUrl: String?): ApiResult<Session> {
+        val current = session.value ?: return ApiResult.Failure(ApiFailure.UNAUTHORIZED)
+        val body = JSONObject().put("avatarUrl", avatarUrl ?: JSONObject.NULL)
+        return when (val result = ApiClient.post("/api/me/avatar", body, current.token)) {
+            is ApiResult.Failure -> result
+            is ApiResult.Success -> {
+                val updated = current.copy(avatarUrl = avatarOf(result.data))
+                store.save(updated)
+                ApiResult.Success(updated)
+            }
+        }
+    }
+
+    /** Pide un código al correo para cambiar la contraseña. */
+    suspend fun forgotPassword(email: String): ApiResult<JSONObject> =
+        ApiClient.post("/api/auth/forgot", JSONObject().put("email", email.trim()))
+
+    /** Cambia la contraseña con el código recibido y deja la sesión abierta. */
+    suspend fun resetPassword(email: String, code: String, password: String): ApiResult<Session> =
+        authenticate(
+            "/api/auth/reset",
+            JSONObject().put("email", email.trim()).put("code", code.trim()).put("password", password)
+        )
+
+    /** El servidor manda `role`: client, contributor, admin o super_admin. Los tres últimos graban rutas. */
+    private fun isAdminRole(user: JSONObject): Boolean = user.optString("role") in ROUTE_ROLES
+
+    private fun avatarOf(user: JSONObject): String? =
+        if (user.isNull("avatarUrl")) null else user.optString("avatarUrl").takeIf { it.isNotBlank() }
+
+    private val ROUTE_ROLES = setOf("contributor", "admin", "super_admin")
 
     private suspend fun authenticate(path: String, body: JSONObject): ApiResult<Session> =
         when (val result = ApiClient.post(path, body)) {
             is ApiResult.Failure -> result
-            is ApiResult.Success -> {
-                val token = result.data.optString("token")
-                val user = result.data.optJSONObject("user")
-                if (token.isBlank() || user == null) {
-                    ApiResult.Failure(ApiFailure.SERVER)
-                } else {
-                    val session = Session(
-                        token = token,
-                        userId = user.optString("id"),
-                        email = user.optString("email"),
-                        displayName = user.optString("displayName")
-                    )
-                    store.save(session)
-                    ApiResult.Success(session)
-                }
-            }
+            is ApiResult.Success -> open(result.data)
         }
+
+    /** Guarda la sesión que abrió el servidor. */
+    private fun open(data: JSONObject): ApiResult<Session> {
+        val token = data.optString("token")
+        val user = data.optJSONObject("user")
+        if (token.isBlank() || user == null) return ApiResult.Failure(ApiFailure.SERVER)
+        val session = Session(
+            token = token,
+            userId = user.optString("id"),
+            email = user.optString("email"),
+            displayName = user.optString("displayName"),
+            isAdmin = isAdminRole(user),
+            avatarUrl = avatarOf(user)
+        )
+        store.save(session)
+        return ApiResult.Success(session)
+    }
 }

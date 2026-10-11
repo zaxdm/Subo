@@ -20,6 +20,7 @@ import com.peru.expresdm.data.JourneyLeg
 import com.peru.expresdm.data.RidePoint
 import com.peru.expresdm.databinding.ItemJourneyBinding
 import com.peru.expresdm.databinding.ItemJourneyCardBinding
+import com.peru.expresdm.databinding.ItemJourneyStepBinding
 import com.peru.expresdm.ui.RouteAccent
 import com.peru.expresdm.ui.RouteImages
 import com.peru.expresdm.ui.formatDistance
@@ -84,47 +85,15 @@ class JourneyAdapter(
             val first = rides.firstOrNull()
 
             // El color y la foto son los del primer micro; andando, el de la marca.
-            val accent = first?.let { ContextCompat.getColor(context, RouteAccent.colorFor(it.route.accentIndex)) }
-                ?: context.themeColor(com.google.android.material.R.attr.colorPrimary)
-            binding.journeyCard.setCardBackgroundColor(accent)
+            binding.journeyCard.setCardBackgroundColor(accentOf(context, first))
             RouteImages.show(
                 binding.journeyImage, first?.route?.imageUrl, first?.route?.let { it.vehicleName.ifBlank { it.name } }.orEmpty()
             )
 
-            binding.journeyChain.removeAllViews()
-            if (rides.isEmpty()) {
-                binding.journeyChain.addView(
-                    ImageView(context).apply {
-                        setImageResource(R.drawable.ic_walk)
-                        imageTintList = ColorStateList.valueOf(context.getColor(R.color.white))
-                        layoutParams = ViewGroup.LayoutParams(dp(24), dp(24))
-                        importantForAccessibility = ViewGroup.IMPORTANT_FOR_ACCESSIBILITY_NO
-                    }
-                )
-            }
-            rides.forEachIndexed { index, ride ->
-                binding.journeyChain.addView(
-                    TextView(context).apply {
-                        text = ride.route.letter
-                        setTextColor(ContextCompat.getColor(context, RouteAccent.colorFor(ride.route.accentIndex)))
-                        textSize = 15f
-                        setTypeface(typeface, android.graphics.Typeface.BOLD)
-                        gravity = Gravity.CENTER
-                        setBackgroundResource(R.drawable.bg_chip_white)
-                        minWidth = dp(30)
-                        setPadding(dp(8), 0, dp(8), 0)
-                        layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30))
-                            .apply { if (index > 0) marginStart = dp(6) }
-                    }
-                )
-            }
+            fillChain(binding.journeyChain, rides)
 
             binding.journeyTime.text = context.getString(R.string.duration_minutes, journey.totalMinutes)
-            binding.journeyTitle.text = if (first == null) {
-                context.getString(R.string.journey_card_walk)
-            } else {
-                rides.joinToString(" + ") { it.route.vehicleName.ifBlank { it.route.name } }
-            }
+            binding.journeyTitle.text = titleOf(context, journey)
             binding.journeyBoard.text = if (first == null) {
                 context.getString(R.string.journey_card_walk_detail)
             } else {
@@ -144,7 +113,10 @@ class JourneyAdapter(
         private fun dp(value: Int) = (value * binding.root.resources.displayMetrics.density).toInt()
     }
 
-    /** Fila de la lista: el viaje con sus instrucciones. */
+    /**
+     * Fila de la lista: la misma cabecera de color que la tarjeta del carrusel
+     * y, debajo, el viaje paso a paso.
+     */
     inner class JourneyViewHolder(
         private val binding: ItemJourneyBinding
     ) : RecyclerView.ViewHolder(binding.root) {
@@ -152,7 +124,12 @@ class JourneyAdapter(
         fun bind(journey: Journey) {
             val context = binding.root.context
 
+            binding.journeyHeader.setBackgroundColor(accentOf(context, journey.rides.firstOrNull()))
+            fillChain(binding.journeyChain, journey.rides)
+            binding.journeyTitle.text = titleOf(context, journey)
             binding.journeyTime.text = context.getString(R.string.duration_minutes, journey.totalMinutes)
+            binding.journeyWalk.text =
+                context.getString(R.string.journey_total_walk, context.formatDistance(journey.walkMeters))
             binding.journeyFare.isVisible = !journey.walkingOnly
             binding.journeyFare.text =
                 String.format(Locale.US, context.getString(R.string.fare_format), journey.fare)
@@ -162,18 +139,14 @@ class JourneyAdapter(
                 binding.journeyTransfers.text = context.resources.getQuantityString(
                     R.plurals.journey_transfers, journey.transfers, journey.transfers
                 )
-                binding.journeyTransfers.backgroundTintList = ColorStateList.valueOf(
-                    ContextCompat.getColor(context, R.color.alert_traffic)
-                )
             }
 
-            buildChain(journey)
-            binding.journeySteps.text = stepsText(context, journey)
+            buildSteps(journey)
             binding.journeyPhotos.removeAllViews()
             journey.rides.filter { !it.route.imageUrl.isNullOrBlank() }.forEach { ride ->
                 val image = ImageView(context).apply {
                     layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(120))
-                        .apply { topMargin = dp(10) }
+                        .apply { bottomMargin = dp(10) }
                     scaleType = ImageView.ScaleType.CENTER_CROP
                 }
                 binding.journeyPhotos.addView(image)
@@ -184,57 +157,129 @@ class JourneyAdapter(
                 if (journey.key == selectedKey) com.google.android.material.R.attr.colorPrimary
                 else com.google.android.material.R.attr.colorOutline
             )
+            binding.journeyCard.contentDescription =
+                listOf(binding.journeyTitle.text, binding.journeyTime.text, stepsText(context, journey)).joinToString(". ")
             binding.journeyCard.setOnClickListener { onJourneyClick(journey) }
         }
 
-        /** La cadena visual: 🚶 · (A) · 🚶 · (H) · 🚶 */
-        private fun buildChain(journey: Journey) {
+        /** Los pasos, unidos por una línea: caminar, subir al micro, bajar… y llegar. */
+        private fun buildSteps(journey: Journey) {
             val context = binding.root.context
-            val chain = binding.journeyChain
-            chain.removeAllViews()
+            val rides = journey.rides
+            binding.journeySteps.removeAllViews()
 
-            journey.legs.forEachIndexed { index, leg ->
-                if (index > 0) chain.addView(separator())
-
+            journey.legs.forEach { leg ->
                 when (leg) {
-                    is JourneyLeg.Walk -> chain.addView(
-                        ImageView(context).apply {
-                            setImageResource(R.drawable.ic_walk)
-                            imageTintList = ColorStateList.valueOf(
-                                context.getColor(android.R.color.darker_gray)
-                            )
-                            layoutParams = ViewGroup.LayoutParams(dp(18), dp(18))
-                            importantForAccessibility = ViewGroup.IMPORTANT_FOR_ACCESSIBILITY_NO
-                        }
-                    )
+                    is JourneyLeg.Walk -> addStep(
+                        title = context.getString(R.string.journey_walk_to_stop, context.formatDistance(leg.meters)),
+                        minutes = leg.minutes
+                    ).stepIcon.setImageResource(R.drawable.ic_walk)
 
-                    is JourneyLeg.Ride -> chain.addView(
-                        TextView(context).apply {
-                            text = leg.route.letter
-                            setTextColor(context.getColor(R.color.white))
-                            textSize = 12f
-                            gravity = Gravity.CENTER
-                            setBackgroundResource(R.drawable.bg_circle_badge)
-                            backgroundTintList = ContextCompat.getColorStateList(
-                                context, RouteAccent.colorFor(leg.route.accentIndex)
-                            )
-                            layoutParams = ViewGroup.LayoutParams(dp(26), dp(26))
-                            contentDescription = leg.route.name
+                    is JourneyLeg.Ride -> {
+                        val accent = accentOf(context, leg)
+                        val boardRole = if (leg === rides.first()) Role.BOARD else Role.TRANSFER
+                        val exitRole = if (leg === rides.last()) Role.EXIT else Role.TRANSFER
+                        addStep(
+                            title = context.getString(
+                                R.string.journey_step_ride, leg.route.vehicleName.ifBlank { leg.route.name }
+                            ),
+                            detail = context.getString(
+                                R.string.journey_card_board, pointLabel(context, leg.fromKind, leg.from.name, boardRole)
+                            ),
+                            minutes = leg.minutes
+                        ).apply {
+                            stepBadge.backgroundTintList = ColorStateList.valueOf(accent)
+                            stepIcon.isVisible = false
+                            stepLetter.isVisible = true
+                            stepLetter.text = leg.route.letter
                         }
-                    )
+                        // Dónde bajar: un punto del color del micro, más pequeño que el de subir.
+                        addStep(
+                            title = context.getString(
+                                R.string.journey_exit, pointLabel(context, leg.toKind, leg.to.name, exitRole)
+                            )
+                        ).apply {
+                            stepBadge.backgroundTintList = ColorStateList.valueOf(accent)
+                            stepIcon.isVisible = false
+                            stepBadge.layoutParams = (stepBadge.layoutParams as LinearLayout.LayoutParams).apply {
+                                width = dp(12)
+                                height = dp(12)
+                                topMargin = dp(8)
+                                bottomMargin = dp(5)
+                            }
+                        }
+                    }
                 }
+            }
+            addStep(title = context.getString(R.string.journey_arrive)).apply {
+                stepIcon.setImageResource(R.drawable.ic_place)
+                stepRail.isVisible = false
             }
         }
 
-        private fun separator() = TextView(binding.root.context).apply {
-            text = binding.root.context.getString(R.string.journey_chain_separator)
-            setTextColor(context.getColor(android.R.color.darker_gray))
-            textSize = 12f
-            setPadding(dp(6), 0, dp(6), 0)
+        /** Añade un paso con el aspecto neutro (caminar, llegar); quien llama lo ajusta si es otra cosa. */
+        private fun addStep(title: String, detail: String? = null, minutes: Int? = null): ItemJourneyStepBinding {
+            val context = binding.root.context
+            val step = ItemJourneyStepBinding.inflate(LayoutInflater.from(context), binding.journeySteps, true)
+            step.stepBadge.backgroundTintList =
+                ColorStateList.valueOf(context.themeColor(com.google.android.material.R.attr.colorSecondaryContainer))
+            step.stepIcon.imageTintList =
+                ColorStateList.valueOf(context.themeColor(com.google.android.material.R.attr.colorOnSecondaryContainer))
+            step.stepTitle.text = title
+            step.stepDetail.isVisible = detail != null
+            step.stepDetail.text = detail
+            step.stepTime.isVisible = minutes != null
+            minutes?.let { step.stepTime.text = context.getString(R.string.duration_minutes, it) }
+            return step
         }
 
         private fun dp(value: Int) =
             (value * binding.root.resources.displayMetrics.density).toInt()
+    }
+
+    /** El color del micro; andando, el de la marca. */
+    private fun accentOf(context: Context, ride: JourneyLeg.Ride?): Int =
+        ride?.let { ContextCompat.getColor(context, RouteAccent.colorFor(it.route.accentIndex)) }
+            ?: context.themeColor(com.google.android.material.R.attr.colorPrimary)
+
+    private fun titleOf(context: Context, journey: Journey): String =
+        if (journey.walkingOnly) {
+            context.getString(R.string.journey_card_walk)
+        } else {
+            journey.rides.joinToString(" + ") { it.route.vehicleName.ifBlank { it.route.name } }
+        }
+
+    /** Las letras de los micros en blanco, en el orden en que se toman; andando, la figura que camina. */
+    private fun fillChain(chain: LinearLayout, rides: List<JourneyLeg.Ride>) {
+        val context = chain.context
+        fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
+        chain.removeAllViews()
+        if (rides.isEmpty()) {
+            chain.addView(
+                ImageView(context).apply {
+                    setImageResource(R.drawable.ic_walk)
+                    imageTintList = ColorStateList.valueOf(context.getColor(R.color.white))
+                    layoutParams = ViewGroup.LayoutParams(dp(24), dp(24))
+                    importantForAccessibility = ViewGroup.IMPORTANT_FOR_ACCESSIBILITY_NO
+                }
+            )
+        }
+        rides.forEachIndexed { index, ride ->
+            chain.addView(
+                TextView(context).apply {
+                    text = ride.route.letter
+                    setTextColor(ContextCompat.getColor(context, RouteAccent.colorFor(ride.route.accentIndex)))
+                    textSize = 15f
+                    setTypeface(typeface, android.graphics.Typeface.BOLD)
+                    gravity = Gravity.CENTER
+                    setBackgroundResource(R.drawable.bg_chip_white)
+                    minWidth = dp(30)
+                    setPadding(dp(8), 0, dp(8), 0)
+                    layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, dp(30))
+                        .apply { if (index > 0) marginStart = dp(6) }
+                }
+            )
+        }
     }
 
     /** Para qué se nombra un punto del recorrido: cambia cómo se dice cuando no es una parada. */

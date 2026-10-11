@@ -10,7 +10,15 @@ data class Session(
     val token: String,
     val userId: String,
     val email: String,
-    val displayName: String
+    val displayName: String,
+    /**
+     * Puede grabar rutas nuevas: es administrador o colaborador. Lo dice el
+     * servidor al entrar. Solo sirve para enseñar u ocultar opciones; quien
+     * manda de verdad es el servidor, que vuelve a comprobarlo en cada petición.
+     */
+    val isAdmin: Boolean = false,
+    /** Foto de perfil guardada en el servidor, para verla en cualquier teléfono. */
+    val avatarUrl: String? = null
 )
 
 /**
@@ -36,6 +44,8 @@ class SessionStore private constructor(context: Context) {
             .putString(KEY_USER_ID, session.userId)
             .putString(KEY_EMAIL, session.email)
             .putString(KEY_NAME, session.displayName)
+            .putBoolean(KEY_ADMIN, session.isAdmin)
+            .putString(KEY_AVATAR, session.avatarUrl)
             .apply()
         _session.value = session
     }
@@ -51,7 +61,9 @@ class SessionStore private constructor(context: Context) {
             token = token,
             userId = prefs.getString(KEY_USER_ID, "").orEmpty(),
             email = prefs.getString(KEY_EMAIL, "").orEmpty(),
-            displayName = prefs.getString(KEY_NAME, "").orEmpty()
+            displayName = prefs.getString(KEY_NAME, "").orEmpty(),
+            isAdmin = prefs.getBoolean(KEY_ADMIN, false),
+            avatarUrl = prefs.getString(KEY_AVATAR, null)
         )
     }
 
@@ -61,6 +73,8 @@ class SessionStore private constructor(context: Context) {
         private const val KEY_USER_ID = "user_id"
         private const val KEY_EMAIL = "email"
         private const val KEY_NAME = "display_name"
+        private const val KEY_ADMIN = "is_admin"
+        private const val KEY_AVATAR = "avatar_url"
 
         @Volatile
         private var instance: SessionStore? = null

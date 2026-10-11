@@ -8,9 +8,10 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
+import android.widget.ArrayAdapter
 import android.widget.EditText
-import android.widget.HorizontalScrollView
 import android.widget.TextView
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
 import androidx.core.content.getSystemService
 import androidx.core.os.bundleOf
@@ -26,12 +27,12 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.google.android.material.chip.Chip
-import com.google.android.material.chip.ChipGroup
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.peru.expresdm.R
 import com.peru.expresdm.data.Place
 import com.peru.expresdm.data.RecentPlaceStore
+import com.peru.expresdm.data.SavedPlaceStore
 import com.peru.expresdm.databinding.ItemPlaceBinding
 import com.peru.expresdm.databinding.SheetTripPlannerBinding
 import com.peru.expresdm.ui.formatDistance
@@ -70,6 +71,12 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
     /** Al escribir el nombre de un lugar elegido no hay que tratarlo como texto nuevo. */
     private var settingText = false
 
+    /** Favorito que se está guardando (casa, trabajo…): el próximo lugar elegido va ahí. */
+    private var savingKind: SavedPlaceStore.Kind? = null
+
+    /** Si se está cambiando el lugar de un favorito que ya existía, cuál. */
+    private var replacing: SavedPlaceStore.Favorite? = null
+
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = SheetTripPlannerBinding.inflate(inflater, container, false)
         return binding.root
@@ -106,11 +113,10 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
         }
         binding.btnClearRecents.setOnClickListener { RecentPlaceStore.get(requireContext()).clear() }
 
-        buildPopular()
-
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.recentPlaces.collect { renderRecents(it) }
+                launch { viewModel.recentPlaces.collect { renderRecents(it) } }
+                launch { SavedPlaceStore.get(requireContext()).favorites.collect { renderFavorites(it) } }
             }
         }
     }
@@ -242,6 +248,21 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
     // --- Elegir ---
 
     private fun onPlacePicked(place: Place) {
+        // Se estaba guardando un favorito: el lugar va ahí, no al viaje.
+        savingKind?.let { kind ->
+            val saved = SavedPlaceStore.get(requireContext()).save(kind, place, replacing)
+            savingKind = null
+            replacing = null
+            hideKeyboard()
+            showPlaces()
+            showIdle()
+            if (saved) {
+                Snackbar
+                    .make(binding.root, getString(R.string.saved_place_done, getString(labelOf(kind))), Snackbar.LENGTH_SHORT)
+                    .show()
+            }
+            return
+        }
         if (activeField == Field.ORIGIN) {
             origin = place
             showPlaces()
@@ -303,48 +324,128 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
         }
     }
 
-    /** Los sitios a los que más se va, agrupados: un toque los busca en el mapa. */
-    private fun buildPopular() {
-        val context = requireContext()
-        val edge = (EDGE_DP * resources.displayMetrics.density).toInt()
-        PopularDestinations.GROUPS.forEach { group ->
-            val title = TextView(context).apply {
-                setText(group.title)
-                setTextAppearance(R.style.TextAppearance_Expresdm_Body)
-                setPadding(edge, edge * 3 / 4, edge, edge / 4)
+    /**
+     * Los destinos favoritos: cada uno con el icono de lo que es (casa,
+     * trabajo, pareja…) y, mientras quede hueco, la fila para añadir otro.
+     */
+    private fun renderFavorites(favorites: List<SavedPlaceStore.Favorite>) {
+        val binding = _binding ?: return
+        val container = binding.favoritesContainer
+        container.removeAllViews()
+        favorites.forEach { favorite ->
+            val label = getString(labelOf(favorite.kind))
+            val row = ItemPlaceBinding.inflate(layoutInflater, container, false)
+            row.placeIcon.setImageResource(iconOf(favorite.kind))
+            row.placeName.text = label
+            row.placeDetail.text = favorite.place.name
+            val distance = viewModel.distanceTo(favorite.place)
+            row.placeDistance.isVisible = distance != null
+            distance?.let { row.placeDistance.text = requireContext().formatDistance(it) }
+            row.root.contentDescription = getString(R.string.saved_place_go, label, favorite.place.name)
+            row.root.setOnClickListener {
+                savingKind = null
+                replacing = null
+                activeField = Field.DESTINATION
+                onPlacePicked(favorite.place)
             }
-            val chips = ChipGroup(context).apply {
-                isSingleLine = true
-                setPadding(edge, 0, edge, 0)
-            }
-            group.places.forEach { name ->
-                chips.addView(
-                    Chip(context).apply {
-                        text = name
-                        isCheckable = false
-                        setOnClickListener { searchPopular(name) }
+            row.root.setOnLongClickListener {
+                MaterialAlertDialogBuilder(requireContext())
+                    .setTitle(getString(R.string.saved_place_title, label, favorite.place.name))
+                    .setItems(
+                        arrayOf(getString(R.string.saved_place_change), getString(R.string.saved_place_remove))
+                    ) { _, which ->
+                        if (which == 0) {
+                            startSaving(favorite.kind, favorite)
+                        } else {
+                            SavedPlaceStore.get(requireContext()).remove(favorite)
+                        }
                     }
-                )
+                    .show()
+                true
             }
-            val scroll = HorizontalScrollView(context).apply {
-                isHorizontalScrollBarEnabled = false
-                clipToPadding = false
-                addView(chips)
-            }
-            binding.popularContainer.addView(title)
-            binding.popularContainer.addView(scroll)
+            container.addView(row.root)
+        }
+
+        if (favorites.size < SavedPlaceStore.MAX_FAVORITES) {
+            val row = ItemPlaceBinding.inflate(layoutInflater, container, false)
+            row.placeIcon.setImageResource(R.drawable.ic_add)
+            row.placeName.setText(R.string.saved_place_add)
+            row.placeDetail.text = getString(R.string.saved_place_add_detail, SavedPlaceStore.MAX_FAVORITES)
+            row.placeDistance.isVisible = false
+            row.root.setOnClickListener { pickKind(favorites) }
+            container.addView(row.root)
+        }
+        if (favorites.isNotEmpty()) {
+            val edge = (HINT_EDGE_DP * resources.displayMetrics.density).toInt()
+            container.addView(
+                TextView(requireContext()).apply {
+                    setText(R.string.saved_place_manage_hint)
+                    setTextAppearance(R.style.TextAppearance_Expresdm_Body)
+                    textSize = HINT_TEXT_SP
+                    setPadding(edge, edge, edge, 0)
+                }
+            )
         }
     }
 
-    private fun searchPopular(name: String) {
+    /** Antes de buscar el lugar se dice qué es: de ahí salen su nombre y su icono. */
+    private fun pickKind(favorites: List<SavedPlaceStore.Favorite>) {
+        // Una sola casa, un solo trabajo…; "otro" sirve las veces que haga falta.
+        val used = favorites.map { it.kind }.toSet()
+        val kinds = SavedPlaceStore.Kind.entries.filter { it == SavedPlaceStore.Kind.OTHER || it !in used }
+        val iconGap = (ICON_GAP_DP * resources.displayMetrics.density).toInt()
+        val adapter = object : ArrayAdapter<String>(
+            requireContext(),
+            android.R.layout.select_dialog_item,
+            kinds.map { getString(labelOf(it)) }
+        ) {
+            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
+                (super.getView(position, convertView, parent) as TextView).apply {
+                    setCompoundDrawablesRelativeWithIntrinsicBounds(iconOf(kinds[position]), 0, 0, 0)
+                    compoundDrawablePadding = iconGap
+                }
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.saved_place_kind_title)
+            .setAdapter(adapter) { _, which -> startSaving(kinds[which]) }
+            .show()
+    }
+
+    /**
+     * A partir de aquí, el próximo lugar que se elija se guarda como [kind];
+     * con [replace], en el sitio de ese favorito en vez de añadirse.
+     */
+    private fun startSaving(kind: SavedPlaceStore.Kind, replace: SavedPlaceStore.Favorite? = null) {
+        savingKind = kind
+        replacing = replace
         activeField = Field.DESTINATION
-        destination = null
-        settingText = true
-        binding.destinationInput.setText(name)
-        binding.destinationInput.setSelection(name.length)
-        settingText = false
-        renderActions()
-        search(name)
+        binding.destinationInput.requestFocus()
+        requireContext().getSystemService<InputMethodManager>()
+            ?.showSoftInput(binding.destinationInput, InputMethodManager.SHOW_IMPLICIT)
+        Snackbar.make(binding.root, getString(R.string.saved_place_hint, getString(labelOf(kind))), Snackbar.LENGTH_LONG)
+            .show()
+    }
+
+    @StringRes
+    private fun labelOf(kind: SavedPlaceStore.Kind): Int = when (kind) {
+        SavedPlaceStore.Kind.HOME -> R.string.saved_place_home
+        SavedPlaceStore.Kind.WORK -> R.string.saved_place_work
+        SavedPlaceStore.Kind.STUDY -> R.string.saved_place_study
+        SavedPlaceStore.Kind.PARTNER -> R.string.saved_place_partner
+        SavedPlaceStore.Kind.FAMILY -> R.string.saved_place_family
+        SavedPlaceStore.Kind.GYM -> R.string.saved_place_gym
+        SavedPlaceStore.Kind.OTHER -> R.string.saved_place_other
+    }
+
+    @DrawableRes
+    private fun iconOf(kind: SavedPlaceStore.Kind): Int = when (kind) {
+        SavedPlaceStore.Kind.HOME -> R.drawable.ic_fav_home
+        SavedPlaceStore.Kind.WORK -> R.drawable.ic_fav_work
+        SavedPlaceStore.Kind.STUDY -> R.drawable.ic_fav_study
+        SavedPlaceStore.Kind.PARTNER -> R.drawable.ic_fav_partner
+        SavedPlaceStore.Kind.FAMILY -> R.drawable.ic_fav_family
+        SavedPlaceStore.Kind.GYM -> R.drawable.ic_fav_gym
+        SavedPlaceStore.Kind.OTHER -> R.drawable.ic_fav_other
     }
 
     private fun hideKeyboard() {
@@ -367,7 +468,9 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
 
         /** Cuánto se espera sin teclear antes de buscar. */
         private const val TYPING_PAUSE_MS = 450L
-        private const val EDGE_DP = 20
+        private const val HINT_EDGE_DP = 8
+        private const val HINT_TEXT_SP = 12f
+        private const val ICON_GAP_DP = 16
 
         /** Con qué clave avisa esta hoja a quien la abrió, y de qué. */
         const val REQUEST_KEY = "trip_planner"
@@ -383,51 +486,4 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
             if (manager.findFragmentByTag(TAG) == null) TripPlannerSheet().show(manager, TAG)
         }
     }
-}
-
-/**
- * Los destinos más habituales de Trujillo, por tipo.
- *
- * Solo llevan el nombre: la posición la da el buscador al tocarlos, así no hay
- * coordenadas escritas a mano que puedan quedar mal o desfasadas.
- */
-internal object PopularDestinations {
-
-    class Group(@StringRes val title: Int, val places: List<String>)
-
-    val GROUPS = listOf(
-        Group(
-            R.string.planner_group_universities,
-            listOf(
-                "Universidad Nacional de Trujillo",
-                "Universidad Privada Antenor Orrego",
-                "Universidad César Vallejo",
-                "Universidad Privada del Norte"
-            )
-        ),
-        Group(
-            R.string.planner_group_malls,
-            listOf("Real Plaza Trujillo", "Mall Plaza Trujillo", "Open Plaza Los Jardines", "Mercado La Hermelinda")
-        ),
-        Group(
-            R.string.planner_group_center,
-            listOf("Plaza de Armas de Trujillo", "Plazuela El Recreo", "Estadio Mansiche", "Mercado Central de Trujillo")
-        ),
-        Group(
-            R.string.planner_group_health,
-            listOf(
-                "Hospital Regional Docente de Trujillo",
-                "Hospital Belén de Trujillo",
-                "Hospital Víctor Lazarte Echegaray"
-            )
-        ),
-        Group(
-            R.string.planner_group_transport,
-            listOf("Terrapuerto Trujillo", "Aeropuerto de Trujillo")
-        ),
-        Group(
-            R.string.planner_group_tourism,
-            listOf("Huanchaco", "Chan Chan", "Huaca de la Luna", "Las Delicias")
-        )
-    )
 }

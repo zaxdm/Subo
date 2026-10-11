@@ -4,12 +4,14 @@ import android.Manifest
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.location.Location
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.core.os.bundleOf
@@ -27,6 +29,12 @@ import com.peru.expresdm.data.AlertRepository
 import com.peru.expresdm.data.AlertType
 import com.peru.expresdm.data.PlaceSearch
 import com.peru.expresdm.data.PublishResult
+import com.peru.expresdm.data.RoadAlert
+import com.peru.expresdm.data.RouteRepository
+import com.peru.expresdm.data.net.AccountRepository
+import com.peru.expresdm.data.net.ApiClient
+import com.peru.expresdm.data.net.ApiResult
+import com.peru.expresdm.data.net.ImageUploader
 import com.peru.expresdm.databinding.ItemFilterChipBinding
 import com.peru.expresdm.databinding.SheetCreateAlertBinding
 import com.peru.expresdm.ui.AlertStyle
@@ -57,6 +65,18 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
     private var locatingJob: Job? = null
     private var publishing = false
 
+    /** Micro del que habla la alerta, cuando el tipo lo pide. */
+    private var selectedRouteId: String? = null
+    private var photo: Uri? = null
+
+    /** El selector de fotos de Android: no pide permiso para leer la galería. */
+    private val pickPhoto = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            photo = uri
+            renderPhoto()
+        }
+    }
+
     private val requestLocation = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { locate() }
@@ -77,6 +97,18 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
             ?.let { name -> AlertType.entries.firstOrNull { it.name == name } }
 
         buildTypeChips()
+        buildRouteChoices()
+        renderRouteChoice()
+        // Las fotos se revisan en el servidor: sin él o sin sesión no hay a quién mandarlas.
+        binding.photoRow.isVisible = ApiClient.isConfigured && AccountRepository.isSignedIn
+        binding.btnAddPhoto.setOnClickListener {
+            pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+        }
+        binding.btnRemovePhoto.setOnClickListener {
+            photo = null
+            renderPhoto()
+        }
+        renderPhoto()
         binding.btnEnableLocation.setOnClickListener { onLocationAction() }
         binding.btnPublish.setOnClickListener { publish() }
         binding.commentInput.doAfterTextChanged { _binding?.commentLayout?.error = null }
@@ -122,7 +154,40 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
         binding.typeChips.setOnCheckedStateChangeListener { group, checkedIds ->
             selectedType = checkedIds.firstOrNull()?.let { group.findViewById<Chip>(it)?.tag as? AlertType }
             if (selectedType != null) _binding?.typeError?.isVisible = false
+            renderRouteChoice()
         }
+    }
+
+    /** La lista de micros, para decir de cuál se habla. */
+    private fun buildRouteChoices() {
+        val routes = RouteRepository.all().sortedBy { it.name.lowercase() }
+        val labels = routes.map { getString(R.string.create_alert_route_item, it.name, it.subtitle) }
+        binding.routeInput.setSimpleItems(labels.toTypedArray())
+        binding.routeInput.setOnItemClickListener { _, _, position, _ ->
+            selectedRouteId = routes.getOrNull(position)?.id
+        }
+    }
+
+    /** Solo se pregunta por el micro cuando la alerta es de un micro. */
+    private fun renderRouteChoice() {
+        val binding = _binding ?: return
+        val asks = selectedType in RoadAlert.ROUTE_TYPES
+        binding.routeLayout.isVisible = asks
+        if (!asks) {
+            selectedRouteId = null
+            binding.routeInput.setText("", false)
+        }
+    }
+
+    private fun renderPhoto() {
+        val binding = _binding ?: return
+        binding.photoPreview.setImageURI(photo)
+        binding.photoPreview.isVisible = photo != null
+        binding.btnRemovePhoto.isVisible = photo != null
+        binding.btnAddPhoto.setText(
+            if (photo == null) R.string.create_alert_photo_add else R.string.create_alert_photo_change
+        )
+        binding.photoError.isVisible = false
     }
 
     // --- Ubicación ---
@@ -207,6 +272,21 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
         setPublishing(true)
 
         viewLifecycleOwner.lifecycleScope.launch {
+            // La foto va primero: si el servidor no la acepta, no se publica nada
+            // y se dice por qué.
+            val imageUrl = photo?.let { uri ->
+                when (val uploaded = ImageUploader.upload(requireContext().applicationContext, uri, ImageUploader.Purpose.ALERT)) {
+                    is ApiResult.Success -> uploaded.data
+                    is ApiResult.Failure -> {
+                        val binding = _binding ?: return@launch
+                        setPublishing(false)
+                        binding.photoError.text = uploaded.message ?: getString(R.string.create_alert_photo_failed)
+                        binding.photoError.isVisible = true
+                        return@launch
+                    }
+                }
+            }
+
             val verdict = if (comment.isEmpty()) ModerationVerdict.Allowed else ModerationService.review(comment)
             val binding = _binding ?: return@launch
 
@@ -217,7 +297,9 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
                         latitude = here.latitude,
                         longitude = here.longitude,
                         comment = comment.ifEmpty { null },
-                        placeName = placeName
+                        placeName = placeName,
+                        routeId = selectedRouteId,
+                        imageUrl = imageUrl
                     )
                     when (published) {
                         is PublishResult.Published -> {
@@ -232,9 +314,11 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
 
                         is PublishResult.Failed -> {
                             setPublishing(false)
-                            binding.commentLayout.error = getString(
-                                if (published.needsSignIn) R.string.publish_needs_account else R.string.publish_failed
-                            )
+                            binding.commentLayout.error = when {
+                                published.needsSignIn -> getString(R.string.publish_needs_account)
+                                // El servidor explica por qué no (por ejemplo, una cuenta bloqueada).
+                                else -> published.message ?: getString(R.string.publish_failed)
+                            }
                         }
                     }
                 }
@@ -257,6 +341,8 @@ class CreateAlertSheet : BottomSheetDialogFragment() {
         val binding = _binding ?: return
         binding.btnPublish.isEnabled = !busy
         binding.commentInput.isEnabled = !busy
+        binding.btnAddPhoto.isEnabled = !busy
+        binding.btnRemovePhoto.isEnabled = !busy
         binding.btnPublish.setText(if (busy) R.string.moderation_checking else R.string.create_alert_publish)
     }
 

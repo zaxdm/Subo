@@ -5,6 +5,13 @@ plugins {
     alias(libs.plugins.kotlin.android)
 }
 
+// Avisos al momento (Firebase). Solo se activan si está el archivo que se
+// descarga de la consola de Firebase; sin él la app compila igual y revisa las
+// alertas por su cuenta cada rato.
+if (file("google-services.json").exists()) {
+    apply(plugin = libs.plugins.google.services.get().pluginId)
+}
+
 /**
  * La clave de Gemini se lee de local.properties, que no se versiona.
  * Si falta, la app compila igual y el asistente queda desactivado con un
@@ -27,6 +34,14 @@ val googleWebClientId: String = localProperties.getProperty("GOOGLE_WEB_CLIENT_I
 /** Correo de soporte. Si está vacío, la pantalla de Soporte no ofrece contacto. */
 val supportEmail: String = localProperties.getProperty("SUPPORT_EMAIL", "").trim()
 
+/**
+ * La web de Subo. Los enlaces que se comparten apuntan a ella y, con la app
+ * instalada, se abren en la app. No es un secreto; se puede cambiar con WEB_URL
+ * en local.properties el día que haya dominio propio.
+ */
+val webUrl: String = localProperties.getProperty("WEB_URL", "https://subo.esteban-dioses.workers.dev")
+    .trim().trimEnd('/')
+
 android {
     namespace = "com.peru.expresdm"
     compileSdk = 35
@@ -45,6 +60,8 @@ android {
         buildConfigField("String", "BACKEND_URL", "\"$backendUrl\"")
         buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"$googleWebClientId\"")
         buildConfigField("String", "SUPPORT_EMAIL", "\"$supportEmail\"")
+        buildConfigField("String", "WEB_URL", "\"$webUrl\"")
+        manifestPlaceholders["webHost"] = webUrl.substringAfter("://").substringBefore('/')
     }
 
     buildFeatures {
@@ -133,6 +150,13 @@ dependencies {
 
     // Mapas OpenStreetMap: libre, sin API key ni cuenta de facturacion
     implementation(libs.osmdroid.android)
+
+    // Revisión periódica de alertas cercanas, aunque la app esté cerrada
+    implementation(libs.androidx.work.runtime.ktx)
+
+    // Avisos al momento de alertas nuevas (Firebase Cloud Messaging)
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.messaging)
 
     // Dependencias de prueba
     testImplementation(libs.junit)

@@ -19,6 +19,25 @@ enum class AlertType(val lifetimeMinutes: Long) {
 
 enum class AlertVote { STILL_THERE, GONE }
 
+/**
+ * Cómo le ha ido a quien publicó una alerta con las anteriores, según los votos
+ * de los demás. Lo calcula el servidor.
+ */
+enum class Reputation {
+    /** Suele acertar: sus alertas se señalan como de confianza. */
+    TRUSTED,
+
+    /** Aún no hay votos suficientes para saberlo. */
+    NEW,
+
+    /** Suele fallar: sus alertas se ocultan antes. */
+    UNRELIABLE;
+
+    companion object {
+        fun fromName(name: String?): Reputation = entries.firstOrNull { it.name == name } ?: NEW
+    }
+}
+
 /** Aviso que un usuario deja en el mapa sobre algo que pasa en la calle. */
 data class RoadAlert(
     val id: String,
@@ -33,8 +52,19 @@ data class RoadAlert(
     val dismissals: Int = 0,
     val lastConfirmedAt: Long = createdAt,
     val myVote: AlertVote? = null,
-    val createdByMe: Boolean = false
-)
+    val createdByMe: Boolean = false,
+    /** Ruta de la que habla (cobro de más, micro lleno), si se indicó al publicarla. */
+    val routeId: String? = null,
+    val imageUrl: String? = null,
+    val authorName: String? = null,
+    val authorAvatarUrl: String? = null,
+    val authorReputation: Reputation = Reputation.NEW
+) {
+    companion object {
+        /** Tipos que hablan de un micro y no de un punto de la calle. */
+        val ROUTE_TYPES = setOf(AlertType.OVERCHARGE, AlertType.CROWDED)
+    }
+}
 
 /**
  * Cuándo una alerta sigue vigente y cómo cuentan los votos.

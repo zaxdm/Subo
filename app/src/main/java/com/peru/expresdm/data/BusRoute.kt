@@ -36,7 +36,11 @@ data class BusRoute(
     val vehicleName: String = "",
     val imageUrl: String? = null,
     val description: String = "",
-    val bidirectional: Boolean = true
+    val bidirectional: Boolean = true,
+    /** Pasajes reducidos y cada cuánto pasa; `null` mientras nadie los cargue en el panel. */
+    val fareSchool: Double? = null,
+    val fareUniversity: Double? = null,
+    val frequencyMinutes: Int? = null
 ) {
     val subtitle: String get() = "$origin — $destination"
 

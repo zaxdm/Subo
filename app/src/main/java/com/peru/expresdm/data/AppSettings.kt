@@ -110,6 +110,16 @@ class AppSettings private constructor(context: Context) {
             prefs.edit().putString(KEY_CUSTOM_SOUNDS, array.toString()).apply()
         }
 
+    /** Avisar con una notificación cuando alguien reporta algo cerca o en una ruta que el usuario usa. */
+    var alertNotifications: Boolean
+        get() = prefs.getBoolean(KEY_ALERT_NOTIFICATIONS, true)
+        set(value) = prefs.edit().putBoolean(KEY_ALERT_NOTIFICATIONS, value).apply()
+
+    /** Leer en voz alta el aviso de bajada, para quien no puede mirar la pantalla. */
+    var arrivalVoice: Boolean
+        get() = prefs.getBoolean(KEY_ARRIVAL_VOICE, false)
+        set(value) = prefs.edit().putBoolean(KEY_ARRIVAL_VOICE, value).apply()
+
     private val _alertTypes = MutableStateFlow(readAlertTypes())
 
     /** Tipos de alerta que el usuario quiere ver, en el mapa y en la lista. */
@@ -160,6 +170,8 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_ALERT_TYPES_OFF = "alert_types_off"
         private const val KEY_ARRIVAL_SOUND_CHOICE = "arrival_sound_choice"
         private const val KEY_CUSTOM_SOUNDS = "custom_sounds"
+        private const val KEY_ALERT_NOTIFICATIONS = "alert_notifications"
+        private const val KEY_ARRIVAL_VOICE = "arrival_voice"
 
         /** Más que esto ya no es una lista para elegir de un vistazo. */
         const val MAX_CUSTOM_SOUNDS = 10

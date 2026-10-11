@@ -98,6 +98,8 @@ object AlertRepository {
         longitude: Double,
         comment: String?,
         placeName: String?,
+        routeId: String? = null,
+        imageUrl: String? = null,
         now: Long = System.currentTimeMillis()
     ): PublishResult {
         if (!ApiClient.isConfigured) {
@@ -110,7 +112,8 @@ object AlertRepository {
                 placeName = placeName,
                 comment = comment?.trim()?.takeIf { it.isNotEmpty() },
                 createdAt = now,
-                createdByMe = true
+                createdByMe = true,
+                routeId = routeId
             )
             add(local)
             return PublishResult.Published(local)
@@ -122,6 +125,8 @@ object AlertRepository {
             .put("longitude", longitude)
             .put("placeName", placeName ?: JSONObject.NULL)
             .put("comment", comment ?: JSONObject.NULL)
+            .put("routeId", routeId ?: JSONObject.NULL)
+            .put("imageUrl", imageUrl ?: JSONObject.NULL)
 
         return when (val result = ApiClient.post("/api/alerts", body, AccountRepository.token)) {
             is ApiResult.Success -> {
@@ -226,7 +231,12 @@ object AlertRepository {
                 myVote = json.optStringOrNull("myVote")?.let { name ->
                     AlertVote.entries.firstOrNull { it.name == name }
                 },
-                createdByMe = json.optBoolean("createdByMe")
+                createdByMe = json.optBoolean("createdByMe"),
+                routeId = json.optStringOrNull("routeId"),
+                imageUrl = json.optStringOrNull("imageUrl"),
+                authorName = json.optStringOrNull("authorName"),
+                authorAvatarUrl = json.optStringOrNull("authorAvatarUrl"),
+                authorReputation = Reputation.fromName(json.optStringOrNull("authorReputation"))
             )
         }
     } catch (e: JSONException) {
@@ -253,6 +263,11 @@ object AlertRepository {
                     .put("lastConfirmedAt", alert.lastConfirmedAt)
                     .put("myVote", alert.myVote?.name ?: JSONObject.NULL)
                     .put("createdByMe", alert.createdByMe)
+                    .put("routeId", alert.routeId ?: JSONObject.NULL)
+                    .put("imageUrl", alert.imageUrl ?: JSONObject.NULL)
+                    .put("authorName", alert.authorName ?: JSONObject.NULL)
+                    .put("authorAvatarUrl", alert.authorAvatarUrl ?: JSONObject.NULL)
+                    .put("authorReputation", alert.authorReputation.name)
             )
         }
         return array.toString()
@@ -275,7 +290,12 @@ object AlertRepository {
                     dismissals = obj.optInt("dismissals"),
                     lastConfirmedAt = obj.optLong("lastConfirmedAt", obj.getLong("createdAt")),
                     myVote = obj.optStringOrNull("myVote")?.let { AlertVote.valueOf(it) },
-                    createdByMe = obj.optBoolean("createdByMe")
+                    createdByMe = obj.optBoolean("createdByMe"),
+                    routeId = obj.optStringOrNull("routeId"),
+                    imageUrl = obj.optStringOrNull("imageUrl"),
+                    authorName = obj.optStringOrNull("authorName"),
+                    authorAvatarUrl = obj.optStringOrNull("authorAvatarUrl"),
+                    authorReputation = Reputation.fromName(obj.optStringOrNull("authorReputation"))
                 )
             } catch (e: JSONException) {
                 Log.w(TAG, "Alerta dañada en el archivo, se omite", e)

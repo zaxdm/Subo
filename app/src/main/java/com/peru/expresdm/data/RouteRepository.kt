@@ -239,7 +239,10 @@ object RouteRepository {
             vehicleName = json.optString("vehicleName"),
             imageUrl = json.optString("imageUrl").takeIf { it.isNotBlank() && it != "null" },
             description = json.optString("description"),
-            bidirectional = json.optBoolean("bidirectional", true)
+            bidirectional = json.optBoolean("bidirectional", true),
+            fareSchool = json.optDouble("fareSchool").takeUnless { it.isNaN() },
+            fareUniversity = json.optDouble("fareUniversity").takeUnless { it.isNaN() },
+            frequencyMinutes = json.optInt("frequencyMinutes").takeIf { it > 0 }
         )
     }
 

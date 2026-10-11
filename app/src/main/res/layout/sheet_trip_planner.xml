@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   "¿A dónde vas?": de dónde se sale, a dónde se va y, debajo, los atajos para
-  no tener que escribir (destinos recientes y populares) o los resultados.
+  no tener que escribir (destinos recientes y favoritos) o los resultados.
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -348,14 +348,17 @@
                     android:paddingStart="20dp"
                     android:paddingTop="18dp"
                     android:paddingEnd="20dp"
-                    android:text="@string/planner_popular"
+                    android:text="@string/planner_favorites"
                     android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
 
                 <LinearLayout
-                    android:id="@+id/popularContainer"
+                    android:id="@+id/favoritesContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical" />
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingTop="4dp"
+                    android:paddingEnd="12dp" />
             </LinearLayout>
         </androidx.core.widget.NestedScrollView>
 

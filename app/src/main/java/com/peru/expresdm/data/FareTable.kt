@@ -1,23 +1,24 @@
 package com.peru.expresdm.data
 
-/** Lo que paga cada tipo de pasajero en una ruta. */
+/**
+ * Lo que paga cada tipo de pasajero en una ruta.
+ *
+ * El escolar y el universitario los carga el administrador en el panel. Si
+ * todavía no están, quedan en `null` y la ficha no los enseña: un pasaje
+ * inventado es peor que uno que falta.
+ */
 data class FareTable(
-    val school: Double,
-    val university: Double,
+    val school: Double?,
+    val university: Double?,
     val regular: Double
 ) {
-    companion object {
-        private const val SCHOOL_SHARE = 0.25
-        private const val UNIVERSITY_SHARE = 0.5
+    /** Falta alguno de los pasajes reducidos. */
+    val isIncomplete: Boolean get() = school == null || university == null
 
-        /**
-         * El catálogo solo guarda el pasaje regular. El escolar y el
-         * universitario se calculan como una parte de él, así que son
-         * referenciales: el día que el catálogo los traiga, salen de ahí.
-         */
+    companion object {
         fun of(route: BusRoute): FareTable = FareTable(
-            school = route.fare * SCHOOL_SHARE,
-            university = route.fare * UNIVERSITY_SHARE,
+            school = route.fareSchool,
+            university = route.fareUniversity,
             regular = route.fare
         )
     }

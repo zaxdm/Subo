@@ -61,5 +61,10 @@
     <style name="ShapeAppearance.Expresdm.Large" parent="ShapeAppearance.Material3.LargeComponent">
         <item name="cornerSize">28dp</item>
     </style>
+    <!-- Recorta en círculo, como la foto de perfil -->
+    <style name="ShapeAppearance.Expresdm.Circle" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
 
 </resources>

@@ -197,6 +197,76 @@
                 </com.google.android.material.card.MaterialCardView>
             </LinearLayout>
 
+            <!-- Cada cuánto pasa, cuando el catálogo lo sabe -->
+            <TextView
+                android:id="@+id/detailFrequency"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:textColor="?attr/colorOnSurface"
+                android:textSize="15sp"
+                android:visibility="gone"
+                app:drawableStartCompat="@drawable/ic_clock"
+                app:drawableTint="?attr/colorOnSurfaceVariant"
+                tools:text="Pasa cada 10 min"
+                tools:visibility="visible" />
+
+            <!-- Lo que se reportó de este micro en la última semana -->
+            <TextView
+                android:id="@+id/detailAlertsWeek"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:drawablePadding="8dp"
+                android:gravity="center_vertical"
+                android:textColor="@color/alert_accident"
+                android:textSize="14sp"
+                android:visibility="gone"
+                app:drawableStartCompat="@drawable/ic_alert_danger"
+                app:drawableTint="@color/alert_accident"
+                tools:text="Esta semana: 3 reportes de cobro de más"
+                tools:visibility="visible" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnShare"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="6dp"
+                    android:layout_weight="1"
+                    android:text="@string/route_detail_share"
+                    app:icon="@drawable/ic_send"
+                    app:iconGravity="textStart" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSaveOffline"
+                    style="@style/Widget.Material3.Button.TonalButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:layout_weight="1"
+                    android:text="@string/route_detail_save"
+                    app:icon="@drawable/ic_map"
+                    app:iconGravity="textStart" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/saveOfflineNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp"
+                tools:text="2 de 5 rutas guardadas sin conexión" />
+
             <!-- Tarifas -->
             <TextView
                 android:layout_width="wrap_content"
@@ -219,8 +289,10 @@
                     android:padding="16dp">
 
                     <LinearLayout
+                        android:id="@+id/rowFareSchool"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:layout_marginBottom="10dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -242,9 +314,10 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/rowFareUniversity"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
+                        android:layout_marginBottom="10dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -268,7 +341,6 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="10dp"
                         android:orientation="horizontal">
 
                         <TextView
@@ -290,6 +362,7 @@
                     </LinearLayout>
 
                     <TextView
+                        android:id="@+id/faresNote"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:paddingTop="12dp"
@@ -299,7 +372,70 @@
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Paradas -->
+            <!-- Calificaciones: solo con servidor, que es donde viven -->
+            <LinearLayout
+                android:id="@+id/communitySection"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="24dp"
+                    android:text="@string/route_detail_ratings"
+                    android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                    android:textSize="17sp" />
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    app:cardCornerRadius="22dp">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/ratingSummary"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:textColor="?attr/colorOnSurface"
+                                android:textSize="15sp"
+                                android:textStyle="bold"
+                                tools:text="★ 4.3 · 12 calificaciones" />
+
+                            <com.google.android.material.button.MaterialButton
+                                android:id="@+id/btnRate"
+                                style="@style/Widget.Material3.Button.TextButton"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="@string/route_detail_rate" />
+                        </LinearLayout>
+
+                        <!-- Las últimas opiniones escritas; las pone RouteDetailFragment. -->
+                        <LinearLayout
+                            android:id="@+id/reviewsContainer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical" />
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+
+            <!-- Por dónde pasa -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"

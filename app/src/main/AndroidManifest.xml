@@ -42,7 +42,31 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!--
+              Los enlaces que la gente comparte (https://…/ruta/<id>) abren la
+              ficha de ese micro. Android solo los manda aquí sin preguntar si
+              la web publica /.well-known/assetlinks.json con la firma de la app.
+            -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:host="${webHost}"
+                    android:pathPrefix="/ruta/"
+                    android:scheme="https" />
+            </intent-filter>
         </activity>
+
+        <!-- Avisos al momento de alertas nuevas. Solo trabaja si la app se compiló con Firebase. -->
+        <service
+            android:name=".tracking.PushService"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.google.firebase.MESSAGING_EVENT" />
+            </intent-filter>
+        </service>
 
         <!-- Graba el recorrido de una ruta nueva. No se exporta: solo lo arranca la app. -->
         <service

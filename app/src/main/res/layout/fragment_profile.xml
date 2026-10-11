@@ -37,8 +37,12 @@
                 android:orientation="horizontal"
                 android:padding="16dp">
 
-                <!-- Con sesión, las iniciales; sin ella, la silueta de siempre. -->
+                <!--
+                  Con sesión, la foto o las iniciales; sin ella, la silueta de
+                  siempre. Con sesión se toca para poner o cambiar la foto.
+                -->
                 <FrameLayout
+                    android:id="@+id/avatarFrame"
                     android:layout_width="56dp"
                     android:layout_height="56dp"
                     android:background="@drawable/bg_circle_badge">
@@ -63,6 +67,30 @@
                         android:textStyle="bold"
                         android:visibility="gone"
                         tools:text="AM"
+                        tools:visibility="visible" />
+
+                    <com.google.android.material.imageview.ShapeableImageView
+                        android:id="@+id/profilePhoto"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:importantForAccessibility="no"
+                        android:scaleType="centerCrop"
+                        android:visibility="gone"
+                        app:shapeAppearanceOverlay="@style/ShapeAppearance.Expresdm.Circle" />
+
+                    <!-- La camarita avisa de que el avatar se puede tocar -->
+                    <ImageView
+                        android:id="@+id/avatarCamera"
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:layout_gravity="bottom|end"
+                        android:background="@drawable/bg_circle_badge"
+                        android:backgroundTint="?attr/colorSurface"
+                        android:importantForAccessibility="no"
+                        android:padding="3dp"
+                        android:src="@drawable/ic_camera"
+                        android:visibility="gone"
+                        app:tint="?attr/colorOnSurface"
                         tools:visibility="visible" />
                 </FrameLayout>
 

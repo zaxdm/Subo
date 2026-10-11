@@ -17,3 +17,7 @@ BACKEND_URL=
 # ID OAuth de tipo Web usado por Credential Manager y verificado por el backend.
 # No es un secreto. Déjalo vacío hasta configurar Google Cloud.
 GOOGLE_WEB_CLIENT_ID=
+
+# Web de Subo, a la que apuntan los enlaces de "Compartir" (opcional: ya trae
+# la de Cloudflare). Sin barra final.
+# WEB_URL=https://tudominio.pe

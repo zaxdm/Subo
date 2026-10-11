@@ -1,8 +1,10 @@
 package com.peru.expresdm.ui.settings
 
+import android.Manifest
 import android.content.Intent
 import android.content.res.ColorStateList
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.OpenableColumns
 import android.view.LayoutInflater
@@ -24,7 +26,11 @@ import com.peru.expresdm.data.ArrivalTone
 import com.peru.expresdm.data.CustomSound
 import com.peru.expresdm.data.ThemeMode
 import com.peru.expresdm.databinding.FragmentSettingsBinding
+import com.peru.expresdm.tracking.AlertWatchWorker
+import com.peru.expresdm.tracking.ArrivalAlarmService
 import com.peru.expresdm.tracking.ArrivalSignal
+import com.peru.expresdm.tracking.ArrivalVoice
+import com.peru.expresdm.tracking.PushRegistration
 import com.peru.expresdm.ui.AlertStyle
 import com.peru.expresdm.ui.themeColor
 
@@ -43,6 +49,9 @@ class SettingsFragment : Fragment() {
 
     /** Evita reaccionar a los cambios que provoca el propio código al pintar. */
     private var bindingSelection = false
+
+    /** El permiso de notificaciones de Android 13 en adelante; si lo niegan, no se insiste. */
+    private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
     /** El selector de archivos de Android, para añadir un sonido propio. */
     private val pickSound = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -86,6 +95,22 @@ class SettingsFragment : Fragment() {
         binding.arrivalSound.setOnCheckedChangeListener { _, checked ->
             if (bindingSelection) return@setOnCheckedChangeListener
             settings.arrivalSound = checked
+        }
+
+        binding.arrivalVoice.setOnCheckedChangeListener { _, checked ->
+            if (bindingSelection) return@setOnCheckedChangeListener
+            settings.arrivalVoice = checked
+        }
+
+        binding.alertNotifications.setOnCheckedChangeListener { _, checked ->
+            if (bindingSelection) return@setOnCheckedChangeListener
+            settings.alertNotifications = checked
+            AlertWatchWorker.sync(requireContext())
+            PushRegistration.sync(requireContext())
+            // Sin permiso de notificaciones, el aviso no llegaría a verse.
+            if (checked && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
 
         renderTones()
@@ -137,6 +162,8 @@ class SettingsFragment : Fragment() {
         )
         binding.arrivalVibration.isChecked = settings.arrivalVibration
         binding.arrivalSound.isChecked = settings.arrivalSound
+        binding.arrivalVoice.isChecked = settings.arrivalVoice
+        binding.alertNotifications.isChecked = settings.alertNotifications
 
         binding.themeGroup.check(
             when (settings.themeMode) {
@@ -265,8 +292,15 @@ class SettingsFragment : Fragment() {
         val vibrate = settings.arrivalVibration
         val sound = settings.arrivalSound
         ArrivalSignal.play(requireContext(), vibrate = vibrate, sound = sound)
+        if (settings.arrivalVoice) {
+            ArrivalVoice.speak(
+                requireContext(),
+                getString(R.string.arrival_arrived, getString(R.string.settings_arrival_voice_sample)),
+                delayMs = if (sound) ArrivalAlarmService.VOICE_AFTER_SOUND_MS else 0
+            )
+        }
 
-        val message = if (vibrate || sound) {
+        val message = if (vibrate || sound || settings.arrivalVoice) {
             getString(R.string.settings_arrival_test_done, settings.arrivalDistanceMeters)
         } else {
             getString(R.string.settings_arrival_test_silent)

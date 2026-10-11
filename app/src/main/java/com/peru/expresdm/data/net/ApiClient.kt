@@ -67,11 +67,21 @@ object ApiClient {
     suspend fun delete(path: String, token: String? = null): ApiResult<JSONObject> =
         request("DELETE", path, body = null, token = token)
 
+    /** Sube un archivo tal cual (una foto), no un JSON. */
+    suspend fun postBytes(
+        path: String,
+        bytes: ByteArray,
+        contentType: String,
+        token: String? = null
+    ): ApiResult<JSONObject> = request("POST", path, body = null, token = token, bytes = bytes, contentType = contentType)
+
     private suspend fun request(
         method: String,
         path: String,
         body: JSONObject?,
-        token: String?
+        token: String?,
+        bytes: ByteArray? = null,
+        contentType: String? = null
     ): ApiResult<JSONObject> = withContext(Dispatchers.IO) {
         if (!isConfigured) return@withContext ApiResult.Failure(ApiFailure.NOT_CONFIGURED)
 
@@ -86,11 +96,14 @@ object ApiClient {
                 if (body != null) {
                     doOutput = true
                     setRequestProperty("Content-Type", "application/json; charset=utf-8")
+                } else if (bytes != null) {
+                    doOutput = true
+                    setRequestProperty("Content-Type", contentType ?: "application/octet-stream")
+                    setFixedLengthStreamingMode(bytes.size)
                 }
             }
-            body?.let { json ->
-                connection.outputStream.use { it.write(json.toString().toByteArray(Charsets.UTF_8)) }
-            }
+            val payload = body?.toString()?.toByteArray(Charsets.UTF_8) ?: bytes
+            payload?.let { data -> connection.outputStream.use { it.write(data) } }
 
             val code = connection.responseCode
             if (code !in 200..299) {
@@ -113,8 +126,10 @@ object ApiClient {
     }
 
     private fun reasonFor(code: Int): ApiFailure = when (code) {
-        401, 403 -> ApiFailure.UNAUTHORIZED
-        400, 404, 409 -> ApiFailure.REJECTED
+        401 -> ApiFailure.UNAUTHORIZED
+        // 403: hay sesión, pero no puede hacer eso (cuenta bloqueada, sin permiso).
+        // 422: una foto que no pasó la revisión. En ambos el mensaje dice por qué.
+        400, 403, 404, 409, 422, 429 -> ApiFailure.REJECTED
         else -> ApiFailure.SERVER
     }
 

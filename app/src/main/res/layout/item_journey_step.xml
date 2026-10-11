@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Un paso del viaje: qué se hace, dónde y cuánto dura. La línea de la izquierda
+  lo une con el paso siguiente.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal">
+
+    <LinearLayout
+        android:layout_width="28dp"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <FrameLayout
+            android:id="@+id/stepBadge"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:background="@drawable/bg_circle_badge">
+
+            <ImageView
+                android:id="@+id/stepIcon"
+                android:layout_width="16dp"
+                android:layout_height="16dp"
+                android:layout_gravity="center"
+                android:importantForAccessibility="no"
+                tools:src="@drawable/ic_walk" />
+
+            <TextView
+                android:id="@+id/stepLetter"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                android:textStyle="bold"
+                android:visibility="gone"
+                tools:text="B" />
+        </FrameLayout>
+
+        <View
+            android:id="@+id/stepRail"
+            android:layout_width="2dp"
+            android:layout_height="0dp"
+            android:layout_marginTop="2dp"
+            android:layout_marginBottom="2dp"
+            android:layout_weight="1"
+            android:background="?attr/colorOutline" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:minHeight="28dp"
+        android:gravity="center_vertical"
+        android:orientation="vertical"
+        android:paddingStart="12dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="18dp">
+
+        <TextView
+            android:id="@+id/stepTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorOnSurface"
+            android:textSize="15sp"
+            android:textStyle="bold"
+            tools:text="Toma California" />
+
+        <TextView
+            android:id="@+id/stepDetail"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textAppearance="@style/TextAppearance.Expresdm.Body"
+            android:textSize="13sp"
+            tools:text="Sube cerca de Av. España" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/stepTime"
+        android:layout_width="wrap_content"
+        android:layout_height="28dp"
+        android:gravity="center_vertical"
+        android:textAppearance="@style/TextAppearance.Expresdm.Body"
+        android:textSize="13sp"
+        tools:text="10 min" />
+</LinearLayout>

@@ -61,6 +61,7 @@ import com.peru.expresdm.data.PlaceSearch
 import com.peru.expresdm.data.RecordingDraft
 import com.peru.expresdm.data.RoadAlert
 import com.peru.expresdm.data.RouteRepository
+import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.data.Stop
 import com.peru.expresdm.data.UserPosition
 import com.peru.expresdm.databinding.FragmentRoutesBinding
@@ -545,6 +546,13 @@ class RoutesFragment : Fragment() {
 
     // --- Lista ---
 
+    /** Grabar rutas nuevas es cosa de administradores: los demás no ven el botón. */
+    private fun renderAddRoute() {
+        val binding = _binding ?: return
+        val inSearch = lastState?.let { it.search != PlaceSearchState.Idle } ?: false
+        binding.btnAddRoute.isVisible = !inSearch && AccountRepository.session.value?.isAdmin == true
+    }
+
     private fun renderList(state: HomeState) {
         val recycler = binding.routesRecycler
 
@@ -576,7 +584,7 @@ class RoutesFragment : Fragment() {
 
         val search = state.search
         val inSearch = search != PlaceSearchState.Idle
-        binding.btnAddRoute.isVisible = !inSearch
+        renderAddRoute()
         binding.btnClosePlace.isVisible = inSearch
         binding.searchProgress.isVisible = state.mode == HomeMode.PLACE_SEARCHING
 
@@ -782,40 +790,15 @@ class RoutesFragment : Fragment() {
 
     // --- Dibujo sin ruta elegida ---
 
-    /** Rutas de la lista, en el mapa. Tocar una línea también la elige. */
-    private fun drawRoutes(state: HomeState) {
-        val map = binding.mapView
+    /**
+     * Sin ruta elegida el mapa queda limpio: las rutas se eligen en la lista
+     * de abajo y solo entonces se dibuja la suya. Con todas trazadas a la vez
+     * no se distinguía ninguna.
+     */
+    private fun drawRoutes() {
         val layer = routeLayer ?: return
-        val context = requireContext()
-
         layer.items.clear()
-        if (state.mode != HomeMode.PLACE_RESULTS && state.mode != HomeMode.PLACE_SEARCHING) {
-            state.items.forEach { item ->
-                val route = item.route
-                val color = routeColorOf(route)
-                val points = route.path?.map { it.toGeoPoint() }
-                    ?: route.stops.map { GeoPoint(it.latitude, it.longitude) }
-
-                // Dejar pasar el toque para elegir destino también sobre una línea.
-                layer.add(line(map, points, color, 4.5f))
-
-                // La parada donde subir: cerca del usuario o del lugar buscado.
-                item.nearby?.let { nearby ->
-                    layer.add(
-                        Marker(map).apply {
-                            position = GeoPoint(nearby.nearestStop.latitude, nearby.nearestStop.longitude)
-                            icon = MapMarkers.stopDot(context, color)
-                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                            setOnMarkerClickListener { _, _ ->
-                                selectRoute(route)
-                                true
-                            }
-                        }
-                    )
-                }
-            }
-        }
-        map.invalidate()
+        binding.mapView.invalidate()
     }
 
     /** Lugares encontrados, o el lugar elegido destacado. */
@@ -1797,6 +1780,8 @@ class RoutesFragment : Fragment() {
                 launch { RouteRecorderService.state.collect { renderRecorder(it) } }
 
                 launch { ArrivalAlarmService.state.collect { renderArrival(it) } }
+                // Al entrar o salir de una cuenta cambia quién puede grabar rutas.
+                launch { AccountRepository.session.collect { renderAddRoute() } }
 
                 // "Ver ruta" desde el asistente, el perfil o una ruta recién guardada.
                 launch {
@@ -1847,7 +1832,7 @@ class RoutesFragment : Fragment() {
             frameJourneyIfNeeded(journey, state)
         } else {
             framedJourney = null
-            drawRoutes(state)
+            drawRoutes()
             frameWithoutSelection(state, previous)
         }
         drawAlerts(state.alerts)

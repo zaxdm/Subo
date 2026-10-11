@@ -10,9 +10,12 @@ import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
 import com.peru.expresdm.R
 import com.peru.expresdm.data.AlertVote
+import com.peru.expresdm.data.Reputation
 import com.peru.expresdm.data.RoadAlert
+import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.databinding.ItemAlertBinding
 import com.peru.expresdm.ui.AlertStyle
+import com.peru.expresdm.ui.RouteImages
 import com.peru.expresdm.ui.formatDistance
 import com.peru.expresdm.ui.formatTimeAgo
 
@@ -42,7 +45,13 @@ class AlertAdapter(
 
             binding.alertIconBg.backgroundTintList = ColorStateList.valueOf(color)
             binding.alertIcon.setImageResource(AlertStyle.icon(alert.type))
-            binding.alertType.setText(AlertStyle.label(alert.type))
+            // Si la alerta es de un micro, se dice de cuál.
+            val routeName = alert.routeId?.let { RouteRepository.byId(it)?.name }
+            binding.alertType.text = if (routeName == null) {
+                context.getString(AlertStyle.label(alert.type))
+            } else {
+                context.getString(R.string.alert_type_on_route, context.getString(AlertStyle.label(alert.type)), routeName)
+            }
 
             binding.alertMeta.text = listOfNotNull(
                 alert.placeName ?: context.getString(R.string.alert_unknown_place),
@@ -53,6 +62,15 @@ class AlertAdapter(
 
             binding.alertComment.isVisible = alert.comment != null
             binding.alertComment.text = alert.comment
+
+            RouteImages.show(binding.alertPhoto, alert.imageUrl, context.getString(R.string.create_alert_photo))
+
+            val author = listOfNotNull(
+                alert.authorName?.takeUnless { alert.createdByMe },
+                context.getString(R.string.alert_author_trusted).takeIf { alert.authorReputation == Reputation.TRUSTED }
+            ).joinToString(" · ")
+            binding.alertAuthor.text = author
+            binding.alertAuthor.isVisible = author.isNotEmpty()
 
             val confirmed = alert.myVote == AlertVote.STILL_THERE
             binding.btnStillThere.text = when {

@@ -1,14 +1,27 @@
 package com.peru.expresdm
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.View
+import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updatePadding
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.peru.expresdm.data.RouteRepository
+import com.peru.expresdm.data.SharedLink
+import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.databinding.ActivityMainBinding
+import com.peru.expresdm.tracking.PushRegistration
+import com.peru.expresdm.ui.routes.RouteDetailFragment
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 /**
  * Única Activity de la app: aloja el grafo de navegación y la barra inferior.
@@ -19,6 +32,7 @@ import com.peru.expresdm.databinding.ActivityMainBinding
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
+    private lateinit var navController: NavController
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -27,7 +41,7 @@ class MainActivity : AppCompatActivity() {
 
         val navHost = supportFragmentManager
             .findFragmentById(R.id.navHost) as NavHostFragment
-        val navController = navHost.navController
+        navController = navHost.navController
 
         binding.bottomNav.setupWithNavController(navController)
 
@@ -39,6 +53,41 @@ class MainActivity : AppCompatActivity() {
         }
 
         applyWindowInsets()
+
+        // Al girar la pantalla el enlace ya se atendió: la ficha sigue abierta.
+        if (savedInstanceState == null) openSharedRoute(intent)
+
+        // Al entrar o salir de la cuenta, el servidor sabe de quién es este
+        // teléfono: así no le avisa a alguien de su propia alerta.
+        lifecycleScope.launch {
+            AccountRepository.session.map { it?.token }.distinctUntilChanged().drop(1)
+                .collect { PushRegistration.sync(this@MainActivity) }
+        }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openSharedRoute(intent)
+    }
+
+    /** Si la app se abrió desde un enlace compartido, enseña la ficha de ese micro. */
+    private fun openSharedRoute(intent: Intent?) {
+        val routeId = SharedLink.routeIdOf(intent?.data) ?: return
+        if (showRoute(routeId)) return
+
+        // Puede ser una ruta más nueva que el catálogo guardado: se pide y se reintenta.
+        lifecycleScope.launch {
+            RouteRepository.refresh()
+            if (!showRoute(routeId)) {
+                Toast.makeText(this@MainActivity, R.string.shared_route_missing, Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+
+    private fun showRoute(routeId: String): Boolean {
+        if (RouteRepository.byId(routeId) == null) return false
+        navController.navigate(R.id.routeDetailFragment, RouteDetailFragment.args(routeId))
+        return true
     }
 
     /** Deja libres la barra de estado y la de gestos. */

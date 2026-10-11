@@ -1,9 +1,13 @@
 package com.peru.expresdm.ui.profile
 
+import android.graphics.Bitmap
+import android.net.Uri
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
@@ -15,14 +19,19 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.peru.expresdm.R
+import com.peru.expresdm.data.ProfilePhotoStore
 import com.peru.expresdm.data.ProfileStats
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.data.net.ApiClient
+import com.peru.expresdm.data.net.ApiFailure
+import com.peru.expresdm.data.net.ApiResult
+import com.peru.expresdm.data.net.ImageUploader
 import com.peru.expresdm.data.net.Session
 import com.peru.expresdm.databinding.DialogEditNameBinding
 import com.peru.expresdm.databinding.FragmentProfileBinding
 import com.peru.expresdm.ui.Initials
+import com.peru.expresdm.ui.RouteImages
 import com.peru.expresdm.ui.account.AccountSheet
 import com.peru.expresdm.ui.routes.RouteAdapter
 import com.peru.expresdm.ui.showRouteOnMap
@@ -40,6 +49,11 @@ class ProfileFragment : Fragment() {
     private val binding get() = _binding!!
 
     private val viewModel: ProfileViewModel by viewModels()
+
+    /** El selector de fotos de Android: no pide permiso para leer la galería. */
+    private val photoPicker = registerForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null && _binding != null) savePhoto(uri)
+    }
 
     private val adapter by lazy {
         // Una favorita se traza en el mapa del inicio, igual que desde la lista de cercanas.
@@ -82,6 +96,7 @@ class ProfileFragment : Fragment() {
 
         binding.btnAccount.setOnClickListener { AccountSheet.show(childFragmentManager) }
         binding.btnEditName.setOnClickListener { askForName() }
+        binding.avatarFrame.setOnClickListener { onAvatarClick() }
         binding.rowSignOut.setOnClickListener { signOut() }
 
         childFragmentManager.setFragmentResultListener(AccountSheet.RESULT_KEY, viewLifecycleOwner) { _, _ ->
@@ -137,6 +152,93 @@ class ProfileFragment : Fragment() {
         binding.signOutDivider.isVisible = signedIn
         // Sin servidor no hay cuentas que abrir: el botón solo estorbaría.
         binding.btnAccount.isVisible = !signedIn && ApiClient.isConfigured
+
+        binding.avatarFrame.isClickable = signedIn
+        binding.avatarFrame.contentDescription = getString(R.string.profile_photo_change).takeIf { signedIn }
+        binding.avatarCamera.isVisible = signedIn
+        showPhoto(null)
+        if (session != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val photo = ProfilePhotoStore.load(requireContext().applicationContext, session.userId)
+                // Mientras se leía pudo cambiar la cuenta: la foto es de quien era.
+                if (AccountRepository.session.value?.userId != session.userId) return@launch
+                if (photo != null) {
+                    showPhoto(photo)
+                } else {
+                    // En un teléfono nuevo no hay copia local: se trae la del servidor.
+                    _binding?.let { RouteImages.show(it.profilePhoto, session.avatarUrl, getString(R.string.profile_photo)) }
+                }
+            }
+        }
+    }
+
+    /** La foto tapa las iniciales; sin foto, se ven ellas. */
+    private fun showPhoto(photo: Bitmap?) {
+        val binding = _binding ?: return
+        binding.profilePhoto.setImageBitmap(photo)
+        binding.profilePhoto.isVisible = photo != null
+    }
+
+    private fun onAvatarClick() {
+        if (AccountRepository.session.value == null) return
+        if (!binding.profilePhoto.isVisible) {
+            pickPhoto()
+            return
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.profile_photo)
+            .setItems(
+                arrayOf(getString(R.string.profile_photo_change), getString(R.string.profile_photo_remove))
+            ) { _, which -> if (which == 0) pickPhoto() else removePhoto() }
+            .show()
+    }
+
+    private fun pickPhoto() {
+        photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+    }
+
+    private fun savePhoto(source: Uri) {
+        val userId = AccountRepository.session.value?.userId ?: return
+        val context = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Con servidor, la foto se sube para verla en cualquier teléfono. El
+            // servidor la revisa: si la rechaza, no se pone y se dice por qué.
+            var onlyLocal = !ApiClient.isConfigured
+            if (ApiClient.isConfigured) {
+                val uploaded = ImageUploader.upload(context, source, ImageUploader.Purpose.AVATAR)
+                val saved = if (uploaded is ApiResult.Success) AccountRepository.setAvatar(uploaded.data) else uploaded
+                if (saved is ApiResult.Failure) {
+                    if (saved.reason == ApiFailure.REJECTED) {
+                        showMessage(saved.message ?: getString(R.string.profile_photo_failed))
+                        return@launch
+                    }
+                    // Sin conexión, o un servidor que no acepta fotos: se queda en este teléfono.
+                    onlyLocal = true
+                }
+            }
+
+            val photo = ProfilePhotoStore.save(context, userId, source)
+            if (photo == null) {
+                showMessage(getString(R.string.profile_photo_failed))
+            } else if (AccountRepository.session.value?.userId == userId) {
+                showPhoto(photo)
+                if (onlyLocal && ApiClient.isConfigured) showMessage(getString(R.string.profile_photo_local_only))
+            }
+        }
+    }
+
+    private fun showMessage(text: String) {
+        val binding = _binding ?: return
+        Snackbar.make(binding.root, text, Snackbar.LENGTH_LONG).show()
+    }
+
+    private fun removePhoto() {
+        val userId = AccountRepository.session.value?.userId ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            ProfilePhotoStore.delete(requireContext().applicationContext, userId)
+            showPhoto(null)
+            if (ApiClient.isConfigured) AccountRepository.setAvatar(null)
+        }
     }
 
     /** Tres números con lo que el usuario lleva aportado. */

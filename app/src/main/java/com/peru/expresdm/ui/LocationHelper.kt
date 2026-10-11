@@ -45,7 +45,10 @@ suspend fun Context.currentLocation(timeoutMs: Long = 12_000L): Location? {
     } catch (security: SecurityException) {
         null
     }
-    if (lastKnown != null && System.currentTimeMillis() - lastKnown.time < FRESH_LOCATION_MS) return lastKnown
+    if (lastKnown != null && System.currentTimeMillis() - lastKnown.time < FRESH_LOCATION_MS) {
+        LastPosition.remember(this, lastKnown)
+        return lastKnown
+    }
 
     val provider = when {
         manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
@@ -70,7 +73,32 @@ suspend fun Context.currentLocation(timeoutMs: Long = 12_000L): Location? {
             }
         }
     }
-    return fresh ?: lastKnown
+    return (fresh ?: lastKnown)?.also { LastPosition.remember(this, it) }
+}
+
+/**
+ * La última posición que la app vio con el usuario dentro.
+ *
+ * En segundo plano la app no tiene permiso para preguntar dónde está el
+ * teléfono (ni lo pide: sería mucho pedir para esto). Para avisar de alertas
+ * cercanas le basta con el último sitio donde se la usó.
+ */
+object LastPosition {
+    private const val PREFS_NAME = "last_position"
+
+    fun remember(context: Context, location: Location) {
+        context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
+            .putFloat("lat", location.latitude.toFloat())
+            .putFloat("lon", location.longitude.toFloat())
+            .apply()
+    }
+
+    /** Latitud y longitud, o `null` si la app aún no ha sabido dónde está. */
+    fun get(context: Context): Pair<Double, Double>? {
+        val prefs = context.applicationContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        if (!prefs.contains("lat")) return null
+        return prefs.getFloat("lat", 0f).toDouble() to prefs.getFloat("lon", 0f).toDouble()
+    }
 }
 
 /** Una lectura de hace menos de esto sirve sin pedir otra. */

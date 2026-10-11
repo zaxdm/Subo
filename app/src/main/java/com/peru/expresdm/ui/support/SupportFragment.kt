@@ -22,6 +22,7 @@ import com.peru.expresdm.data.net.ApiFailure
 import com.peru.expresdm.data.net.ApiResult
 import com.peru.expresdm.databinding.FragmentSupportBinding
 import com.peru.expresdm.databinding.ItemFaqBinding
+import com.peru.expresdm.databinding.ItemMyFeedbackBinding
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 
@@ -63,6 +64,37 @@ class SupportFragment : Fragment() {
         binding.btnSend.setOnClickListener { sendFeedback() }
 
         binding.appVersion.text = getString(R.string.support_version, BuildConfig.VERSION_NAME)
+
+        loadMyFeedback()
+    }
+
+    /** Lo que el usuario ya mandó, con su estado y la respuesta del administrador si la hay. */
+    private fun loadMyFeedback() {
+        if (!ApiClient.isConfigured || !AccountRepository.isSignedIn) return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = ApiClient.get("/api/feedback/mine", AccountRepository.token)
+            val binding = _binding ?: return@launch
+            val items = (result as? ApiResult.Success)?.data?.optJSONArray("feedback") ?: return@launch
+
+            binding.myFeedbackContainer.removeAllViews()
+            for (index in 0 until items.length()) {
+                val item = items.optJSONObject(index) ?: continue
+                val row = ItemMyFeedbackBinding.inflate(layoutInflater, binding.myFeedbackContainer, false)
+                val status = when (item.optString("status")) {
+                    "IN_REVIEW" -> R.string.support_status_in_review
+                    "RESOLVED" -> R.string.support_status_resolved
+                    else -> R.string.support_status_new
+                }
+                row.feedbackHeader.text =
+                    getString(R.string.support_mine_header, item.optString("subject"), getString(status))
+                row.feedbackMessage.text = item.optString("message")
+                val reply = if (item.isNull("reply")) "" else item.optString("reply")
+                row.feedbackReply.isVisible = reply.isNotBlank()
+                row.feedbackReply.text = getString(R.string.support_mine_reply, reply)
+                binding.myFeedbackContainer.addView(row.root)
+            }
+            binding.myFeedbackSection.isVisible = items.length() > 0
+        }
     }
 
     private fun addFaq(faq: Faq) {
@@ -110,6 +142,7 @@ class SupportFragment : Fragment() {
                 is ApiResult.Success -> {
                     binding.messageInput.text = null
                     showMessage(R.string.support_feedback_sent)
+                    loadMyFeedback()
                 }
                 is ApiResult.Failure -> when (result.reason) {
                     ApiFailure.UNAUTHORIZED -> showMessage(R.string.profile_name_session_expired)

@@ -162,6 +162,14 @@ class ArrivalAlarmService : Service(), LocationListener {
         postArrivalNotification(target)
         val settings = AppSettings.get(this)
         ArrivalSignal.play(this, vibrate = settings.arrivalVibration, sound = settings.arrivalSound)
+        if (settings.arrivalVoice) {
+            // Después del tono, para que se entienda lo que dice.
+            ArrivalVoice.speak(
+                this,
+                getString(R.string.arrival_arrived, target.stopName),
+                delayMs = if (settings.arrivalSound) VOICE_AFTER_SOUND_MS else 0
+            )
+        }
         _state.value = ArrivalState(arrivedAt = target)
         stopEverything()
     }
@@ -317,6 +325,9 @@ class ArrivalAlarmService : Service(), LocationListener {
         private const val EXTRA_LON = "lon"
 
         private const val UPDATE_INTERVAL_MS = 5_000L
+
+        /** Lo que dura el tono del aviso, más un respiro: la voz entra después. */
+        const val VOICE_AFTER_SOUND_MS = 3_600L
         private const val NOTIFICATION_STEP_METERS = 100.0
 
         /** Ningún trayecto en micro por Trujillo dura tanto: si no llegó, se olvidó del aviso. */

@@ -92,6 +92,30 @@
             tools:text="Cola larga desde el óvalo, mejor tomar Av. América"
             tools:visibility="visible" />
 
+        <!-- La foto, si quien avisó adjuntó una -->
+        <com.google.android.material.imageview.ShapeableImageView
+            android:id="@+id/alertPhoto"
+            android:layout_width="match_parent"
+            android:layout_height="170dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp"
+            android:scaleType="centerCrop"
+            android:visibility="gone"
+            app:shapeAppearanceOverlay="@style/ShapeAppearance.Expresdm.Small" />
+
+        <!-- Quién avisó y, si suele acertar, que es de confianza -->
+        <TextView
+            android:id="@+id/alertAuthor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:layout_marginEnd="8dp"
+            android:textAppearance="@style/TextAppearance.Expresdm.Body"
+            android:textSize="12sp"
+            android:visibility="gone"
+            tools:text="Ana María · Suele acertar"
+            tools:visibility="visible" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

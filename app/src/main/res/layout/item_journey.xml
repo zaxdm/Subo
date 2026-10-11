@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Una forma de llegar al lugar buscado: tiempo, pasaje y los tramos. -->
+<!--
+  Una forma de llegar, con la hoja arriba: la misma cabecera de color que su
+  tarjeta del carrusel y, debajo, el viaje paso a paso.
+-->
 <com.google.android.material.card.MaterialCardView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -10,85 +13,147 @@
     android:layout_marginTop="12dp"
     android:clickable="true"
     android:focusable="true"
-    app:cardCornerRadius="22dp">
+    app:cardBackgroundColor="?attr/colorSurface"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingStart="16dp"
-        android:paddingTop="14dp"
-        android:paddingEnd="16dp"
-        android:paddingBottom="14dp">
+        android:orientation="vertical">
 
-        <!-- Fila superior: cuánto tarda, cuánto cuesta y si hay transbordo -->
-        <LinearLayout
+        <!-- Cabecera: el color del micro, oscurecido como en el carrusel -->
+        <FrameLayout
+            android:id="@+id/journeyHeader"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            tools:background="@color/route_accent_2">
 
-            <TextView
-                android:id="@+id/journeyTime"
-                android:layout_width="wrap_content"
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@drawable/bg_route_card_scrim" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="18sp"
-                android:textStyle="bold"
-                tools:text="32 min" />
+                android:orientation="vertical"
+                android:paddingStart="16dp"
+                android:paddingTop="14dp"
+                android:paddingEnd="16dp"
+                android:paddingBottom="14dp">
 
-            <TextView
-                android:id="@+id/journeyFare"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:textColor="?attr/colorOnSurface"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                tools:text="S/ 3.50" />
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                    <!-- Las letras de los micros, en el orden en que se toman -->
+                    <LinearLayout
+                        android:id="@+id/journeyChain"
+                        android:layout_width="0dp"
+                        android:layout_height="30dp"
+                        android:layout_weight="1"
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal" />
 
-            <TextView
-                android:id="@+id/journeyTransfers"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/bg_pill_surface"
-                android:paddingStart="10dp"
-                android:paddingTop="3dp"
-                android:paddingEnd="10dp"
-                android:paddingBottom="3dp"
-                android:textColor="@color/white"
-                android:textSize="11sp"
-                android:textStyle="bold"
-                tools:text="1 TRANSBORDO" />
-        </LinearLayout>
+                    <TextView
+                        android:id="@+id/journeyTransfers"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:layout_marginEnd="6dp"
+                        android:background="@drawable/bg_chip_scrim"
+                        android:gravity="center_vertical"
+                        android:paddingStart="10dp"
+                        android:paddingEnd="10dp"
+                        android:textColor="@color/white"
+                        android:textSize="11sp"
+                        android:textStyle="bold"
+                        tools:text="1 TRANSBORDO" />
 
-        <!-- La cadena de tramos: se camina, se toma un micro, se cambia... -->
+                    <TextView
+                        android:id="@+id/journeyTime"
+                        android:layout_width="wrap_content"
+                        android:layout_height="28dp"
+                        android:background="@drawable/bg_chip_scrim"
+                        android:drawablePadding="4dp"
+                        android:gravity="center_vertical"
+                        android:paddingStart="8dp"
+                        android:paddingEnd="10dp"
+                        android:textColor="@color/white"
+                        android:textSize="12sp"
+                        android:textStyle="bold"
+                        app:drawableStartCompat="@drawable/ic_clock_small"
+                        app:drawableTint="@color/white"
+                        tools:text="32 min" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/journeyTitle"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp"
+                    android:ellipsize="end"
+                    android:maxLines="2"
+                    android:textColor="@color/white"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    tools:text="California" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:id="@+id/journeyWalk"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:drawablePadding="4dp"
+                        android:ellipsize="end"
+                        android:gravity="center_vertical"
+                        android:maxLines="1"
+                        android:paddingEnd="8dp"
+                        android:textColor="@color/white"
+                        android:textSize="13sp"
+                        app:drawableStartCompat="@drawable/ic_walk_small"
+                        app:drawableTint="@color/white"
+                        tools:text="240 m a pie" />
+
+                    <TextView
+                        android:id="@+id/journeyFare"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:textColor="@color/white"
+                        android:textSize="15sp"
+                        android:textStyle="bold"
+                        tools:text="S/ 2.00" />
+                </LinearLayout>
+            </LinearLayout>
+        </FrameLayout>
+
+        <!-- El viaje paso a paso: caminar, subir, bajar, llegar -->
         <LinearLayout
-            android:id="@+id/journeyChain"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingTop="10dp" />
-
-        <TextView
             android:id="@+id/journeySteps"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:paddingTop="10dp"
-            android:textAppearance="@style/TextAppearance.Expresdm.Body"
-            android:textSize="13sp"
-            tools:text="Camina 350 m hasta Av. España · Baja en Óvalo Huanchaco" />
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingTop="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="2dp" />
 
         <LinearLayout
             android:id="@+id/journeyPhotos"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical" />
+            android:orientation="vertical"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp"
+            android:paddingBottom="4dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

@@ -97,6 +97,70 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- De qué micro se habla: solo para cobro de más y micro lleno -->
+        <com.google.android.material.textfield.TextInputLayout
+            android:id="@+id/routeLayout"
+            style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:hint="@string/create_alert_route"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.textfield.MaterialAutoCompleteTextView
+                android:id="@+id/routeInput"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="none" />
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <!-- Foto opcional: el servidor la revisa antes de publicarla -->
+        <LinearLayout
+            android:id="@+id/photoRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.imageview.ShapeableImageView
+                android:id="@+id/photoPreview"
+                android:layout_width="56dp"
+                android:layout_height="56dp"
+                android:layout_marginEnd="8dp"
+                android:contentDescription="@string/create_alert_photo"
+                android:scaleType="centerCrop"
+                android:visibility="gone"
+                app:shapeAppearanceOverlay="@style/ShapeAppearance.Expresdm.Small" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnAddPhoto"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/create_alert_photo_add"
+                app:icon="@drawable/ic_camera" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRemovePhoto"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/create_alert_photo_remove"
+                android:visibility="gone" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/photoError"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="?attr/colorError"
+            android:textSize="12sp"
+            android:visibility="gone" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/commentLayout"
             style="@style/Widget.Material3.TextInputLayout.OutlinedBox"

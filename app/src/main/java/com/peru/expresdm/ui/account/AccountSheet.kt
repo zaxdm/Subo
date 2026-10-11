@@ -31,7 +31,23 @@ class AccountSheet : BottomSheetDialogFragment() {
     private var _binding: SheetAccountBinding? = null
     private val binding get() = _binding!!
 
-    private var creatingAccount = false
+    /** Lo que se está haciendo en la hoja. */
+    private enum class Mode {
+        SIGN_IN,
+        SIGN_UP,
+
+        /** Olvidó la contraseña: pide el correo para mandarle un código. */
+        FORGOT,
+
+        /** Ya tiene el código: lo escribe junto a la contraseña nueva. */
+        RESET,
+
+        /** Pidió la cuenta: falta el código que le llegó al correo para crearla. */
+        CONFIRM
+    }
+
+    private var mode = Mode.SIGN_IN
+    private val creatingAccount get() = mode == Mode.SIGN_UP
     private var working = false
 
     override fun onCreateView(
@@ -46,11 +62,18 @@ class AccountSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        creatingAccount = savedInstanceState?.getBoolean(STATE_CREATING) ?: false
+        mode = savedInstanceState?.getString(STATE_MODE)?.let { name -> Mode.entries.firstOrNull { it.name == name } }
+            ?: Mode.SIGN_IN
         renderMode()
 
         binding.btnAccountToggle.setOnClickListener {
-            creatingAccount = !creatingAccount
+            // Desde recuperar la contraseña, este botón vuelve a iniciar sesión;
+            // desde el código del registro, a los datos de la cuenta.
+            mode = if (mode == Mode.SIGN_IN || mode == Mode.CONFIRM) Mode.SIGN_UP else Mode.SIGN_IN
+            renderMode()
+        }
+        binding.btnForgot.setOnClickListener {
+            mode = Mode.FORGOT
             renderMode()
         }
         binding.btnAccountAction.setOnClickListener { submit() }
@@ -62,7 +85,8 @@ class AccountSheet : BottomSheetDialogFragment() {
         listOf(
             binding.nameLayout to binding.nameInput,
             binding.emailLayout to binding.emailInput,
-            binding.passwordLayout to binding.passwordInput
+            binding.passwordLayout to binding.passwordInput,
+            binding.codeLayout to binding.codeInput
         ).forEach { (layout, input) -> input.doAfterTextChanged { layout.error = null } }
     }
 
@@ -78,17 +102,66 @@ class AccountSheet : BottomSheetDialogFragment() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(STATE_CREATING, creatingAccount)
+        outState.putString(STATE_MODE, mode.name)
     }
 
     private fun renderMode() {
         val binding = _binding ?: return
+        val recovering = mode == Mode.FORGOT || mode == Mode.RESET
+        val confirming = mode == Mode.CONFIRM
         binding.nameLayout.isVisible = creatingAccount
-        binding.accountTitle.setText(if (creatingAccount) R.string.account_sign_up else R.string.account_sign_in)
-        binding.btnAccountAction.setText(if (creatingAccount) R.string.account_sign_up else R.string.account_sign_in)
-        binding.btnAccountToggle.setText(
-            if (creatingAccount) R.string.account_have_account else R.string.account_no_account
+        binding.codeLayout.isVisible = mode == Mode.RESET || confirming
+        binding.passwordLayout.isVisible = mode != Mode.FORGOT && !confirming
+        binding.passwordLayout.hint =
+            getString(if (mode == Mode.RESET) R.string.account_reset_new_password else R.string.account_password)
+        // El correo al que se mandó el código ya no se cambia.
+        binding.emailInput.isEnabled = mode != Mode.RESET && !confirming
+        binding.btnForgot.isVisible = mode == Mode.SIGN_IN
+        binding.btnGoogle.isVisible = !recovering && !confirming
+        binding.googleStatus.isVisible = !recovering && !confirming && !GoogleAccount.isConfigured
+
+        val title = when (mode) {
+            Mode.SIGN_IN -> R.string.account_sign_in
+            Mode.SIGN_UP -> R.string.account_sign_up
+            Mode.FORGOT, Mode.RESET -> R.string.account_reset_title
+            Mode.CONFIRM -> R.string.account_confirm_title
+        }
+        binding.accountTitle.setText(title)
+        binding.btnAccountAction.setText(
+            when (mode) {
+                Mode.FORGOT -> R.string.account_reset_send
+                Mode.RESET -> R.string.account_reset_change
+                Mode.CONFIRM -> R.string.account_confirm_action
+                else -> title
+            }
         )
+        binding.btnAccountToggle.setText(
+            when (mode) {
+                Mode.SIGN_IN -> R.string.account_no_account
+                Mode.SIGN_UP -> R.string.account_have_account
+                Mode.FORGOT, Mode.RESET -> R.string.account_reset_back
+                Mode.CONFIRM -> R.string.account_confirm_back
+            }
+        )
+    }
+
+    /** Pide que se mande el código al correo y pasa a esperar que lo escriban. */
+    private fun requestCode(email: String) {
+        setWorking(true)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = AccountRepository.forgotPassword(email)
+            val binding = _binding ?: return@launch
+            setWorking(false)
+            when (result) {
+                is ApiResult.Success -> {
+                    mode = Mode.RESET
+                    renderMode()
+                    binding.codeLayout.helperText = getString(R.string.account_reset_sent, email)
+                }
+                is ApiResult.Failure -> binding.emailLayout.error =
+                    result.message ?: getString(R.string.account_offline)
+            }
+        }
     }
 
     private fun submit() {
@@ -107,22 +180,40 @@ class AccountSheet : BottomSheetDialogFragment() {
             binding.emailLayout.error = getString(R.string.account_email_invalid)
             return
         }
-        if (password.length < MIN_PASSWORD) {
+        if (mode == Mode.FORGOT) {
+            requestCode(email)
+            return
+        }
+        val code = binding.codeInput.text?.toString()?.trim().orEmpty()
+        if ((mode == Mode.RESET || mode == Mode.CONFIRM) && code.length != 6) {
+            binding.codeLayout.error = getString(R.string.account_reset_code_invalid)
+            return
+        }
+        // Al confirmar el correo, la contraseña ya se mandó con el registro.
+        if (mode != Mode.CONFIRM && password.length < MIN_PASSWORD) {
             binding.passwordLayout.error = getString(R.string.account_password_short)
             return
         }
 
         setWorking(true)
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = if (creatingAccount) {
-                AccountRepository.register(email, password, name)
-            } else {
-                AccountRepository.login(email, password)
+            val result = when (mode) {
+                Mode.SIGN_UP -> AccountRepository.register(email, password, name)
+                Mode.RESET -> AccountRepository.resetPassword(email, code, password)
+                Mode.CONFIRM -> AccountRepository.confirmRegistration(email, code)
+                else -> AccountRepository.login(email, password)
             }
-            if (_binding == null) return@launch
+            val binding = _binding ?: return@launch
 
             when (result) {
-                is ApiResult.Success -> {
+                is ApiResult.Success -> if (result.data == false) {
+                    // La cuenta todavía no existe: falta el código que se le mandó.
+                    mode = Mode.CONFIRM
+                    setWorking(false)
+                    renderMode()
+                    binding.codeInput.setText("")
+                    binding.codeLayout.helperText = getString(R.string.account_confirm_sent, email)
+                } else {
                     parentFragmentManager.setFragmentResult(RESULT_KEY, Bundle())
                     dismiss()
                 }
@@ -188,7 +279,9 @@ class AccountSheet : BottomSheetDialogFragment() {
             ApiFailure.NETWORK, ApiFailure.SERVER -> getString(R.string.account_offline)
             ApiFailure.UNAUTHORIZED, ApiFailure.REJECTED -> getString(R.string.account_email_invalid)
         }
-        binding.passwordLayout.error = message
+        // Al confirmar el correo no hay contraseña a la vista: el aviso va en el código.
+        val field = if (mode == Mode.CONFIRM) binding.codeLayout else binding.passwordLayout
+        field.error = message
     }
 
     private fun setWorking(busy: Boolean) {
@@ -196,8 +289,10 @@ class AccountSheet : BottomSheetDialogFragment() {
         val binding = _binding ?: return
         binding.btnAccountAction.isEnabled = !busy
         binding.btnAccountToggle.isEnabled = !busy
+        binding.btnForgot.isEnabled = !busy
+        binding.codeInput.isEnabled = !busy
         binding.btnGoogle.isEnabled = !busy && GoogleAccount.isConfigured
-        binding.emailInput.isEnabled = !busy
+        binding.emailInput.isEnabled = !busy && mode != Mode.RESET && mode != Mode.CONFIRM
         binding.passwordInput.isEnabled = !busy
         binding.nameInput.isEnabled = !busy
     }
@@ -209,7 +304,7 @@ class AccountSheet : BottomSheetDialogFragment() {
 
     companion object {
         private const val TAG = "account"
-        private const val STATE_CREATING = "creating"
+        private const val STATE_MODE = "mode"
         private const val MIN_PASSWORD = 8
 
         const val RESULT_KEY = "account_changed"
