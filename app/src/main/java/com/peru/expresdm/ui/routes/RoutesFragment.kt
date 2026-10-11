@@ -418,8 +418,12 @@ class RoutesFragment : Fragment() {
         val opening = !pane.isOpen
         if (opening) {
             placeStreetPane()
-            // El mapa se queda con el hueco entre la calle y la hoja: la hoja, al mínimo.
-            sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+            // Mirando la calle, la hoja de rutas sobra: se esconde entera y el
+            // mapa se queda con todo lo que hay debajo de la calle.
+            sheetBehavior?.let {
+                it.isHideable = true
+                it.state = BottomSheetBehavior.STATE_HIDDEN
+            }
         }
         pane.show(point.latitude, point.longitude)
         refreshBackHandler()
@@ -458,12 +462,13 @@ class RoutesFragment : Fragment() {
 
     /**
      * "Ver calle" solo se ofrece cuando hay un sitio marcado del que enseñarla:
-     * el destino elegido o la bajada. Con la calle abierta se queda, para cerrarla.
+     * el destino elegido o la bajada. Con la calle abierta no hace falta: se
+     * cierra con su X.
      */
     private fun renderStreetButton() {
         val binding = _binding ?: return
-        binding.streetViewHolder.isVisible = streetPane?.isOpen == true ||
-            picking?.drop != null || lastState?.search is PlaceSearchState.Chosen
+        binding.streetViewHolder.isVisible = streetPane?.isOpen != true &&
+            (picking?.drop != null || lastState?.search is PlaceSearchState.Chosen)
     }
 
     private fun closeStreetView() {
@@ -821,6 +826,8 @@ class RoutesFragment : Fragment() {
 
     /** Deja la hoja en reposo: la altura a la que se ve el carrusel o el principio del contenido. */
     private fun restSheet() {
+        // Con la calle abierta la hoja está escondida, y así se queda.
+        if (streetPane?.isOpen == true) return
         sheetBehavior?.state = BottomSheetBehavior.STATE_HALF_EXPANDED
     }
 
@@ -2151,6 +2158,13 @@ class RoutesFragment : Fragment() {
         val behavior = BottomSheetBehavior.from(binding.sheet)
         behavior.addBottomSheetCallback(object : BottomSheetBehavior.BottomSheetCallback() {
             override fun onStateChanged(bottomSheet: View, newState: Int) {
+                // Solo se puede esconder mientras se mira la calle: de vuelta
+                // a la vista, ya no se va arrastrándola hacia abajo.
+                if (newState != BottomSheetBehavior.STATE_HIDDEN && newState != BottomSheetBehavior.STATE_SETTLING &&
+                    newState != BottomSheetBehavior.STATE_DRAGGING && streetPane?.isOpen != true
+                ) {
+                    sheetBehavior?.isHideable = false
+                }
                 when (newState) {
                     BottomSheetBehavior.STATE_COLLAPSED,
                     BottomSheetBehavior.STATE_HALF_EXPANDED,
