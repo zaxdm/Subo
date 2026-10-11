@@ -88,13 +88,17 @@
         <item name="android:background">@drawable/bg_swatch</item>
     </style>
 
-    <!-- Botón principal -->
+    <!--
+      Botón principal: una pastilla. De día es negra con el texto blanco, como
+      en la web; de noche, amarilla con el texto negro (colorPrimary cambia).
+    -->
     <style name="Widget.Expresdm.ButtonPrimary" parent="Widget.Material3.Button">
         <item name="android:minHeight">52dp</item>
-        <item name="cornerRadius">18dp</item>
-        <item name="backgroundTint">@color/brand</item>
-        <item name="android:textColor">@color/on_brand</item>
-        <item name="iconTint">@color/on_brand</item>
+        <item name="cornerRadius">26dp</item>
+        <item name="backgroundTint">?attr/colorPrimary</item>
+        <item name="android:textColor">?attr/colorOnPrimary</item>
+        <item name="iconTint">?attr/colorOnPrimary</item>
+        <item name="android:textStyle">bold</item>
     </style>
 
 </resources>

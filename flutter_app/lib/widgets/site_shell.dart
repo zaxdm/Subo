@@ -126,8 +126,11 @@ class SiteShell extends StatelessWidget {
   Widget _navbar(bool wide) {
     final name = accountName;
     return Container(
-      height: 60,
-      color: Palette.sidebar,
+      height: 64,
+      decoration: const BoxDecoration(
+        color: Palette.paper,
+        border: Border(bottom: BorderSide(color: Palette.line)),
+      ),
       padding: EdgeInsets.symmetric(horizontal: wide ? 28 : 14),
       child: Row(
         children: [
@@ -142,7 +145,8 @@ class SiteShell extends StatelessWidget {
               TextButton(
                 onPressed: () => onPage(item),
                 style: TextButton.styleFrom(
-                  foregroundColor: item == page ? Palette.accent : const Color(0xFFD6CDB0),
+                  foregroundColor: item == page ? Palette.ink : Palette.muted,
+                  textStyle: TextStyle(fontWeight: item == page ? FontWeight.w700 : FontWeight.w500),
                 ),
                 child: Text(item.label),
               ),
@@ -153,31 +157,21 @@ class SiteShell extends StatelessWidget {
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 200),
                 child: Text(name,
-                    overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFD6CDB0), fontSize: 13)),
+                    overflow: TextOverflow.ellipsis, style: const TextStyle(color: Palette.muted, fontSize: 13)),
               ),
-            if (onPanel != null)
-              TextButton(
-                onPressed: onPanel,
-                style: TextButton.styleFrom(foregroundColor: Palette.accent),
-                child: const Text('Panel'),
-              ),
+            if (onPanel != null) TextButton(onPressed: onPanel, child: const Text('Panel')),
             // En una pantalla estrecha no caben los dos: el administrador sale desde Mi perfil.
-            if (wide || onPanel == null)
-              TextButton(
-                onPressed: onSignOut,
-                style: TextButton.styleFrom(foregroundColor: Palette.accent),
-                child: const Text('Cerrar sesión'),
-              ),
+            if (wide || onPanel == null) TextButton(onPressed: onSignOut, child: const Text('Cerrar sesión')),
           ] else
             FilledButton(
               onPressed: onSignIn,
-              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+              style: FilledButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14)),
               child: const Text('Iniciar sesión'),
             ),
           if (!wide)
             PopupMenuButton<SitePage>(
               tooltip: 'Menú',
-              icon: const Icon(Icons.menu, color: Colors.white),
+              icon: const Icon(Icons.menu, color: Palette.ink),
               onSelected: onPage,
               itemBuilder: (_) => [for (final item in _navPages) PopupMenuItem(value: item, child: Text(item.label))],
             ),
@@ -203,13 +197,13 @@ class _Brand extends StatelessWidget {
           child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 15)),
         ),
         const SizedBox(width: 10),
-        const Text('Subo', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18)),
+        const Text('Subo', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 18)),
       ],
     );
   }
 }
 
-/// Un enlace del pie, claro sobre el fondo oscuro.
+/// Un enlace del pie.
 class _FooterLink extends StatelessWidget {
   const _FooterLink(this.label, this.onTap);
 
@@ -221,7 +215,7 @@ class _FooterLink extends StatelessWidget {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFFE9E1C6),
+        foregroundColor: Palette.muted,
         padding: const EdgeInsets.symmetric(horizontal: 10),
         minimumSize: const Size(0, 36),
         alignment: Alignment.centerLeft,
@@ -232,7 +226,7 @@ class _FooterLink extends StatelessWidget {
   }
 }
 
-/// El pie del mapa: una franja oscura con las páginas de información.
+/// El pie del mapa: una franja con las páginas de información.
 class _FooterBar extends StatelessWidget {
   const _FooterBar({required this.onPage, required this.wide});
 
@@ -249,13 +243,16 @@ class _FooterBar extends StatelessWidget {
     );
     return Container(
       width: double.infinity,
-      color: Palette.sidebar,
+      decoration: const BoxDecoration(
+        color: Palette.paper,
+        border: Border(top: BorderSide(color: Palette.line)),
+      ),
       padding: EdgeInsets.symmetric(horizontal: wide ? 28 : 8, vertical: 8),
       child: wide
           ? Row(
               children: [
                 const Text('© 2026 Subo · Hecho en Trujillo, Perú',
-                    style: TextStyle(color: Palette.sidebarMuted, fontSize: 13)),
+                    style: TextStyle(color: Palette.muted, fontSize: 13)),
                 const Spacer(),
                 links,
               ],
@@ -280,7 +277,7 @@ class SiteFooter extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(left: 10, bottom: 6),
               child: Text(title,
-                  style: const TextStyle(color: Palette.accent, fontSize: 12, fontWeight: FontWeight.w700)),
+                  style: const TextStyle(color: Palette.ink, fontSize: 12, fontWeight: FontWeight.w700)),
             ),
             ...children,
           ],
@@ -295,7 +292,7 @@ class SiteFooter extends StatelessWidget {
           constraints: const BoxConstraints(maxWidth: 300),
           child: const Text(
             'Las líneas de micro de Trujillo en un solo mapa: recorrido, pasaje, horario y avisos de la calle.',
-            style: TextStyle(color: Palette.sidebarMuted, fontSize: 13, height: 1.6),
+            style: TextStyle(color: Palette.muted, fontSize: 13, height: 1.6),
           ),
         ),
       ],
@@ -315,7 +312,10 @@ class SiteFooter extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      color: Palette.sidebar,
+      decoration: const BoxDecoration(
+        color: Palette.paper,
+        border: Border(top: BorderSide(color: Palette.line)),
+      ),
       padding: const EdgeInsets.fromLTRB(28, 40, 28, 20),
       child: Center(
         child: ConstrainedBox(
@@ -329,10 +329,10 @@ class SiteFooter extends StatelessWidget {
                 children: [about, site, legal, channels],
               ),
               const SizedBox(height: 28),
-              const Divider(color: Color(0xFF3A3115)),
+              const Divider(),
               const SizedBox(height: 14),
               const Text('© 2026 Subo · Hecho en Trujillo, Perú',
-                  style: TextStyle(color: Palette.sidebarMuted, fontSize: 12)),
+                  style: TextStyle(color: Palette.muted, fontSize: 12)),
             ],
           ),
         ),

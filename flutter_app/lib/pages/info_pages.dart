@@ -163,7 +163,7 @@ class SitePhoto extends StatelessWidget {
     return AspectRatio(
       aspectRatio: aspectRatio,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         // El recuadro va debajo: se ve mientras la foto carga y si no existe.
         child: Stack(
           fit: StackFit.expand,
@@ -182,8 +182,9 @@ class SitePhoto extends StatelessWidget {
 }
 
 class _Stat extends StatelessWidget {
-  const _Stat(this.value, this.label);
+  const _Stat(this.icon, this.value, this.label);
 
+  final IconData icon;
   final String value;
   final String label;
 
@@ -192,15 +193,59 @@ class _Stat extends StatelessWidget {
     return Card(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 22),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        child: Row(
           children: [
-            Text(value, style: const TextStyle(fontSize: 32, fontWeight: FontWeight.w700, color: Palette.accentText)),
-            const SizedBox(height: 4),
-            Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 13)),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(14)),
+              child: Icon(icon, size: 22, color: Palette.accentText),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value,
+                      style: const TextStyle(
+                          fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, color: Palette.ink, height: 1.1)),
+                  const SizedBox(height: 2),
+                  Text(label, style: Theme.of(context).textTheme.bodySmall?.copyWith(fontSize: 13)),
+                ],
+              ),
+            ),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Una promesa de la franja amarilla: sin tarjeta, sobre el fondo de la franja.
+class _Promise extends StatelessWidget {
+  const _Promise(this.icon, this.title, this.body);
+
+  final IconData icon;
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(12)),
+          child: Icon(icon, size: 20, color: Palette.ink),
+        ),
+        const SizedBox(height: 14),
+        Text(title, style: text.titleSmall?.copyWith(fontSize: 15)),
+        const SizedBox(height: 4),
+        Text(body, style: text.bodyMedium?.copyWith(height: 1.6)),
+      ],
     );
   }
 }
@@ -262,15 +307,24 @@ class AboutPage extends StatelessWidget {
           ),
         );
 
+    final narrow = MediaQuery.sizeOf(context).width < 720;
     final intro = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        const _Heading(
-          kicker: 'SUBO · TRUJILLO',
-          title: 'Hecho en Trujillo, para moverse por Trujillo',
-          lead: 'Subo nació de una pregunta que todos hemos hecho en la calle: «¿este micro me lleva?». '
-              'Queremos que la respuesta esté en tu celular o en tu computadora, antes de salir de casa.',
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(color: Palette.surface, borderRadius: BorderRadius.circular(30)),
+          child: Text('SUBO · TRUJILLO', style: text.labelSmall?.copyWith(color: Palette.ink)),
+        ),
+        const SizedBox(height: 16),
+        Text('Hecho en Trujillo, para moverse por Trujillo',
+            style: (narrow ? text.headlineMedium : text.headlineLarge)?.copyWith(color: Palette.ink)),
+        const SizedBox(height: 14),
+        Text(
+          'Subo nació de una pregunta que todos hemos hecho en la calle: «¿este micro me lleva?». '
+          'Queremos que la respuesta esté en tu celular o en tu computadora, antes de salir de casa.',
+          style: text.bodyMedium?.copyWith(color: Palette.ink, fontSize: 16, height: 1.7),
         ),
         const SizedBox(height: 24),
         Wrap(
@@ -278,7 +332,12 @@ class AboutPage extends StatelessWidget {
           runSpacing: 12,
           children: [
             FilledButton(onPressed: () => onPage(SitePage.map), child: const Text('Ver el mapa')),
-            OutlinedButton(onPressed: () => onPage(SitePage.download), child: const Text('Descargar la app')),
+            OutlinedButton(
+              onPressed: () => onPage(SitePage.download),
+              // Sobre el amarillo, el botón blanco no necesita borde.
+              style: OutlinedButton.styleFrom(side: BorderSide.none),
+              child: const Text('Descargar la app'),
+            ),
           ],
         ),
       ],
@@ -288,16 +347,21 @@ class AboutPage extends StatelessWidget {
       maxWidth: 1040,
       footer: SiteFooter(onPage: onPage),
       children: [
-        _Columns(
-          gap: 40,
-          children: [intro, const SitePhoto(file: 'portada.jpg', hint: 'Foto de portada')],
+        // La portada: un bloque del amarillo de la marca.
+        Container(
+          padding: EdgeInsets.all(narrow ? 24 : 40),
+          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(28)),
+          child: _Columns(
+            gap: 40,
+            children: [intro, const SitePhoto(file: 'portada.jpg', hint: 'Foto de portada')],
+          ),
         ),
-        const SizedBox(height: 40),
+        const SizedBox(height: 24),
         _Columns(
           children: [
-            _Stat('${routes.length}', 'líneas en el mapa'),
-            _Stat('$stops', 'puntos de referencia'),
-            const _Stat('S/ 0', 'lo que cuesta usar Subo'),
+            _Stat(Icons.directions_bus_outlined, '${routes.length}', 'líneas en el mapa'),
+            _Stat(Icons.place_outlined, '$stops', 'puntos de referencia'),
+            const _Stat(Icons.sell_outlined, 'S/ 0', 'lo que cuesta usar Subo'),
           ],
         ),
         title('QUÉ HACEMOS', 'Todo lo que necesitas antes de subir'),
@@ -352,16 +416,30 @@ class AboutPage extends StatelessWidget {
             ),
           ],
         ),
-        title('NUESTRO COMPROMISO', 'Lo que no va a cambiar'),
-        const _Columns(
-          children: [
-            _Feature(Icons.volunteer_activism_outlined, 'Gratis para pasajeros',
-                'Mirar las líneas y los avisos no cuesta nada, ni en la web ni en la app.'),
-            _Feature(Icons.lock_outline, 'Tus datos son tuyos',
-                'No vendemos tus datos y solo pedimos lo necesario para que la cuenta funcione.'),
-            _Feature(Icons.sync, 'Una sola cuenta',
-                'La misma cuenta sirve en el celular y en el navegador.'),
-          ],
+        const SizedBox(height: 56),
+        // El compromiso: una franja del amarillo suave.
+        Container(
+          padding: EdgeInsets.all(narrow ? 24 : 36),
+          decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(28)),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('NUESTRO COMPROMISO', style: text.labelSmall?.copyWith(color: Palette.accentText)),
+              const SizedBox(height: 8),
+              Text('Lo que no va a cambiar', style: text.headlineMedium?.copyWith(fontSize: 26)),
+              const SizedBox(height: 24),
+              const _Columns(
+                gap: 28,
+                children: [
+                  _Promise(Icons.volunteer_activism_outlined, 'Gratis para pasajeros',
+                      'Mirar las líneas y los avisos no cuesta nada, ni en la web ni en la app.'),
+                  _Promise(Icons.lock_outline, 'Tus datos son tuyos',
+                      'No vendemos tus datos y solo pedimos lo necesario para que la cuenta funcione.'),
+                  _Promise(Icons.sync, 'Una sola cuenta', 'La misma cuenta sirve en el celular y en el navegador.'),
+                ],
+              ),
+            ],
+          ),
         ),
       ],
     );

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!--
-      Paleta "Subo": amarillo, negro y blanco, con grises cálidos.
+      Paleta "Subo": amarillo, negro y crema, la misma que la web
+      (flutter_app/lib/theme.dart).
 
       Los nombres describen el color, no su uso. Quién usa cada uno se decide
       en themes.xml, para que cambiar la identidad sea tocar un solo archivo.
@@ -10,21 +11,24 @@
     <!-- Amarillo: el color de la marca -->
     <color name="yellow_500">#FFC400</color>
     <color name="yellow_300">#FFD54F</color>
-    <color name="yellow_100">#FFF1BF</color>
+    <color name="yellow_100">#FFF1C2</color>
 
     <!-- Ámbar: el amarillo cuando tiene que leerse como texto sobre blanco -->
     <color name="amber_700">#8A6500</color>
     <color name="amber_900">#4A3800</color>
 
-    <!-- Piedra: textos, bordes y superficies neutras, tirando a cálido -->
+    <!--
+      Piedra: textos, bordes y superficies neutras. Los claros tiran a crema,
+      para que el fondo y los bordes acompañen al amarillo.
+    -->
     <color name="stone_900">#1C1917</color>
     <color name="stone_700">#44403C</color>
-    <color name="stone_500">#78716C</color>
+    <color name="stone_500">#6F6A5E</color>
     <color name="stone_400">#A8A29E</color>
-    <color name="stone_300">#D6D3D1</color>
-    <color name="stone_200">#E7E5E4</color>
-    <color name="stone_100">#F2F0ED</color>
-    <color name="stone_50">#FAF9F7</color>
+    <color name="stone_300">#DDD6C3</color>
+    <color name="stone_200">#EFE8D6</color>
+    <color name="stone_100">#F6F1E3</color>
+    <color name="stone_50">#FFFCF2</color>
 
     <!-- Negros del modo oscuro -->
     <color name="ink_950">#100F0E</color>

@@ -177,7 +177,7 @@
                 android:layout_marginTop="10dp"
                 android:minHeight="52dp"
                 android:text="@string/settings_arrival_test"
-                app:cornerRadius="18dp"
+                app:cornerRadius="26dp"
                 app:icon="@drawable/ic_arrival_alarm"
                 app:iconGravity="textStart" />
 

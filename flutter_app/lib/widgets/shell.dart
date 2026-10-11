@@ -74,7 +74,7 @@ class AdminShell extends StatelessWidget {
                 if (onSection != null)
                   Container(
                     width: double.infinity,
-                    color: Palette.sidebar,
+                    color: Palette.surface,
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
                     // Son varias: en una pantalla estrecha se deslizan de lado.
                     child: SingleChildScrollView(
@@ -130,7 +130,7 @@ enum AdminSection {
   final IconData icon;
 }
 
-/// Una sección en la navegación; la activa va resaltada.
+/// Una sección en la navegación; la activa es una pastilla amarilla.
 class _NavItem extends StatelessWidget {
   const _NavItem({required this.label, required this.icon, required this.active, required this.onTap});
 
@@ -144,26 +144,23 @@ class _NavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? Palette.sidebarActive : Colors.transparent,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(10),
-        side: BorderSide(color: active ? const Color(0xFF54471F) : Colors.transparent),
-      ),
+      color: active ? Palette.accent : Colors.transparent,
+      shape: const StadiumBorder(),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
           child: Row(
             children: [
-              Icon(icon, size: 16, color: active ? Palette.accent : Palette.sidebarMuted),
+              Icon(icon, size: 17, color: active ? Palette.ink : Palette.muted),
               const SizedBox(width: 12),
               Flexible(
                 child: Text(label,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: active ? Colors.white : Palette.sidebarMuted,
-                      fontWeight: FontWeight.w600,
+                      color: active ? Palette.ink : Palette.muted,
+                      fontWeight: active ? FontWeight.w700 : FontWeight.w600,
                     )),
               ),
             ],
@@ -185,15 +182,18 @@ class _Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Palette.sidebar,
-      padding: const EdgeInsets.fromLTRB(24, 36, 24, 32),
+      decoration: const BoxDecoration(
+        color: Palette.surface,
+        border: Border(right: BorderSide(color: Palette.line)),
+      ),
+      padding: const EdgeInsets.fromLTRB(20, 36, 20, 32),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _Brand(compact: false, admin: admin),
           const SizedBox(height: 60),
           Text('TU CIUDAD, CONECTADA',
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.sidebarMuted, fontSize: 9)),
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.muted, fontSize: 9)),
           const SizedBox(height: 16),
           // Los pasajeros solo tienen las líneas; las secciones son del panel.
           if (onSection == null)
@@ -210,14 +210,14 @@ class _Sidebar extends StatelessWidget {
               SizedBox(width: 8),
               Flexible(
                 child: Text('Trujillo, La Libertad',
-                    overflow: TextOverflow.ellipsis, style: TextStyle(color: Color(0xFFD6CDB0), fontSize: 12)),
+                    overflow: TextOverflow.ellipsis, style: TextStyle(color: Palette.muted, fontSize: 12)),
               ),
             ],
           ),
           const SizedBox(height: 20),
           const Text(
             'Un buen viaje empieza\ncon una buena ruta.',
-            style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w500, height: 1.5),
+            style: TextStyle(color: Palette.ink, fontSize: 18, fontWeight: FontWeight.w700, height: 1.35),
           ),
         ],
       ),
@@ -241,7 +241,7 @@ class _Brand extends StatelessWidget {
           height: compact ? 36 : 43,
           alignment: Alignment.center,
           decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(13)),
-          child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w800, fontSize: 15)),
+          child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 15)),
         ),
         const SizedBox(width: 12),
         Flexible(
@@ -251,11 +251,11 @@ class _Brand extends StatelessWidget {
             children: [
               Text('Subo',
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: compact ? 17 : 19)),
+                  style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: compact ? 17 : 19)),
               const SizedBox(height: 3),
               Text(admin ? 'ADMINISTRACIÓN' : 'TRUJILLO',
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: Color(0xFFCFC5A3), fontSize: 10, letterSpacing: 2)),
+                  style: const TextStyle(color: Palette.muted, fontSize: 10, letterSpacing: 2)),
             ],
           ),
         ),
@@ -264,7 +264,7 @@ class _Brand extends StatelessWidget {
     if (!compact) return brand;
     return Container(
       width: double.infinity,
-      color: Palette.sidebar,
+      color: Palette.surface,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
       child: brand,
     );

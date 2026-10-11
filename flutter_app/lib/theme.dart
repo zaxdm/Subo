@@ -1,22 +1,21 @@
 import 'package:flutter/material.dart';
 
-/// Paleta amarilla del panel. Los nombres describen el color; quién usa cada
-/// uno se decide en [buildTheme] y en las pantallas.
+/// Paleta de Subo: amarillo, negro y crema, la misma en la web y en la app.
+/// Los nombres describen el color; quién usa cada uno se decide en
+/// [buildTheme] y en las pantallas.
 abstract final class Palette {
-  static const ink = Color(0xFF241F10);
-  static const muted = Color(0xFF756D58);
-  static const accent = Color(0xFFF5B800);
-  static const accentDark = Color(0xFFE0A800);
+  static const ink = Color(0xFF1C1917);
+  static const muted = Color(0xFF6F6A5E);
+  static const accent = Color(0xFFFFC400);
+  static const accentDark = Color(0xFFE6B000);
 
-  /// Ámbar oscuro: el amarillo puro no se lee como texto sobre blanco.
-  static const accentText = Color(0xFF8A6500);
-  static const accentSoft = Color(0xFFFBEEBC);
-  static const line = Color(0xFFE8E2D0);
-  static const paper = Color(0xFFFBF8EE);
+  /// Casi negro, tirando a ámbar: el amarillo puro no se lee como texto sobre
+  /// blanco, así que los rótulos y los iconos de acento van en este.
+  static const accentText = Color(0xFF3D3000);
+  static const accentSoft = Color(0xFFFFF1C2);
+  static const line = Color(0xFFEFE8D6);
+  static const paper = Color(0xFFFFFCF2);
   static const surface = Colors.white;
-  static const sidebar = Color(0xFF1F1A0B);
-  static const sidebarMuted = Color(0xFFB3A882);
-  static const sidebarActive = Color(0xFF3A3115);
 
   // Con significado propio: no siguen la marca.
   static const success = Color(0xFF24664D);
@@ -44,21 +43,21 @@ ThemeData buildTheme() {
   );
 
   final border = OutlineInputBorder(
-    borderRadius: BorderRadius.circular(10),
-    borderSide: const BorderSide(color: Color(0xFFE3DCC6)),
+    borderRadius: BorderRadius.circular(14),
+    borderSide: const BorderSide(color: Palette.line),
   );
 
   return ThemeData(
     colorScheme: scheme,
     scaffoldBackgroundColor: Palette.paper,
     fontFamily: 'Roboto',
-    // Letra normal: sin apretar ni separar las letras y sin negritas pesadas.
+    // Títulos gruesos y un poco apretados; el texto corrido, normal.
     textTheme: const TextTheme(
-      headlineLarge: TextStyle(fontSize: 36, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.2),
-      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: 0, height: 1.25),
-      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0),
-      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0),
-      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0),
+      headlineLarge: TextStyle(fontSize: 38, fontWeight: FontWeight.w700, letterSpacing: -0.8, height: 1.15),
+      headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, letterSpacing: -0.5, height: 1.2),
+      titleLarge: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.2),
+      titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, letterSpacing: 0),
+      titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, letterSpacing: 0),
       bodyLarge: TextStyle(fontSize: 16, height: 1.5, letterSpacing: 0),
       bodyMedium: TextStyle(fontSize: 14, height: 1.5, letterSpacing: 0),
       bodySmall: TextStyle(fontSize: 12, height: 1.5, letterSpacing: 0, color: Palette.muted),
@@ -73,17 +72,19 @@ ThemeData buildTheme() {
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
       border: border,
       enabledBorder: border,
-      focusedBorder: border.copyWith(borderSide: const BorderSide(color: Palette.accentText, width: 1.6)),
+      focusedBorder: border.copyWith(borderSide: const BorderSide(color: Palette.ink, width: 1.6)),
       labelStyle: const TextStyle(color: Palette.muted),
       hintStyle: const TextStyle(color: Color(0xFFA39B85)),
     ),
+    // Los botones son pastillas: el principal, negro; el secundario, blanco.
+    // El amarillo se queda para los fondos y las insignias.
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        backgroundColor: Palette.accent,
-        foregroundColor: Palette.ink,
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        backgroundColor: Palette.ink,
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 18),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+        shape: const StadiumBorder(),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
@@ -91,15 +92,16 @@ ThemeData buildTheme() {
         foregroundColor: Palette.ink,
         backgroundColor: Palette.surface,
         side: const BorderSide(color: Palette.line),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        textStyle: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(9)),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        textStyle: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+        shape: const StadiumBorder(),
       ),
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        foregroundColor: Palette.accentText,
-        textStyle: const TextStyle(fontWeight: FontWeight.w600),
+        foregroundColor: Palette.ink,
+        textStyle: const TextStyle(fontWeight: FontWeight.w700),
+        shape: const StadiumBorder(),
       ),
     ),
     cardTheme: CardThemeData(
@@ -107,7 +109,7 @@ ThemeData buildTheme() {
       elevation: 0,
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(20),
         side: const BorderSide(color: Palette.line),
       ),
     ),
@@ -115,7 +117,7 @@ ThemeData buildTheme() {
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating, width: 520),
     checkboxTheme: CheckboxThemeData(
       fillColor: WidgetStateProperty.resolveWith(
-        (states) => states.contains(WidgetState.selected) ? Palette.accentText : null,
+        (states) => states.contains(WidgetState.selected) ? Palette.ink : null,
       ),
     ),
   );
