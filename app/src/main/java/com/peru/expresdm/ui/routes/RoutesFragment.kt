@@ -280,6 +280,9 @@ class RoutesFragment : Fragment() {
                 )
             }
         }
+        binding.btnDeleteRoute.setOnClickListener {
+            lastState?.selected?.route?.let { route -> confirmDelete(route) }
+        }
         binding.btnArrivalAction.setOnClickListener { onArrivalAction() }
         binding.btnCancelArrival.setOnClickListener { cancelArrival() }
         binding.btnPickConfirm.setOnClickListener { confirmPick() }
@@ -961,6 +964,19 @@ class RoutesFragment : Fragment() {
         scheduleFrame(points)
     }
 
+    /** Borrar una ruta propia no se puede deshacer: se pregunta antes. */
+    private fun confirmDelete(route: BusRoute) {
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.route_delete_title)
+            .setMessage(getString(R.string.route_delete_message, route.name))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.route_delete_confirm) { _, _ ->
+                viewModel.clearSelection()
+                RouteRepository.remove(route.id)
+            }
+            .show()
+    }
+
     private fun renderSelected(selected: SelectedRoute) {
         val route = selected.route
         val color = routeColorOf(route)
@@ -980,6 +996,7 @@ class RoutesFragment : Fragment() {
         binding.chipDuration.contentDescription = "${getString(R.string.route_duration)}: $duration"
         binding.chipFare.text = fare
         binding.chipFare.contentDescription = "${getString(R.string.route_fare)}: $fare"
+        binding.btnDeleteRoute.isVisible = RouteRepository.isOwn(route.id)
         binding.chipSchedule.text = route.schedule
         binding.chipSchedule.contentDescription = "${getString(R.string.route_schedule)}: ${route.schedule}"
 

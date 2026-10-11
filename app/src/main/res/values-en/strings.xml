@@ -393,6 +393,10 @@
 
     <!-- Ficha del micro -->
     <string name="route_detail_title">Bus details</string>
+    <string name="route_delete">Delete my route</string>
+    <string name="route_delete_title">Delete this route?</string>
+    <string name="route_delete_message">“%1$s” will be removed from your phone. This can’t be undone.</string>
+    <string name="route_delete_confirm">Delete</string>
     <string name="route_detail_open">See bus details</string>
     <string name="route_detail_trip">Full trip</string>
     <string name="route_detail_fares">Fares</string>

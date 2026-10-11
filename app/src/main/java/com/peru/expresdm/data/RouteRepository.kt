@@ -120,6 +120,9 @@ object RouteRepository {
         upload(route)
     }
 
+    /** Si la ruta la grabó esta persona y sigue guardada en su teléfono. */
+    fun isOwn(routeId: String): Boolean = userRoutes.any { it.id == routeId }
+
     fun remove(routeId: String) {
         userRoutes = userRoutes.filterNot { it.id == routeId }
         sharedRoutes = sharedRoutes.filterNot { it.id == routeId }

@@ -654,6 +654,17 @@
                     app:icon="@drawable/ic_info"
                     app:iconSize="18dp" />
 
+                <!-- Solo en las rutas que grabó quien usa el teléfono -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnDeleteRoute"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/route_delete"
+                    android:textColor="@color/alert_accident"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
+
                 <!-- Alertas vigentes cerca del recorrido; al tocar, abre la pestaña de alertas -->
                 <TextView
                     android:id="@+id/alertsOnRoute"

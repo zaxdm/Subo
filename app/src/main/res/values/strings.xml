@@ -391,6 +391,10 @@
 
     <!-- Ficha del micro -->
     <string name="route_detail_title">Ficha del micro</string>
+    <string name="route_delete">Borrar mi ruta</string>
+    <string name="route_delete_title">¿Borrar esta ruta?</string>
+    <string name="route_delete_message">«%1$s» se quitará de tu teléfono. No se puede deshacer.</string>
+    <string name="route_delete_confirm">Borrar</string>
     <string name="route_detail_open">Ver ficha del micro</string>
     <string name="route_detail_trip">Recorrido completo</string>
     <string name="route_detail_fares">Tarifas</string>
