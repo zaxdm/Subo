@@ -129,13 +129,14 @@ Future<void> _signIn(WidgetTester tester, {String password = 'micro-2026'}) asyn
   // Al abrir se mira primero si había una sesión guardada.
   await tester.pumpAndSettle();
   // Se entra a la web por el mapa; el acceso se abre desde la barra de arriba.
-  if (find.text('Entrar').evaluate().isEmpty) {
+  if (find.widgetWithText(TextFormField, 'Correo').evaluate().isEmpty) {
     await tester.tap(find.text('Iniciar sesión'));
     await tester.pumpAndSettle();
   }
   await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'ana@correo.pe');
   await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), password);
-  await tester.tap(find.text('Entrar'));
+  // El botón del acceso, no el del aviso del mapa que queda debajo.
+  await tester.tap(find.text('Entrar').last);
   await tester.pumpAndSettle();
 }
 
@@ -387,7 +388,7 @@ void main() {
 
       // Sin cuenta ya se ven el mapa y las líneas.
       expect(find.text('¿Qué micro tomas hoy?'), findsOneWidget);
-      expect(find.text('El Porvenir – Huanchaco'), findsOneWidget);
+      expect(find.text('El Porvenir \uFFFC Huanchaco', findRichText: true), findsOneWidget);
 
       // Tocar una línea lleva al acceso, no a su recorrido.
       await tester.tap(find.text('California'));
@@ -399,6 +400,33 @@ void main() {
       await _signIn(tester, password: 'pasajero-2026');
       expect(find.text('PARADEROS'), findsOneWidget);
       expect(find.text('Todas las líneas'), findsOneWidget);
+    });
+
+    testWidgets('tocar el mapa deja guardar ese sitio como favorito', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _openMap(tester);
+      await tester.pumpAndSettle();
+      expect(find.text('Toca el mapa para guardar tu casa, tu trabajo…'), findsOneWidget);
+
+      // Una esquina del mapa, lejos de las líneas y de los botones.
+      await tester.tapAt(const Offset(700, 800));
+      // El mapa espera un momento por si el toque era doble.
+      await tester.pump(const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Guardar aquí'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Casa'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Guardar'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Casa'), findsOneWidget);
+      expect(find.text('Guardar aquí'), findsNothing);
+      expect((await SharedPreferences.getInstance()).getString('favorite_places'), contains('HOME'));
     });
 
     testWidgets('el asistente pide sesión y recomienda una línea', (tester) async {
@@ -642,7 +670,7 @@ void main() {
 
       expect(find.text('Ana Quispe'), findsOneWidget);
       expect(find.text('California'), findsOneWidget);
-      expect(find.text('El Porvenir → Huanchaco'), findsOneWidget);
+      expect(find.text('El Porvenir \uFFFC Huanchaco', findRichText: true), findsOneWidget);
 
       await tester.enterText(find.widgetWithText(TextField, 'Buscar por nombre, micro, origen o destino'), 'moche');
       await tester.pumpAndSettle();

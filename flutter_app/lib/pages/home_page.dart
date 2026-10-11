@@ -1,9 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../api.dart';
+import '../favorites.dart';
+import '../locate.dart';
+import '../nearby.dart';
 import '../theme.dart';
+import '../widgets/map_kit.dart';
+import '../widgets/page_frame.dart';
 
 /// La portada, como en la app: el mapa de la ciudad con todas las líneas y, al
 /// lado, el panel con las líneas, el asistente y las alertas.
@@ -73,8 +79,15 @@ class _Message {
   final String? routeId;
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with SingleTickerProviderStateMixin {
   static const _trujillo = LatLng(-8.112, -79.0288);
+
+  // Más lejos que el mínimo ya no se distingue la ciudad.
+  static const _minZoom = 10.0;
+  static const _maxZoom = 19.0;
+
+  /// Hasta dónde se anda, más o menos, para coger un micro.
+  static const _nearMeters = 300.0;
 
   /// Un color por línea, para distinguirlas en el mapa.
   static const _lineColors = [
@@ -94,6 +107,24 @@ class _HomePageState extends State<HomePage> {
   final _messages = <_Message>[];
 
   bool _mapReady = false;
+  late final MapGlider _glider;
+  MapBase _base = MapBase.streets;
+
+  /// Las líneas que hay bajo el puntero: el mapa lo apunta aquí.
+  final LayerHitNotifier<BusRoute> _hit = ValueNotifier(null);
+
+  /// La línea sobre la que está el ratón y en qué punto del mapa. Van aparte
+  /// del resto de la pantalla para que pasar el ratón no la repinte entera.
+  final _hoverRoute = ValueNotifier<BusRoute?>(null);
+  final _hoverAt = ValueNotifier<Offset?>(null);
+
+  /// Dónde está quien mira el mapa, si lo ha preguntado.
+  Fix? _me;
+  bool _locating = false;
+
+  /// El sitio que alguien marcó tocando el mapa, para ver su calle.
+  LatLng? _pin;
+  FavoritePlaces _favorites = FavoritePlaces();
   _Tab _tab = _Tab.lines;
   List<CityAlert> _alerts = [];
   bool _asking = false;
@@ -101,7 +132,11 @@ class _HomePageState extends State<HomePage> {
   @override
   void initState() {
     super.initState();
+    _glider = MapGlider(_map, this);
     _loadAlerts();
+    FavoritePlaces.load().then((favorites) {
+      if (mounted) setState(() => _favorites = favorites);
+    });
   }
 
   @override
@@ -119,6 +154,10 @@ class _HomePageState extends State<HomePage> {
   void dispose() {
     _search.dispose();
     _question.dispose();
+    _glider.dispose();
+    _hit.dispose();
+    _hoverRoute.dispose();
+    _hoverAt.dispose();
     _map.dispose();
     super.dispose();
   }
@@ -172,7 +211,188 @@ class _HomePageState extends State<HomePage> {
   void _frame() {
     if (!mounted || !_mapReady) return;
     final fit = _fit();
-    if (fit != null) _map.fitCamera(fit);
+    if (fit != null) _glider.fit(fit);
+  }
+
+  void _zoom(double change) {
+    if (!_mapReady) return;
+    final camera = _map.camera;
+    _glider.to(camera.center, (camera.zoom + change).clamp(_minZoom, _maxZoom));
+  }
+
+  /// Lleva el mapa a donde está quien lo mira, si deja saberlo.
+  Future<void> _locate() async {
+    if (_locating || !_mapReady) return;
+    setState(() => _locating = true);
+    final fix = await currentLocation();
+    if (!mounted) return;
+    setState(() {
+      _locating = false;
+      _me = fix ?? _me;
+    });
+    if (fix == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('No se pudo saber dónde estás. Revisa que el navegador tenga permiso de ubicación.'),
+        ));
+      return;
+    }
+    final zoom = _map.camera.zoom;
+    _glider.to(LatLng(fix.latitude, fix.longitude), zoom < 16 ? 16 : zoom);
+  }
+
+  /// Apunta qué línea queda bajo el ratón, para resaltarla y decir cuál es.
+  void _onLineHover() {
+    final hit = _hit.value;
+    // La primera es la que está pintada encima.
+    _hoverRoute.value = hit?.hitValues.first;
+    _hoverAt.value = hit?.point;
+  }
+
+  void _onLineExit() {
+    _hoverRoute.value = null;
+    _hoverAt.value = null;
+  }
+
+  LatLng? _nearPin;
+  int _nearCount = -1;
+  List<BusRoute> _nearRoutes = const [];
+
+  /// Las líneas que pasan cerca de [pin], la más cercana primero.
+  List<BusRoute> _near(LatLng pin) {
+    if (!identical(pin, _nearPin) || _nearCount != widget.routes.length) {
+      final found = [
+        for (final route in widget.routes) (route, metersToLine(pin, _lineOf(route))),
+      ].where((entry) => entry.$2 <= _nearMeters).toList()
+        ..sort((a, b) => a.$2.compareTo(b.$2));
+      _nearPin = pin;
+      _nearCount = widget.routes.length;
+      _nearRoutes = [for (final entry in found) entry.$1];
+    }
+    return _nearRoutes;
+  }
+
+  /// Las líneas que pasan cerca del sitio marcado, para abrirlas desde ahí.
+  Widget _nearbyCard(LatLng pin) {
+    final near = _near(pin);
+    return Material(
+      color: Palette.surface,
+      elevation: 3,
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              switch (near.length) {
+                0 => 'Ninguna línea pasa a menos de ${_nearMeters.round()} m de aquí.',
+                1 => 'Una línea pasa cerca de aquí',
+                final count => '$count líneas pasan cerca de aquí',
+              },
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            if (near.isNotEmpty)
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(
+                  children: [
+                    for (final route in near)
+                      Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: ActionChip(
+                          avatar: CircleAvatar(backgroundColor: _colorOf(route)),
+                          label: Text(route.letter.isEmpty ? route.name : '${route.letter} · ${route.name}'),
+                          backgroundColor: Palette.surface,
+                          onPressed: () => widget.onSelect(route.id),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Abre la vista de calle de Google Maps en el sitio marcado o, sin marca, en
+  /// el centro del mapa. Es un enlace: no pide clave ni cuenta de Google.
+  Future<void> _openStreetView() async {
+    if (!_mapReady) return;
+    final point = _pin ?? _map.camera.center;
+    final link = Uri.https('www.google.com', '/maps/@', {
+      'api': '1',
+      'map_action': 'pano',
+      'viewpoint': '${point.latitude},${point.longitude}',
+    });
+    await launchUrl(link, mode: LaunchMode.externalApplication);
+  }
+
+  /// Lleva el mapa a un favorito y lo deja marcado.
+  void _showFavorite(FavoritePlace favorite) {
+    final point = LatLng(favorite.latitude, favorite.longitude);
+    setState(() => _pin = point);
+    if (_mapReady) _glider.to(point, 16);
+  }
+
+  /// Guarda el sitio marcado como favorito, preguntando antes qué lugar es.
+  Future<void> _saveFavorite() async {
+    final pin = _pin;
+    if (pin == null) return;
+    final picked = await showDialog<(FavoriteKind, String)>(
+      context: context,
+      builder: (_) => _FavoriteDialog(used: {for (final favorite in _favorites.items) favorite.kind}),
+    );
+    if (picked == null || !mounted) return;
+    setState(() => _favorites.add(FavoritePlace(picked.$1, picked.$2, pin.latitude, pin.longitude)));
+  }
+
+  /// Los favoritos sobre el mapa y, con un sitio marcado, el botón de guardarlo.
+  Widget _favoriteBar() {
+    final pin = _pin;
+    final favorites = _favorites.items;
+    final pinIsFavorite = pin != null &&
+        favorites.any((favorite) => favorite.latitude == pin.latitude && favorite.longitude == pin.longitude);
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.all(10),
+      child: Row(
+        children: [
+          for (final favorite in favorites)
+            Padding(
+              padding: const EdgeInsets.only(right: 6),
+              child: InputChip(
+                avatar: Icon(favorite.kind.icon, size: 16, color: Palette.accentText),
+                label: Text(favorite.label),
+                backgroundColor: Palette.surface,
+                elevation: 2,
+                onPressed: () => _showFavorite(favorite),
+                onDeleted: () => setState(() => _favorites.remove(favorite)),
+                deleteButtonTooltipMessage: 'Quitar de favoritos',
+              ),
+            ),
+          if (pin != null && !pinIsFavorite)
+            ActionChip(
+              avatar: const Icon(Icons.star_border, size: 16, color: Palette.accentText),
+              label: Text(_favorites.isFull ? 'Máximo ${FavoritePlaces.max} favoritos: quita uno' : 'Guardar aquí'),
+              backgroundColor: Palette.surface,
+              elevation: 2,
+              onPressed: _favorites.isFull ? null : _saveFavorite,
+            )
+          else if (favorites.isEmpty)
+            const Chip(
+              avatar: Icon(Icons.star_border, size: 16, color: Palette.accentText),
+              label: Text('Toca el mapa para guardar tu casa, tu trabajo…'),
+              backgroundColor: Palette.surface,
+              elevation: 2,
+            ),
+        ],
+      ),
+    );
   }
 
   List<BusRoute> get _visible {
@@ -217,7 +437,8 @@ class _HomePageState extends State<HomePage> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 860;
-        final map = _buildMap();
+        // En el móvil se acerca con dos dedos, y los botones taparían el mapa.
+        final map = _buildMap(zoomButtons: wide);
         final panel = Material(color: Palette.surface, child: _buildPanel(context));
         if (wide) {
           return Row(
@@ -239,8 +460,9 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  Widget _buildMap() {
+  Widget _buildMap({required bool zoomButtons}) {
     final selected = _selected;
+    final satellite = _base == MapBase.satellite;
     return FlutterMap(
       mapController: _map,
       options: MapOptions(
@@ -249,30 +471,75 @@ class _HomePageState extends State<HomePage> {
         // El mapa nace ya encuadrado: moverlo nada más crearlo dejaba el
         // fondo de calles sin cargar hasta que alguien lo tocaba.
         initialCameraFit: _fit(),
-        // Más lejos que esto ya no se distingue la ciudad.
-        minZoom: 10,
-        maxZoom: 18,
+        minZoom: _minZoom,
+        maxZoom: _maxZoom,
         onMapReady: () => _mapReady = true,
+        onTap: (_, point) => setState(() => _pin = point),
+        onPositionChanged: (_, hasGesture) {
+          if (hasGesture) _glider.stop();
+        },
       ),
       children: [
-        TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'pe.subo.web',
+        _base.layer,
+        // Sobre una línea el ratón cambia a la mano y sale su nombre.
+        MouseRegion(
+          hitTestBehavior: HitTestBehavior.deferToChild,
+          cursor: SystemMouseCursors.click,
+          onHover: (_) => _onLineHover(),
+          onExit: (_) => _onLineExit(),
+          child: PolylineLayer<BusRoute>(
+            hitNotifier: _hit,
+            polylines: [
+              // La abierta se pinta la última, encima de las demás.
+              for (final route in [...widget.routes.where((route) => route != selected), ?selected])
+                if (_lineOf(route).length >= 2)
+                  Polyline(
+                    points: _lineOf(route),
+                    strokeWidth: route == selected ? 6 : 4,
+                    color: selected == null || route == selected ? _colorOf(route) : _dimmed(_colorOf(route)),
+                    borderStrokeWidth: route == selected ? 1.5 : 0,
+                    borderColor: Palette.ink,
+                    hitValue: route,
+                  ),
+            ],
+          ),
         ),
-        PolylineLayer(
-          polylines: [
-            // La abierta se pinta la última, encima de las demás.
-            for (final route in [...widget.routes.where((route) => route != selected), ?selected])
-              if (_lineOf(route).length >= 2)
-                Polyline(
-                  points: _lineOf(route),
-                  strokeWidth: route == selected ? 6 : 4,
-                  color: selected == null || route == selected ? _colorOf(route) : _dimmed(_colorOf(route)),
-                  borderStrokeWidth: route == selected ? 1.5 : 0,
-                  borderColor: Palette.ink,
+        // La línea bajo el ratón, repintada encima y más gruesa. No atiende al
+        // puntero: si lo hiciera, taparía a las de debajo y parpadearía.
+        IgnorePointer(
+          child: ValueListenableBuilder(
+            valueListenable: _hoverRoute,
+            builder: (context, hovered, _) => PolylineLayer(
+              polylines: [
+                if (hovered != null && hovered != selected)
+                  Polyline(
+                    points: _lineOf(hovered),
+                    strokeWidth: 6,
+                    color: _colorOf(hovered),
+                    borderStrokeWidth: 1.5,
+                    borderColor: Palette.ink,
+                  ),
+              ],
+            ),
+          ),
+        ),
+        // El margen de error de la ubicación. Con uno muy grande (un ordenador
+        // sin GPS) el círculo taparía media ciudad.
+        if (_me case final me? when me.accuracy < 1500)
+          IgnorePointer(
+            child: CircleLayer(
+              circles: [
+                CircleMarker(
+                  point: LatLng(me.latitude, me.longitude),
+                  radius: me.accuracy,
+                  useRadiusInMeter: true,
+                  color: mapBlue.withValues(alpha: 0.12),
+                  borderColor: mapBlue.withValues(alpha: 0.45),
+                  borderStrokeWidth: 1,
                 ),
-          ],
-        ),
+              ],
+            ),
+          ),
         MarkerLayer(
           markers: [
             for (final alert in _alerts)
@@ -322,13 +589,138 @@ class _HomePageState extends State<HomePage> {
                       child: _Letter(route.letter, color: _colorOf(route), round: true),
                     ),
                   ),
+            for (final favorite in _favorites.items)
+              Marker(
+                point: LatLng(favorite.latitude, favorite.longitude),
+                width: 30,
+                height: 30,
+                child: GestureDetector(
+                  onTap: () => _showFavorite(favorite),
+                  child: Tooltip(
+                    message: favorite.label,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Palette.accent,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: Palette.ink, width: 1.5),
+                      ),
+                      child: Icon(favorite.kind.icon, size: 16, color: Palette.ink),
+                    ),
+                  ),
+                ),
+              ),
+            if (_me case final me?)
+              Marker(
+                point: LatLng(me.latitude, me.longitude),
+                width: 20,
+                height: 20,
+                child: const Tooltip(message: 'Estás aquí', child: MyLocationDot()),
+              ),
+            if (_pin case final pin?)
+              Marker(
+                point: pin,
+                width: 36,
+                height: 36,
+                // La punta del alfiler, no su centro, señala el sitio.
+                alignment: Alignment.topCenter,
+                child: GestureDetector(
+                  onTap: () => setState(() => _pin = null),
+                  child: const Tooltip(
+                    message: 'Quitar la marca',
+                    child: Icon(Icons.location_on, size: 36, color: Palette.danger),
+                  ),
+                ),
+              ),
           ],
         ),
-        const Align(
+        Align(alignment: Alignment.topLeft, child: _favoriteBar()),
+        Align(
           alignment: Alignment.bottomLeft,
           child: Padding(
-            padding: EdgeInsets.all(6),
-            child: Text('© OpenStreetMap', style: TextStyle(fontSize: 10, color: Palette.ink)),
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 30),
+            child: _StreetViewButton(onTap: _openStreetView),
+          ),
+        ),
+        if (_pin case final pin?)
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              // Entre el botón de la calle y los del mapa.
+              padding: const EdgeInsets.fromLTRB(84, 10, 62, 34),
+              child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 460), child: _nearbyCard(pin)),
+            ),
+          ),
+        Align(
+          alignment: Alignment.bottomRight,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(10, 10, 10, 34),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                MapButton(
+                  icon: Icons.layers_outlined,
+                  tooltip: satellite ? 'Ver el mapa de calles' : 'Ver la foto de satélite',
+                  active: satellite,
+                  onTap: () => setState(() => _base = satellite ? MapBase.streets : MapBase.satellite),
+                ),
+                const SizedBox(height: 8),
+                MapButton(
+                  icon: Icons.zoom_out_map,
+                  tooltip: selected == null ? 'Ver todas las líneas' : 'Ver la línea entera',
+                  onTap: _frame,
+                ),
+                if (locationAvailable) ...[
+                  const SizedBox(height: 8),
+                  MapButton(
+                    icon: _me == null ? Icons.location_searching : Icons.my_location,
+                    tooltip: 'Mi ubicación',
+                    active: _me != null,
+                    busy: _locating,
+                    onTap: _locate,
+                  ),
+                ],
+                if (zoomButtons) ...[
+                  const SizedBox(height: 8),
+                  MapZoomButtons(onZoom: _zoom),
+                ],
+              ],
+            ),
+          ),
+        ),
+        Scalebar(
+          alignment: Alignment.bottomRight,
+          padding: const EdgeInsets.fromLTRB(10, 10, 14, 8),
+          length: ScalebarLength.s,
+          strokeWidth: 1.5,
+          lineColor: satellite ? Colors.white : Palette.ink,
+          textStyle: TextStyle(fontSize: 11, color: satellite ? Colors.white : Palette.ink),
+        ),
+        Align(alignment: Alignment.bottomLeft, child: MapCredit(_base.credit)),
+        // El nombre de la línea bajo el ratón, a su lado.
+        IgnorePointer(
+          child: ValueListenableBuilder(
+            valueListenable: _hoverAt,
+            builder: (context, at, _) {
+              final route = _hoverRoute.value;
+              if (at == null || route == null) return const SizedBox.shrink();
+              return Align(
+                alignment: Alignment.topLeft,
+                child: Padding(
+                  padding: EdgeInsets.only(left: at.dx + 14, top: at.dy + 14),
+                  child: Material(
+                    color: Palette.ink,
+                    borderRadius: BorderRadius.circular(8),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      child: Text(
+                        route.letter.isEmpty ? route.name : '${route.letter} · ${route.name}',
+                        style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         ),
       ],
@@ -341,20 +733,24 @@ class _HomePageState extends State<HomePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Las tres pestañas van en una sola pieza: la elegida es la blanca.
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-          child: Row(
-            children: [
-              for (final tab in _Tab.values) ...[
-                Expanded(
-                  child: _TabButton(tab: tab, active: tab == _tab, onTap: () => setState(() => _tab = tab)),
-                ),
-                if (tab != _Tab.values.last) const SizedBox(width: 6),
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(color: Palette.chip, borderRadius: BorderRadius.circular(12)),
+            child: Row(
+              children: [
+                for (final tab in _Tab.values) ...[
+                  Expanded(
+                    child: _TabButton(tab: tab, active: tab == _tab, onTap: () => setState(() => _tab = tab)),
+                  ),
+                  if (tab != _Tab.values.last) const SizedBox(width: 4),
+                ],
               ],
-            ],
+            ),
           ),
         ),
-        const Divider(),
         Expanded(
           child: switch (_tab) {
             _Tab.lines => _lines(context),
@@ -383,31 +779,67 @@ class _HomePageState extends State<HomePage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
+          padding: const EdgeInsets.fromLTRB(16, 20, 16, 6),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(name == null || name.isEmpty ? '¿Qué micro tomas hoy?' : 'Hola, $name. ¿Qué micro tomas hoy?',
-                  style: text.titleMedium),
+                  style: text.titleLarge?.copyWith(fontSize: 22, letterSpacing: 0)),
               const SizedBox(height: 12),
               TextField(
                 controller: _search,
                 onChanged: (_) => setState(() {}),
-                decoration: const InputDecoration(
-                  hintText: 'Busca una línea, zona o punto de referencia',
-                  prefixIcon: Icon(Icons.search, size: 20),
+                decoration: InputDecoration(
+                  hintText: 'Línea, zona o punto de referencia',
+                  prefixIcon: const Icon(Icons.search, size: 20, color: Palette.muted),
+                  fillColor: Palette.surface,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Palette.fieldLine),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Palette.fieldLine),
+                  ),
                 ),
               ),
+              // Sin cuenta se ve la lista, pero el recorrido pide entrar.
               if (widget.session == null) ...[
-                const SizedBox(height: 10),
-                Row(
-                  children: [
-                    const Icon(Icons.lock_outline, size: 14, color: Palette.muted),
-                    const SizedBox(width: 6),
-                    Expanded(child: Text('Inicia sesión para ver el recorrido de una línea.', style: text.bodySmall)),
-                  ],
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.fromLTRB(14, 10, 10, 10),
+                  decoration: BoxDecoration(color: Palette.accentWash, borderRadius: BorderRadius.circular(12)),
+                  child: Row(
+                    children: [
+                      const Expanded(
+                        child: Text('Entra para ver el recorrido completo de cada línea.',
+                            style: TextStyle(fontSize: 14, height: 1.4, color: Palette.body)),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton(
+                        onPressed: widget.onSignIn,
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          minimumSize: Size.zero,
+                          textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+                        ),
+                        child: const Text('Entrar'),
+                      ),
+                    ],
+                  ),
                 ),
               ],
+              const SizedBox(height: 18),
+              const Row(
+                children: [
+                  Expanded(
+                    child: Text('Línea y sentido',
+                        overflow: TextOverflow.ellipsis, style: TextStyle(fontSize: 13, color: Palette.faint)),
+                  ),
+                  SizedBox(width: 8),
+                  Text('Pasaje · tiempo', style: TextStyle(fontSize: 13, color: Palette.faint)),
+                ],
+              ),
             ],
           ),
         ),
@@ -419,16 +851,17 @@ class _HomePageState extends State<HomePage> {
                       ? 'Todavía no hay líneas publicadas. Vuelve pronto.'
                       : 'Ninguna línea coincide con lo que buscas.',
                 )
-              : ListView.separated(
-                  padding: const EdgeInsets.only(bottom: 16),
+              : ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 16),
                   itemCount: visible.length,
-                  separatorBuilder: (_, _) => const Divider(indent: 16, endIndent: 16),
                   itemBuilder: (context, index) {
                     final route = visible[index];
                     return InkWell(
                       onTap: () => widget.onSelect(route.id),
+                      borderRadius: BorderRadius.circular(12),
+                      hoverColor: Palette.accentWash,
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
                         child: Row(
                           children: [
                             _Letter(route.letter.isEmpty ? '·' : route.letter, color: _colorOf(route)),
@@ -438,12 +871,12 @@ class _HomePageState extends State<HomePage> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(route.name,
-                                      style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                                      style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
                                       maxLines: 1,
                                       overflow: TextOverflow.ellipsis),
                                   const SizedBox(height: 2),
-                                  Text('${route.origin} – ${route.destination}',
-                                      style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                                  RouteEnds(route.origin, route.destination,
+                                      style: const TextStyle(fontSize: 13, color: Palette.muted)),
                                 ],
                               ),
                             ),
@@ -452,14 +885,12 @@ class _HomePageState extends State<HomePage> {
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
                                 Text('S/ ${route.fare.toStringAsFixed(2)}',
-                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13)),
+                                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
                                 if (route.durationMinutes > 0)
-                                  Text('${route.durationMinutes} min', style: text.bodySmall),
+                                  Text('${route.durationMinutes} min',
+                                      style: const TextStyle(fontSize: 13, color: Palette.muted)),
                               ],
                             ),
-                            const SizedBox(width: 6),
-                            Icon(widget.session == null ? Icons.lock_outline : Icons.chevron_right,
-                                size: 18, color: Palette.muted),
                           ],
                         ),
                       ),
@@ -542,22 +973,29 @@ class _HomePageState extends State<HomePage> {
         ),
         const SizedBox(height: 10),
         for (var i = 0; i < route.stops.length; i++)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 7),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: i == 0 || i == route.stops.length - 1 ? Palette.ink : Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Palette.ink, width: 2),
+          // Tocar un paradero lleva el mapa hasta él.
+          InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: () {
+              if (_mapReady) _glider.to(LatLng(route.stops[i].latitude, route.stops[i].longitude), 17);
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 7),
+              child: Row(
+                children: [
+                  Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: i == 0 || i == route.stops.length - 1 ? Palette.ink : Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Palette.ink, width: 2),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(child: Text(route.stops[i].name, style: const TextStyle(fontSize: 14))),
-              ],
+                  const SizedBox(width: 12),
+                  Expanded(child: Text(route.stops[i].name, style: const TextStyle(fontSize: 14))),
+                ],
+              ),
             ),
           ),
       ],
@@ -690,7 +1128,7 @@ class _HomePageState extends State<HomePage> {
         final alert = _alerts[index];
         return InkWell(
           onTap: () {
-            if (_mapReady) _map.move(LatLng(alert.latitude, alert.longitude), 16);
+            if (_mapReady) _glider.to(LatLng(alert.latitude, alert.longitude), 16);
           },
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -737,31 +1175,126 @@ class _TabButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: active ? Palette.accentSoft : Colors.transparent,
-      borderRadius: BorderRadius.circular(10),
+      color: active ? Palette.surface : Colors.transparent,
+      borderRadius: BorderRadius.circular(9),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(tab.icon, size: 16, color: active ? Palette.accentText : Palette.muted),
-              const SizedBox(width: 6),
-              Flexible(
-                child: Text(tab.label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: active ? Palette.accentText : Palette.muted,
-                    )),
-              ),
-            ],
+          child: Text(tab.label,
+              textAlign: TextAlign.center,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: active ? FontWeight.w500 : FontWeight.w400,
+                color: active ? Palette.ink : Palette.muted,
+              )),
+        ),
+      ),
+    );
+  }
+}
+
+/// El cuadradito del mapa que lleva a la vista de calle, como el de Google Maps.
+class _StreetViewButton extends StatelessWidget {
+  const _StreetViewButton({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Ver la calle en Google Street View',
+      child: Material(
+        color: Palette.surface,
+        elevation: 3,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          child: const SizedBox(
+            width: 64,
+            height: 64,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.streetview, size: 28, color: Palette.accentText),
+                SizedBox(height: 2),
+                Text('Ver calle', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Palette.ink)),
+              ],
+            ),
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Pregunta qué lugar es el que se va a guardar y, si se quiere, su nombre.
+class _FavoriteDialog extends StatefulWidget {
+  const _FavoriteDialog({required this.used});
+
+  /// Los tipos que ya tienen favorito: no se ofrecen otra vez, salvo "otro".
+  final Set<FavoriteKind> used;
+
+  @override
+  State<_FavoriteDialog> createState() => _FavoriteDialogState();
+}
+
+class _FavoriteDialogState extends State<_FavoriteDialog> {
+  final _name = TextEditingController();
+  FavoriteKind? _kind;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kind = _kind;
+    return AlertDialog(
+      title: const Text('¿Qué lugar es?'),
+      content: SizedBox(
+        width: 340,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final option in FavoriteKind.values)
+                  if (option == FavoriteKind.other || !widget.used.contains(option))
+                    ChoiceChip(
+                      avatar: Icon(option.icon, size: 16, color: Palette.accentText),
+                      label: Text(option.label),
+                      showCheckmark: false,
+                      selected: option == kind,
+                      selectedColor: Palette.accentSoft,
+                      onSelected: (_) => setState(() => _kind = option),
+                    ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _name,
+              maxLength: 24,
+              decoration: const InputDecoration(labelText: 'Nombre (opcional)', counterText: ''),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancelar')),
+        FilledButton(
+          onPressed: kind == null ? null : () => Navigator.pop(context, (kind, _name.text.trim())),
+          child: const Text('Guardar'),
+        ),
+      ],
     );
   }
 }
@@ -777,8 +1310,8 @@ class _Letter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      constraints: BoxConstraints(minWidth: round ? 28 : 34),
-      height: round ? 28 : 34,
+      constraints: BoxConstraints(minWidth: round ? 28 : 38),
+      height: round ? 28 : 38,
       padding: const EdgeInsets.symmetric(horizontal: 6),
       alignment: Alignment.center,
       decoration: BoxDecoration(

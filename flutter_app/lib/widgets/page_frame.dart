@@ -105,6 +105,35 @@ String formatDateTime(DateTime date) {
   return '${two(date.day)}/${two(date.month)}/${date.year} ${two(date.hour)}:${two(date.minute)}';
 }
 
+/// De dónde sale y a dónde llega una línea, en un renglón. La flecha es un
+/// icono: la letra de la web no trae ese signo.
+class RouteEnds extends StatelessWidget {
+  const RouteEnds(this.origin, this.destination, {super.key, required this.style});
+
+  final String origin;
+  final String destination;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '$origin '),
+          WidgetSpan(
+            alignment: PlaceholderAlignment.middle,
+            child: Icon(Icons.arrow_forward, size: (style?.fontSize ?? 13) - 1, color: style?.color),
+          ),
+          TextSpan(text: ' $destination'),
+        ],
+      ),
+      style: style,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
 /// Una pastilla de color con un texto corto: un tipo, un estado.
 class Pill extends StatelessWidget {
   const Pill(this.text, {super.key, this.background = Palette.accentSoft, this.foreground = Palette.accentText});

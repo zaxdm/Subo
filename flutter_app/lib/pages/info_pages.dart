@@ -484,11 +484,11 @@ class AboutPage extends StatelessWidget {
             'antes de salir de casa.',
             style: text.bodyMedium?.copyWith(color: Palette.accentText, fontSize: narrow ? 16 : 19, height: 1.6),
           ),
-        ),
+        ), 
         const SizedBox(height: 24),
         Wrap(
           spacing: 10,
-          runSpacing: 10,
+          runSpacing: 10, 
           children: [
             FilledButton(onPressed: () => onPage(SitePage.map), child: const Text('Ver el mapa')),
             OutlinedButton(
@@ -684,7 +684,7 @@ class DownloadPage extends StatelessWidget {
           child: Text(
             'La app tiene todo lo de la web y además te ubica en el mapa, te dice cómo llegar y te avisa '
             'cuando te toca bajar.',
-            style: text.bodyMedium?.copyWith(color: Palette.body, fontSize: 18, height: 1.65),
+            style: text.bodyMedium?.copyWith(color: Palette.accentText, fontSize: 18, height: 1.65),
           ),
         ),
         const SizedBox(height: 22),
@@ -698,13 +698,13 @@ class DownloadPage extends StatelessWidget {
               icon: const Icon(Icons.download, size: 18, color: Palette.accent),
               label: Text(_ready ? 'Descargar para Android' : 'Disponible pronto'),
             ),
-            if (_ready) Text(details, style: text.bodySmall?.copyWith(fontSize: 14, color: Palette.muted)),
+            if (_ready) Text(details, style: text.bodySmall?.copyWith(fontSize: 14, color: Palette.accentText)),
           ],
         ),
         if (!_ready) ...[
           const SizedBox(height: 10),
           Text('Estamos preparando la descarga. Mientras tanto puedes usar Subo desde esta web.',
-              style: text.bodySmall?.copyWith(fontSize: 14, color: Palette.muted)),
+              style: text.bodySmall?.copyWith(fontSize: 14, color: Palette.accentText)),
         ],
       ],
     );
@@ -713,9 +713,14 @@ class DownloadPage extends StatelessWidget {
       maxWidth: 1100,
       footer: SiteFooter(onPage: onPage),
       children: [
-        _Columns(
-          gap: 56,
-          children: [intro, const SitePhoto(file: 'app.jpg', hint: 'Captura de la app')],
+        // La portada, sobre el mismo amarillo de la marca que la de Inicio.
+        Container(
+          padding: EdgeInsets.all(narrow ? 24 : 48),
+          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(32)),
+          child: _Columns(
+            gap: 56,
+            children: [intro, const SitePhoto(file: 'app.jpg', hint: 'Captura de la app')],
+          ),
         ),
         const SizedBox(height: 72),
         // Lo que solo tiene la app, en una franja blanca.
@@ -723,7 +728,7 @@ class DownloadPage extends StatelessWidget {
           width: double.infinity,
           padding: EdgeInsets.all(narrow ? 24 : 40),
           decoration: BoxDecoration(
-            color: Palette.surface,
+            color: Palette.surface, 
             borderRadius: BorderRadius.circular(26),
             border: Border.all(color: Palette.line),
           ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../route_tools.dart';
 import '../theme.dart';
+import '../widgets/page_frame.dart';
 import '../widgets/route_photo.dart';
 
 /// El catálogo: cuántas rutas hay, un buscador con filtro por estado y una
@@ -271,8 +272,7 @@ class _RouteCard extends StatelessWidget {
                   const SizedBox(height: 10),
                   Text(route.name, style: text.titleMedium?.copyWith(fontSize: 18), maxLines: 1, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 2),
-                  Text('${route.origin} → ${route.destination}',
-                      style: text.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
+                  RouteEnds(route.origin, route.destination, style: text.bodySmall),
                   const Spacer(),
                   const Divider(),
                   const SizedBox(height: 12),
