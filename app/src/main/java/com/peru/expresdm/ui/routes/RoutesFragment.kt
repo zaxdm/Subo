@@ -63,6 +63,7 @@ import com.peru.expresdm.data.RoadAlert
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.data.Stop
+import com.peru.expresdm.data.StreetRouter
 import com.peru.expresdm.data.UserPosition
 import com.peru.expresdm.databinding.FragmentRoutesBinding
 import com.peru.expresdm.databinding.ItemRouteStopBinding
@@ -138,6 +139,14 @@ class RoutesFragment : Fragment() {
     private var sheetBehavior: BottomSheetBehavior<LinearLayout>? = null
 
     private var lastState: HomeState? = null
+
+    /** Un tramo a pie de "Cómo llegar" ya trazado por las calles. */
+    private class StreetWalk(val from: GeoCoordinate, val to: GeoCoordinate, val points: List<GeoCoordinate>)
+
+    private val streetWalks = ArrayDeque<StreetWalk>()
+
+    /** Tramos ya pedidos al servicio de rutas: no se piden dos veces. */
+    private val askedWalks = mutableSetOf<String>()
     private var lastRecorderStatus: RecorderStatus? = null
 
     /** Qué paradas hay pintadas en la hoja, para no rehacerlas en cada lectura del GPS. */
@@ -1132,9 +1141,12 @@ class RoutesFragment : Fragment() {
         layer.items.clear()
 
         // Los tramos a pie unen los puntos que ya conocemos: el usuario, cada
-        // parada y el destino.
+        // parada y el destino. Primero en línea recta; en cuanto llega el camino
+        // por las calles, se dibuja ese.
         journeyWalks(journey, state).forEach { walk ->
-            val points = walk.map { it.toGeoPoint() }
+            val street = streetWalk(walk)
+            if (street == null) requestStreetWalk(walk)
+            val points = (street ?: walk).map { it.toGeoPoint() }
             layer.add(line(map, points, casing, 8f, dotted = true))
             layer.add(line(map, points, primary, 5f, dotted = true))
         }
@@ -1174,6 +1186,42 @@ class RoutesFragment : Fragment() {
             icon = MapMarkers.stopDot(requireContext(), color)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             setOnMarkerClickListener { _, _ -> true }
+        }
+    }
+
+    /** El camino por las calles de un tramo a pie, si ya se trazó desde ahí cerca. */
+    private fun streetWalk(walk: List<GeoCoordinate>): List<GeoCoordinate>? {
+        val from = walk.first()
+        val to = walk.last()
+        val known = streetWalks.lastOrNull {
+            it.to == to &&
+                NearbyRoutes.distanceMeters(it.from.latitude, it.from.longitude, from.latitude, from.longitude) <=
+                STREET_WALK_REUSE_METERS
+        } ?: return null
+        return listOf(from) + known.points + to
+    }
+
+    /** Pide el camino a pie por las calles y, al llegar, vuelve a dibujar el viaje. */
+    private fun requestStreetWalk(walk: List<GeoCoordinate>) {
+        val from = walk.first()
+        val to = walk.last()
+        val key = String.format(
+            Locale.US, "%.4f,%.4f,%.5f,%.5f", from.latitude, from.longitude, to.latitude, to.longitude
+        )
+        // Si el servicio no responde no se insiste: se queda la línea recta.
+        if (!askedWalks.add(key)) return
+        val router = StreetRouter.get(requireContext())
+        viewLifecycleOwner.lifecycleScope.launch {
+            val path = router.walkingPath(
+                UserPosition(from.latitude, from.longitude), Stop("", to.latitude, to.longitude)
+            ) ?: return@launch
+            if (_binding == null) return@launch
+            streetWalks.addLast(StreetWalk(from, to, path.points))
+            while (streetWalks.size > MAX_STREET_WALKS) streetWalks.removeFirst()
+
+            val state = lastState ?: return@launch
+            val journey = state.chosenJourney
+            if (state.selected == null && journey != null) drawJourney(journey, state)
         }
     }
 
@@ -2021,6 +2069,10 @@ class RoutesFragment : Fragment() {
 
     private companion object {
         const val DEFAULT_ZOOM = 13.5
+
+        /** Mientras uno no se aleje más que esto, vale el camino a pie ya trazado. */
+        const val STREET_WALK_REUSE_METERS = 30.0
+        const val MAX_STREET_WALKS = 12
         const val USER_ZOOM = 16.0
         const val STOP_ZOOM = 16.5
         const val ALERT_ZOOM = 17.0
