@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api.dart';
+import '../route_tools.dart';
 import '../theme.dart';
 import '../widgets/route_photo.dart';
 
@@ -198,8 +199,13 @@ class _CatalogPageState extends State<CatalogPage> {
                     mainAxisSpacing: 22,
                   ),
                   itemCount: visible.length,
-                  itemBuilder: (context, index) =>
-                      _RouteCard(route: visible[index], onEdit: () => widget.onEdit(visible[index])),
+                  // Una copia no tiene `id`: el editor la abre como ruta nueva.
+                  itemBuilder: (context, index) => _RouteCard(
+                    route: visible[index],
+                    onEdit: () => widget.onEdit(visible[index]),
+                    onDuplicate: () => widget.onEdit(duplicateRoute(visible[index])),
+                    onReturn: () => widget.onEdit(duplicateRoute(visible[index], reversed: true)),
+                  ),
                 ),
               ),
           ],
@@ -234,10 +240,17 @@ class _Metric extends StatelessWidget {
 }
 
 class _RouteCard extends StatelessWidget {
-  const _RouteCard({required this.route, required this.onEdit});
+  const _RouteCard({
+    required this.route,
+    required this.onEdit,
+    required this.onDuplicate,
+    required this.onReturn,
+  });
 
   final BusRoute route;
   final VoidCallback onEdit;
+  final VoidCallback onDuplicate;
+  final VoidCallback onReturn;
 
   @override
   Widget build(BuildContext context) {
@@ -276,13 +289,25 @@ class _RouteCard extends StatelessWidget {
                     ],
                   ),
                   const SizedBox(height: 14),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: onEdit,
-                      icon: const Icon(Icons.edit_outlined, size: 16),
-                      label: const Text('Editar ruta'),
-                    ),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: onEdit,
+                          icon: const Icon(Icons.edit_outlined, size: 16),
+                          label: const Text('Editar ruta'),
+                        ),
+                      ),
+                      PopupMenuButton<VoidCallback>(
+                        tooltip: 'Crear otra ruta a partir de esta',
+                        icon: const Icon(Icons.copy_outlined, size: 18),
+                        onSelected: (action) => action(),
+                        itemBuilder: (context) => [
+                          PopupMenuItem(value: onDuplicate, child: const Text('Duplicar')),
+                          PopupMenuItem(value: onReturn, child: const Text('Crear la vuelta')),
+                        ],
+                      ),
+                    ],
                   ),
                 ],
               ),

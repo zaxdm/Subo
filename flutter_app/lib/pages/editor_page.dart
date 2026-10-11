@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../api.dart';
+import '../route_tools.dart';
 import '../theme.dart';
 import '../widgets/route_photo.dart';
 
@@ -28,9 +29,13 @@ class EditorPage extends StatefulWidget {
     required this.onDeleted,
     required this.onCancel,
     required this.onError,
+    this.streets,
   });
 
   final ApiClient api;
+
+  /// Quién traza por las calles; por defecto, el servicio público de OpenStreetMap.
+  final StreetRouter? streets;
 
   /// Copia de trabajo: se puede modificar sin tocar el catálogo.
   final BusRoute route;
@@ -72,10 +77,13 @@ class _EditorPageState extends State<EditorPage> {
   _MapMode _mode = _MapMode.stops;
   bool _busy = false;
   bool _uploading = false;
+  bool _tracing = false;
   bool _dirty = false;
 
+  late final StreetRouter _streets = widget.streets ?? StreetRouter();
+
   bool get _isNew => _route.id == null;
-  bool get _locked => _busy || _uploading;
+  bool get _locked => _busy || _uploading || _tracing;
 
   @override
   void dispose() {
@@ -145,6 +153,32 @@ class _EditorPageState extends State<EditorPage> {
       action: 'Borrar trazado',
     );
     if (confirmed) _change(_route.path.clear);
+  }
+
+  /// Dibuja el recorrido siguiendo las calles entre los puntos de referencia,
+  /// en su orden: basta marcar por dónde pasa el micro, no cada curva.
+  Future<void> _traceStreets() async {
+    if (_locked || _route.stops.length < 2) return;
+    if (_route.path.isNotEmpty) {
+      final replace = await _confirm(
+        title: '¿Reemplazar el trazado?',
+        message: 'El recorrido dibujado se cambiará por el que sigue las calles entre los puntos de referencia.',
+        action: 'Reemplazar',
+      );
+      if (!replace || !mounted) return;
+    }
+
+    setState(() => _tracing = true);
+    final traced = await _streets.through(_route.stops);
+    if (!mounted) return;
+    setState(() => _tracing = false);
+    if (traced == null || traced.points.length > _maxPathPoints) {
+      widget.onError(ApiException('No se pudo trazar por las calles. Inténtalo de nuevo en un momento.'));
+      return;
+    }
+    _change(() => _route.path = traced.points);
+    _message('Recorrido trazado: ${(traced.meters / 1000).toStringAsFixed(1)} km. '
+        'Si se desvía, añade un punto de referencia en la calle correcta y vuelve a trazar.');
   }
 
   void _swapStops(int a, int b) => _change(() {
@@ -561,7 +595,8 @@ class _EditorPageState extends State<EditorPage> {
       children: [
         Text(
           _mode == _MapMode.stops
-              ? 'Haz clic en el mapa para añadir puntos de referencia en el orden del recorrido. Arrástralos para corregirlos.'
+              ? 'Haz clic en el mapa para añadir puntos de referencia en el orden del recorrido. Arrástralos para corregirlos. '
+                  'Con «Trazar por las calles» el recorrido se dibuja solo entre ellos.'
               : 'Marca las esquinas y calles en el orden de circulación. Sin trazado, la app lo estima entre puntos de referencia.',
           style: text.bodySmall,
         ),
@@ -580,6 +615,13 @@ class _EditorPageState extends State<EditorPage> {
                 selectedForegroundColor: Palette.ink,
                 textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
               ),
+            ),
+            FilledButton.tonalIcon(
+              onPressed: _locked || stops.length < 2 ? null : _traceStreets,
+              icon: _tracing
+                  ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.route_outlined, size: 18),
+              label: Text(_tracing ? 'Trazando…' : 'Trazar por las calles'),
             ),
             OutlinedButton(onPressed: _locked ? null : _undo, child: const Text('Deshacer último punto')),
             if (_route.path.isNotEmpty)
