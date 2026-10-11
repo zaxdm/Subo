@@ -25,6 +25,7 @@ import com.peru.expresdm.data.Stop
 import com.peru.expresdm.data.StreetPath
 import com.peru.expresdm.data.StreetRouter
 import com.peru.expresdm.data.UserPosition
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -32,7 +33,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -215,7 +218,13 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
     val homeState: StateFlow<HomeState> =
         combine(environment, search, selection, activeAlerts) { env, searchState, sel, alerts ->
             buildState(env, searchState, sel, alerts)
-        }.stateIn(
+        }
+            // Medir el catálogo entero y buscar cómo llegar cuesta: se hace fuera
+            // del hilo de la pantalla, y si llegan varios cambios seguidos solo
+            // se calcula el último.
+            .conflate()
+            .flowOn(Dispatchers.Default)
+            .stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = buildState(
@@ -508,11 +517,7 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
                 // origen ni ubicación, al menos qué micros pasan por ahí.
                 val start = searchState.origin?.let { UserPosition(it.latitude, it.longitude) } ?: here
                 val journeys = start?.let {
-                    JourneyPlanner.plan(
-                        origin = it,
-                        destination = GeoCoordinate(searchState.place.latitude, searchState.place.longitude),
-                        routes = routes
-                    )
+                    plannedJourneys(it, GeoCoordinate(searchState.place.latitude, searchState.place.longitude), routes)
                 }.orEmpty()
 
                 HomeState(
@@ -556,6 +561,38 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
                 )
             }
         }
+    }
+
+    private class PlannedJourneys(
+        val origin: UserPosition,
+        val destination: GeoCoordinate,
+        val routes: List<BusRoute>,
+        val journeys: List<Journey>
+    )
+
+    @Volatile
+    private var lastPlan: PlannedJourneys? = null
+
+    /**
+     * Cómo llegar. La pantalla se recalcula con cada cambio (una alerta, la
+     * ruta elegida, unos metros caminados): mientras no cambien el destino ni
+     * las rutas y uno siga casi en el mismo sitio, vale el cálculo anterior.
+     */
+    private fun plannedJourneys(
+        origin: UserPosition,
+        destination: GeoCoordinate,
+        routes: List<BusRoute>
+    ): List<Journey> {
+        lastPlan?.let { last ->
+            val moved = NearbyRoutes.distanceMeters(
+                last.origin.latitude, last.origin.longitude, origin.latitude, origin.longitude
+            )
+            if (last.routes === routes && last.destination == destination && moved < REPLAN_METERS) {
+                return last.journeys
+            }
+        }
+        return JourneyPlanner.plan(origin, destination, routes)
+            .also { lastPlan = PlannedJourneys(origin, destination, routes, it) }
     }
 
     private fun buildSelected(
@@ -623,6 +660,9 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
         const val SAME_PLACE_METERS = 300.0
         const val ALERT_ON_ROUTE_METERS = 150.0
         const val ALERT_REFRESH_MS = 60_000L
+
+        /** Caminar menos que esto no cambia cómo llegar: no se vuelve a calcular. */
+        const val REPLAN_METERS = 25.0
 
         /** Con este movimiento ya conviene volver a preguntar por las alertas de la zona. */
         const val ALERT_REFRESH_METERS = 1_000.0

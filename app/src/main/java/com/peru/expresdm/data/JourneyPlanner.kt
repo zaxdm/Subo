@@ -113,6 +113,13 @@ object JourneyPlanner {
     /** Hasta aquí tiene sentido decir "cerca de" una parada. */
     const val NEAR_STOP_METERS = 700.0
 
+    /**
+     * Cuántos micros se prueban a cada extremo de un transbordo: los que dejan
+     * más cerca. Con el catálogo entero de una ciudad, probarlos todos contra
+     * todos tarda tanto que el teléfono se queda parado.
+     */
+    private const val MAX_TRANSFER_CANDIDATES = 10
+
     /** Cada cuánto se prueba a cambiar de micro a lo largo de un recorrido. */
     private const val TRANSFER_STEP_METERS = 250.0
 
@@ -217,17 +224,25 @@ object JourneyPlanner {
         maxWalk: Double
     ): List<Journey> {
         val tracks = routes.map { trackOf(it) }
-        val fromHome = tracks.mapNotNull { track ->
-            track.access(origin.latitude, origin.longitude, maxWalk)?.let { track to it }
-        }
-        val toTarget = tracks.mapNotNull { track ->
-            track.access(destination.latitude, destination.longitude, maxWalk)?.let { track to it }
-        }
+
+        /** Los micros que pasan cerca de un punto, primero los que menos hacen caminar. */
+        fun candidates(latitude: Double, longitude: Double) = tracks
+            .mapNotNull { track -> track.access(latitude, longitude, maxWalk)?.let { track to it } }
+            .sortedBy { (track, access) ->
+                val point = track.pointAt(access.along)
+                distance(latitude, longitude, point.latitude, point.longitude)
+            }
+            .take(MAX_TRANSFER_CANDIDATES)
+
+        val fromHome = candidates(origin.latitude, origin.longitude)
+        val toTarget = candidates(destination.latitude, destination.longitude)
 
         val journeys = mutableListOf<Journey>()
         for ((first, board) in fromHome) {
             for ((second, exit) in toTarget) {
                 if (first.route.id == second.route.id) continue
+                // Dos recorridos que no se acercan no tienen dónde enlazar.
+                if (!first.passesNear(second, MAX_TRANSFER_WALK_METERS)) continue
 
                 // Primero entre paradas, que tienen nombre. Se evalúan todos los
                 // enlaces: el más cercano puede estar detrás del origen.
@@ -351,6 +366,12 @@ object JourneyPlanner {
 
         val length: Double
 
+        /** El rectángulo que encierra el recorrido. */
+        private val south: Double
+        private val north: Double
+        private val west: Double
+        private val east: Double
+
         init {
             val raw = route.path?.takeIf { it.size >= 2 }
                 ?: route.stops.map { GeoCoordinate(it.latitude, it.longitude) }
@@ -371,6 +392,17 @@ object JourneyPlanner {
                 )
             }
             length = alongs.lastOrNull() ?: 0.0
+            south = points.minOf { it.latitude }
+            north = points.maxOf { it.latitude }
+            west = points.minOf { it.longitude }
+            east = points.maxOf { it.longitude }
+        }
+
+        /** Si los rectángulos de los dos recorridos quedan a menos de [meters]: una criba barata. */
+        fun passesNear(other: Track, meters: Double): Boolean {
+            val margin = meters / 111_000.0
+            return south - margin <= other.north && other.south - margin <= north &&
+                west - margin <= other.east && other.west - margin <= east
         }
 
         /** Por dónde subir o bajar para un punto dado; `null` si el recorrido queda a más de [limit]. */
