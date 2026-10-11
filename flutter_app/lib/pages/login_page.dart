@@ -184,7 +184,7 @@ class _LoginPageState extends State<LoginPage> {
     final text = Theme.of(context).textTheme;
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(26),
         side: const BorderSide(color: Palette.line),
       ),
       child: Padding(
@@ -195,23 +195,27 @@ class _LoginPageState extends State<LoginPage> {
           children: [
             Row(
               children: [
-                Expanded(
-                  child: Text('CONFIRMA TU CORREO', style: text.labelSmall?.copyWith(color: Palette.accentText)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                  decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(30)),
+                  child: const Text('Confirma tu correo',
+                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF5C4C10))),
                 ),
+                const Spacer(),
                 if (widget.onClose != null)
                   IconButton(
                     tooltip: 'Cerrar',
                     onPressed: _busy ? null : widget.onClose,
-                    icon: const Icon(Icons.close, size: 20),
-                    visualDensity: VisualDensity.compact,
+                    icon: const Icon(Icons.close, size: 18),
+                    style: IconButton.styleFrom(backgroundColor: Palette.chip, fixedSize: const Size(44, 44)),
                   ),
               ],
             ),
-            const SizedBox(height: 10),
-            Text('Escribe el código', style: text.titleLarge?.copyWith(fontSize: 23)),
+            const SizedBox(height: 16),
+            Text('Escribe el código', style: text.headlineLarge?.copyWith(fontSize: 28, letterSpacing: -0.5)),
             const SizedBox(height: 6),
             Text('Te enviamos un código de 6 dígitos a $email. Vale 15 minutos.',
-                style: text.bodySmall?.copyWith(fontSize: 13)),
+                style: text.bodySmall?.copyWith(fontSize: 15, color: Palette.muted)),
             const SizedBox(height: 24),
             TextField(
               controller: _code,
@@ -243,6 +247,7 @@ class _LoginPageState extends State<LoginPage> {
             ],
             FilledButton(
               onPressed: _busy ? null : _confirm,
+              style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52)),
               child: Text(_busy ? 'Un momento…' : 'Confirmar y entrar'),
             ),
             const SizedBox(height: 6),
@@ -275,7 +280,7 @@ class _LoginPageState extends State<LoginPage> {
     final text = Theme.of(context).textTheme;
     return Card(
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(26),
         side: const BorderSide(color: Palette.line),
       ),
       child: Padding(
@@ -289,29 +294,67 @@ class _LoginPageState extends State<LoginPage> {
               children: [
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(_registering ? 'CUENTA NUEVA' : 'BIENVENIDO',
-                          style: text.labelSmall?.copyWith(color: Palette.accentText)),
-                    ),
+                    // Al entrar, la marca; al crear la cuenta, que es gratis.
+                    if (_registering)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                        decoration: BoxDecoration(color: Palette.accentSoft, borderRadius: BorderRadius.circular(30)),
+                        child: const Text('Gratis, para web y app',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF5C4C10))),
+                      )
+                    else
+                      Container(
+                        width: 40,
+                        height: 40,
+                        alignment: Alignment.center,
+                        decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(12)),
+                        child: const Text('S', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
+                      ),
+                    const Spacer(),
                     if (widget.onClose != null)
                       IconButton(
                         tooltip: 'Cerrar',
                         onPressed: _busy ? null : widget.onClose,
-                        icon: const Icon(Icons.close, size: 20),
-                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, size: 18),
+                        style: IconButton.styleFrom(backgroundColor: Palette.chip, fixedSize: const Size(44, 44)),
                       ),
                   ],
                 ),
-                const SizedBox(height: 10),
-                Text(_registering ? 'Crea tu cuenta' : 'Inicia sesión', style: text.titleLarge?.copyWith(fontSize: 23)),
+                const SizedBox(height: 16),
+                Text(_registering ? 'Crea tu cuenta' : 'Hola de nuevo',
+                    style: text.headlineLarge?.copyWith(fontSize: 28, letterSpacing: -0.5)),
                 const SizedBox(height: 6),
                 Text(
                   _registering
-                      ? 'Es gratis y te sirve también en la app del celular.'
-                      : widget.reason ?? 'Entra con tu cuenta de Subo, la misma de la app.',
-                  style: text.bodySmall?.copyWith(fontSize: 13),
+                      ? 'Te sirve también en la app del celular.'
+                      : widget.reason ?? 'Entra con la misma cuenta de la app.',
+                  style: text.bodySmall?.copyWith(fontSize: 15, color: Palette.muted),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
+                if (googleSignInAvailable) ...[
+                  LayoutBuilder(
+                    builder: (context, constraints) => Center(
+                      child: GoogleButton(
+                        key: ValueKey(_googleAttempt),
+                        nonce: widget.api.googleChallenge,
+                        onToken: _withGoogle,
+                        width: constraints.maxWidth.clamp(200, 400).toDouble(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Text('o con tu correo', style: text.bodySmall?.copyWith(fontSize: 13, color: Palette.faint)),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 if (_registering) ...[
                   TextFormField(
                     controller: _name,
@@ -372,54 +415,27 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   const SizedBox(height: 12),
                 ],
+                // Entrar va en negro; crear la cuenta, en el amarillo de la marca.
                 FilledButton(
                   onPressed: _busy ? null : _submit,
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          _busy ? 'Un momento…' : (_registering ? 'Crear mi cuenta' : 'Entrar'),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      _busy
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Icon(Icons.arrow_forward, size: 18),
-                    ],
+                  style: FilledButton.styleFrom(
+                    minimumSize: const Size.fromHeight(52),
+                    backgroundColor: _registering ? Palette.accent : Palette.ink,
+                    foregroundColor: _registering ? Palette.ink : Colors.white,
+                    textStyle: TextStyle(fontSize: 16, fontWeight: _registering ? FontWeight.w700 : FontWeight.w500),
+                  ),
+                  child: Text(
+                    _busy ? 'Un momento…' : (_registering ? 'Crear mi cuenta' : 'Entrar'),
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (googleSignInAvailable) ...[
-                  const SizedBox(height: 16),
-                  Row(
-                    children: [
-                      const Expanded(child: Divider()),
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('o', style: text.bodySmall),
-                      ),
-                      const Expanded(child: Divider()),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
-                  LayoutBuilder(
-                    builder: (context, constraints) => Center(
-                      child: GoogleButton(
-                        key: ValueKey(_googleAttempt),
-                        nonce: widget.api.googleChallenge,
-                        onToken: _withGoogle,
-                        width: constraints.maxWidth.clamp(200, 400).toDouble(),
-                      ),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 14),
+                const SizedBox(height: 10),
                 Wrap(
                   alignment: WrapAlignment.center,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(_registering ? '¿Ya tienes cuenta?' : '¿Primera vez en Subo?',
-                        style: text.bodySmall?.copyWith(fontSize: 13)),
+                        style: text.bodySmall?.copyWith(fontSize: 14, color: Palette.muted)),
                     TextButton(
                       onPressed: _busy ? null : _toggleMode,
                       child: Text(_registering ? 'Inicia sesión' : 'Crea tu cuenta'),

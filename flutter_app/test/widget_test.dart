@@ -329,7 +329,7 @@ void main() {
       await _signIn(tester, password: 'otra-cosa');
 
       expect(find.text('Correo o contraseña incorrectos'), findsOneWidget);
-      expect(find.text('Inicia sesión'), findsOneWidget);
+      expect(find.text('Hola de nuevo'), findsOneWidget);
     });
 
     testWidgets('un pasajero entra por el mismo acceso y no ve el panel', (tester) async {
@@ -366,7 +366,7 @@ void main() {
       await tester.pumpWidget(AdminApp(api: _fakeApi()));
       await tester.pumpAndSettle();
 
-      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
+      expect(find.text('¿Este micro me lleva?'), findsOneWidget);
       expect(find.text('¿Qué micro tomas hoy?'), findsNothing);
       // En la barra, Inicio va antes que Mapa.
       expect(tester.getTopLeft(find.text('Inicio').first).dx, lessThan(tester.getTopLeft(find.text('Mapa').first).dx));
@@ -440,18 +440,19 @@ void main() {
 
       await tester.tap(find.text('Inicio').last);
       await tester.pumpAndSettle();
-      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
+      expect(find.text('¿Este micro me lleva?'), findsOneWidget);
 
-      // Inicio cuenta lo que ya hay en el mapa y deja sitio para las fotos.
+      // Inicio cuenta lo que ya hay en el mapa, enseña la app y deja sitio para las fotos.
       expect(find.text('líneas en el mapa'), findsOneWidget);
-      expect(find.text('Foto de portada'), findsOneWidget);
+      expect(find.text('Te sirven'), findsOneWidget);
       expect(find.text('Foto del equipo'), findsOneWidget);
 
       // La descarga de la app tiene su página.
       await tester.tap(find.text('Descargar app').first);
       await tester.pumpAndSettle();
       expect(find.text('Lleva Subo en tu celular'), findsOneWidget);
-      expect(find.text('Descargar para Android'), findsOneWidget);
+      // El botón de arriba y el del cierre de la página.
+      expect(find.text('Descargar para Android'), findsNWidgets(2));
       expect(find.text('Para Android · Versión 1.0 · 4 MB'), findsOneWidget);
 
       // Las páginas de texto llevan el pie completo al final.
@@ -467,7 +468,7 @@ void main() {
 
       await tester.tap(find.text('Contacto').first);
       await tester.pumpAndSettle();
-      expect(find.text('Envíanos un mensaje'), findsOneWidget);
+      expect(find.text('Llega directo al equipo'), findsOneWidget);
       expect(find.text('WhatsApp'), findsOneWidget);
       expect(find.text('Correo'), findsOneWidget);
     });
@@ -504,7 +505,7 @@ void main() {
       await tester.tap(find.text('Contacto').first);
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Tu mensaje'), 'Falta la línea a Laredo');
+      await tester.enterText(find.byType(TextFormField), 'Falta la línea a Laredo');
       await tester.tap(find.text('Enviar mensaje'));
       await tester.pumpAndSettle();
       expect(find.byType(Dialog), findsOneWidget);
@@ -528,7 +529,7 @@ void main() {
       await tester.tap(find.text('Contacto').first);
       await tester.pumpAndSettle();
 
-      await tester.enterText(find.widgetWithText(TextFormField, 'Tu mensaje'), 'La línea B ya no pasa por Mansiche');
+      await tester.enterText(find.byType(TextFormField), 'La línea B ya no pasa por Mansiche');
       await tester.tap(find.text('Enviar mensaje'));
       await tester.pumpAndSettle();
 
@@ -719,7 +720,7 @@ void main() {
 
       // De vuelta en Inicio, como cualquier visitante.
       expect(find.text('Iniciar sesión'), findsOneWidget);
-      expect(find.text('Hecho en Trujillo, para moverse por Trujillo'), findsOneWidget);
+      expect(find.text('¿Este micro me lleva?'), findsOneWidget);
       expect(find.text('Editar ruta'), findsNothing);
     });
   });

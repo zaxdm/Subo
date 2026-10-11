@@ -144,9 +144,13 @@ class SiteShell extends StatelessWidget {
             for (final item in _navPages)
               TextButton(
                 onPressed: () => onPage(item),
+                // La página en la que se está va marcada con el amarillo suave.
                 style: TextButton.styleFrom(
                   foregroundColor: item == page ? Palette.ink : Palette.muted,
-                  textStyle: TextStyle(fontWeight: item == page ? FontWeight.w700 : FontWeight.w500),
+                  backgroundColor: item == page ? Palette.accentSoft : null,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  textStyle: TextStyle(fontSize: 15, fontWeight: item == page ? FontWeight.w500 : FontWeight.w400),
                 ),
                 child: Text(item.label),
               ),

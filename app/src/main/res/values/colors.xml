@@ -11,7 +11,7 @@
     <!-- Amarillo: el color de la marca -->
     <color name="yellow_500">#FFC400</color>
     <color name="yellow_300">#FFD54F</color>
-    <color name="yellow_100">#FFF1C2</color>
+    <color name="yellow_100">#FFF0B3</color>
 
     <!-- Ámbar: el amarillo cuando tiene que leerse como texto sobre blanco -->
     <color name="amber_700">#8A6500</color>
@@ -21,13 +21,13 @@
       Piedra: textos, bordes y superficies neutras. Los claros tiran a crema,
       para que el fondo y los bordes acompañen al amarillo.
     -->
-    <color name="stone_900">#1C1917</color>
+    <color name="stone_900">#1C1A14</color>
     <color name="stone_700">#44403C</color>
-    <color name="stone_500">#6F6A5E</color>
+    <color name="stone_500">#6B6553</color>
     <color name="stone_400">#A8A29E</color>
-    <color name="stone_300">#DDD6C3</color>
-    <color name="stone_200">#EFE8D6</color>
-    <color name="stone_100">#F6F1E3</color>
+    <color name="stone_300">#E3DDC8</color>
+    <color name="stone_200">#F0E8D2</color>
+    <color name="stone_100">#F6F2E6</color>
     <color name="stone_50">#FFFCF2</color>
 
     <!-- Negros del modo oscuro -->
