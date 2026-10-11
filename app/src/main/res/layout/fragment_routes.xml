@@ -593,14 +593,6 @@
                         app:tint="?attr/colorOnSurface" />
                 </LinearLayout>
 
-                <ImageView
-                    android:id="@+id/selectedImage"
-                    android:layout_width="match_parent"
-                    android:layout_height="160dp"
-                    android:layout_marginTop="12dp"
-                    android:scaleType="centerCrop"
-                    android:visibility="gone" />
-
                 <!-- Por dónde caminar hasta la parada -->
                 <com.google.android.material.card.MaterialCardView
                     android:id="@+id/walkCard"
@@ -651,64 +643,6 @@
                             tools:text="Activar" />
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
-
-                <HorizontalScrollView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:scrollbars="none">
-
-                    <com.google.android.material.chip.ChipGroup
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        app:singleLine="true">
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipDuration"
-                            style="@style/Widget.Material3.Chip.Assist"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:clickable="false"
-                            app:chipIcon="@drawable/ic_clock"
-                            tools:text="38 min" />
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipFare"
-                            style="@style/Widget.Material3.Chip.Assist"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:clickable="false"
-                            tools:text="S/ 2.00" />
-
-                        <com.google.android.material.chip.Chip
-                            android:id="@+id/chipSchedule"
-                            style="@style/Widget.Material3.Chip.Assist"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:clickable="false"
-                            tools:text="05:00 – 22:30" />
-                    </com.google.android.material.chip.ChipGroup>
-                </HorizontalScrollView>
-
-                <!-- La ficha del micro: foto, horario y tarifas en una pantalla propia -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnRouteDetail"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/route_detail_open"
-                    app:icon="@drawable/ic_info"
-                    app:iconSize="18dp" />
-
-                <!-- Avisar a alguien de en qué micro va uno, con el enlace al recorrido -->
-                <com.google.android.material.button.MaterialButton
-                    android:id="@+id/btnShareTrip"
-                    style="@style/Widget.Material3.Button.TextButton"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="@string/trip_share"
-                    app:icon="@drawable/ic_send"
-                    app:iconSize="18dp" />
 
                 <!-- Solo en las rutas que grabó quien usa el teléfono -->
                 <com.google.android.material.button.MaterialButton
@@ -790,6 +724,14 @@
                     </LinearLayout>
                 </com.google.android.material.card.MaterialCardView>
 
+                <!-- La ficha del micro: foto, horario, tarifas y calificaciones -->
+                <include
+                    android:id="@+id/routeInfo"
+                    layout="@layout/view_route_info"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp" />
+
                 <TextView
                     android:id="@+id/approxNote"
                     android:layout_width="match_parent"
@@ -860,6 +802,7 @@
       el de Google Maps. El relleno de abajo lo deja encima de la atribución.
     -->
     <FrameLayout
+        android:id="@+id/streetViewHolder"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="top|start"

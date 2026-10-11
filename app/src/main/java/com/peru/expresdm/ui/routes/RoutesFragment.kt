@@ -146,6 +146,9 @@ class RoutesFragment : Fragment() {
 
     private var lastState: HomeState? = null
 
+    /** La ficha del micro, dentro del panel de la ruta elegida. */
+    private var routeInfo: RouteInfoPanel? = null
+
     /** Los lugares favoritos del usuario, que se ven en el mapa. */
     private var favorites: List<SavedPlaceStore.Favorite> = emptyList()
 
@@ -291,18 +294,15 @@ class RoutesFragment : Fragment() {
         binding.btnCloseRoute.setOnClickListener { viewModel.clearSelection() }
         binding.btnClosePlace.setOnClickListener { clearSearch() }
         binding.alertsOnRoute.setOnClickListener { openAlertsTab() }
-        binding.btnRouteDetail.setOnClickListener {
-            lastState?.selected?.route?.let { route -> openRouteDetail(route) }
-        }
+        // Al tocar una ruta, su ficha sale en el mismo panel; ahí "Compartir"
+        // manda el viaje, que dice además dónde se baja uno.
+        routeInfo = RouteInfoPanel(this, binding.routeInfo, ::showLongMessage, onShare = ::shareTrip)
         binding.btnJourneyArrival.setOnClickListener { onJourneyArrival() }
         binding.btnJourneyDetail.setOnClickListener {
             pickRide(R.string.journey_detail_which) { ride -> openRouteDetail(ride.route) }
         }
         binding.btnJourneyShare.setOnClickListener { shareJourney() }
         binding.btnSavePlace.setOnClickListener { onSavePlace() }
-        binding.btnShareTrip.setOnClickListener {
-            lastState?.selected?.route?.let { route -> shareTrip(route) }
-        }
         binding.btnDeleteRoute.setOnClickListener {
             lastState?.selected?.route?.let { route -> confirmDelete(route) }
         }
@@ -1253,21 +1253,9 @@ class RoutesFragment : Fragment() {
         binding.selectedBadge.text = route.letter
         binding.selectedBadge.backgroundTintList = ColorStateList.valueOf(color)
         binding.selectedName.text = route.name
-        binding.selectedSubtitle.text = listOf(route.subtitle, route.vehicleName, route.description)
-            .filter { it.isNotBlank() }.joinToString("\n")
-        if (binding.selectedImage.tag != route.imageUrl) {
-            RouteImages.show(binding.selectedImage, route.imageUrl, route.vehicleName.ifBlank { route.name })
-        }
-
-        val duration = getString(R.string.duration_minutes, route.durationMinutes)
-        val fare = String.format(Locale.US, getString(R.string.fare_format), route.fare)
-        binding.chipDuration.text = duration
-        binding.chipDuration.contentDescription = "${getString(R.string.route_duration)}: $duration"
-        binding.chipFare.text = fare
-        binding.chipFare.contentDescription = "${getString(R.string.route_fare)}: $fare"
+        binding.selectedSubtitle.text = route.subtitle
+        routeInfo?.show(route)
         binding.btnDeleteRoute.isVisible = RouteRepository.isOwn(route.id)
-        binding.chipSchedule.text = route.schedule
-        binding.chipSchedule.contentDescription = "${getString(R.string.route_schedule)}: ${route.schedule}"
 
         binding.alertsOnRoute.isVisible = selected.alertsOnRoute > 0
         if (selected.alertsOnRoute > 0) {
@@ -2089,6 +2077,8 @@ class RoutesFragment : Fragment() {
                 val alpha = ((0.9f - slideOffset) / 0.4f).coerceIn(0f, 1f)
                 binding.mapControls.alpha = alpha
                 binding.attribution.alpha = alpha
+                binding.streetViewHolder.alpha = alpha
+                binding.btnStreetView.isEnabled = alpha > 0.1f
                 binding.fabMyLocation.isEnabled = alpha > 0.1f
                 binding.assistantBubble.isEnabled = alpha > 0.1f
             }
@@ -2302,6 +2292,7 @@ class RoutesFragment : Fragment() {
         }
         locationOverlay = null
         routeLayer = null
+        routeInfo = null
         recordingLayer = null
         favoriteLayer = null
         placeLayer = null
