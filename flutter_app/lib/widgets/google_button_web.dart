@@ -79,7 +79,8 @@ class _GoogleButtonState extends State<GoogleButton> {
       ..width = '100%'
       ..height = '100%'
       ..display = 'flex'
-      ..justifyContent = 'center';
+      ..justifyContent = 'center'
+      ..overflow = 'hidden';
     ui_web.platformViewRegistry.registerViewFactory(_viewType, (int _) => _holder);
     _prepare();
     _refresh = Timer.periodic(_refreshEvery, (_) => _prepare());
@@ -109,6 +110,10 @@ class _GoogleButtonState extends State<GoogleButton> {
           if (token != null && mounted) widget.onToken(token, nonce);
         }).toJS,
       ));
+      // Cada preparación pinta el botón de nuevo: se quita el anterior.
+      while (_holder.firstChild != null) {
+        _holder.removeChild(_holder.firstChild!);
+      }
       _renderButton(
         _holder,
         _ButtonOptions(
