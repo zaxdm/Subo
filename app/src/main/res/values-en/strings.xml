@@ -76,14 +76,14 @@
     <string name="street_view_close">Close street view</string>
     <string name="street_view_failed">Street view could not be loaded. Check your connection.</string>
     <!-- Con un destino elegido: las acciones del viaje y guardar el lugar -->
-    <string name="journey_arrival_enable">Alert me on arrival</string>
-    <string name="journey_arrival_cancel">Cancel alert</string>
+    <string name="journey_arrival_enable">Alert me</string>
+    <string name="journey_arrival_cancel">Stop alert</string>
     <string name="journey_arrival_which">Where should we alert you?</string>
     <string name="journey_arrival_option">%1$s: getting off at %2$s</string>
-    <string name="journey_detail">Bus details</string>
+    <string name="journey_detail">Bus info</string>
     <string name="journey_detail_which">Which bus?</string>
-    <string name="journey_share">Share trip</string>
-    <string name="place_save">Save place</string>
+    <string name="journey_share">Share</string>
+    <string name="place_save">Save</string>
     <string name="place_saved">Saved</string>
     <string name="place_save_full">You already have %1$d saved places: remove one to save another</string>
     <string name="place_removed">Place removed from your favorites</string>

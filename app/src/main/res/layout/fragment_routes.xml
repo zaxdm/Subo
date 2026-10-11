@@ -450,46 +450,41 @@
                   que ofrece el panel de una ruta, para el viaje que se ve en el
                   mapa, y guardar el lugar como favorito.
                 -->
-                <HorizontalScrollView
+                <LinearLayout
                     android:id="@+id/placeActions"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="2dp"
-                    android:scrollbars="none"
+                    android:layout_marginTop="6dp"
+                    android:layout_marginEnd="8dp"
+                    android:baselineAligned="false"
+                    android:orientation="horizontal"
                     android:visibility="gone"
                     tools:visibility="visible">
 
-                    <LinearLayout
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingEnd="8dp">
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnJourneyArrival"
+                        style="@style/Widget.Expresdm.PlaceAction"
+                        android:text="@string/journey_arrival_enable"
+                        app:icon="@drawable/ic_arrival_alarm" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnJourneyArrival"
-                            style="@style/Widget.Expresdm.PlaceAction.Tonal"
-                            android:text="@string/journey_arrival_enable"
-                            app:icon="@drawable/ic_arrival_alarm" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnJourneyDetail"
+                        style="@style/Widget.Expresdm.PlaceAction"
+                        android:text="@string/journey_detail"
+                        app:icon="@drawable/ic_info" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnJourneyDetail"
-                            style="@style/Widget.Expresdm.PlaceAction"
-                            android:text="@string/journey_detail"
-                            app:icon="@drawable/ic_info" />
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnJourneyShare"
+                        style="@style/Widget.Expresdm.PlaceAction"
+                        android:text="@string/journey_share"
+                        app:icon="@drawable/ic_send" />
 
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnJourneyShare"
-                            style="@style/Widget.Expresdm.PlaceAction"
-                            android:text="@string/journey_share"
-                            app:icon="@drawable/ic_send" />
-
-                        <com.google.android.material.button.MaterialButton
-                            android:id="@+id/btnSavePlace"
-                            style="@style/Widget.Expresdm.PlaceAction"
-                            android:text="@string/place_save"
-                            app:icon="@drawable/ic_star_outline" />
-                    </LinearLayout>
-                </HorizontalScrollView>
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnSavePlace"
+                        style="@style/Widget.Expresdm.PlaceAction"
+                        android:text="@string/place_save"
+                        app:icon="@drawable/ic_star_outline" />
+                </LinearLayout>
             </LinearLayout>
 
             <com.google.android.material.progressindicator.LinearProgressIndicator

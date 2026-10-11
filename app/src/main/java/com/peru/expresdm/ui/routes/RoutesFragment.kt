@@ -725,6 +725,7 @@ class RoutesFragment : Fragment() {
     private fun setSheetRaised(raised: Boolean) {
         if (sheetRaised == raised) return
         sheetRaised = raised
+        lastState?.let { renderStatus(it) }
         applyListLayout()
     }
 
@@ -798,7 +799,9 @@ class RoutesFragment : Fragment() {
                 getString(R.string.destination_needs_location)
             } else getString(R.string.location_status_waiting)
             // Nadie publica los horarios de los micros de Trujillo: conviene decirlo.
-            HomeMode.PLACE_JOURNEYS -> getString(R.string.journey_status).takeIf { state.journeys.isNotEmpty() }
+            // Con la hoja en reposo no cabe sin amontonar; se lee al subirla.
+            HomeMode.PLACE_JOURNEYS ->
+                getString(R.string.journey_status).takeIf { sheetRaised && state.journeys.isNotEmpty() }
         }
         binding.statusRow.isVisible = status != null
         binding.statusText.text = status
@@ -1065,9 +1068,11 @@ class RoutesFragment : Fragment() {
         val rides = state.chosenJourney?.rides.orEmpty()
 
         binding.placeActions.isVisible = place != null
-        binding.btnJourneyArrival.isVisible = rides.isNotEmpty()
-        binding.btnJourneyDetail.isVisible = rides.isNotEmpty()
-        binding.btnJourneyShare.isVisible = rides.isNotEmpty()
+        // Andando no hay micro del que avisar ni que enseñar: se apagan, pero
+        // siguen en su sitio para que la fila no cambie de forma.
+        binding.btnJourneyArrival.isEnabled = rides.isNotEmpty()
+        binding.btnJourneyDetail.isEnabled = rides.isNotEmpty()
+        binding.btnJourneyShare.isEnabled = rides.isNotEmpty()
         binding.btnJourneyArrival.setText(
             if (arrivalOn(rides)) R.string.journey_arrival_cancel else R.string.journey_arrival_enable
         )
