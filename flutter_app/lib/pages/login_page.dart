@@ -33,6 +33,14 @@ class _LoginPageState extends State<LoginPage> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _code = TextEditingController();
+
+  /// El correo que espera su código para terminar de crear la cuenta; `null`
+  /// si no se está en ese paso.
+  String? _confirming;
+
+  /// Un aviso que no es un fallo, como que se mandó otro código.
+  String? _notice;
 
   /// `true`: se está creando una cuenta en lugar de entrar con una.
   bool _registering = false;
@@ -48,6 +56,7 @@ class _LoginPageState extends State<LoginPage> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _code.dispose();
     super.dispose();
   }
 
@@ -57,6 +66,7 @@ class _LoginPageState extends State<LoginPage> {
     setState(() {
       _busy = true;
       _error = null;
+      _notice = null;
     });
     try {
       await work();
@@ -76,8 +86,39 @@ class _LoginPageState extends State<LoginPage> {
       final session = _registering
           ? await api.register(displayName: _name.text, email: _email.text, password: _password.text)
           : await api.signIn(email: _email.text, password: _password.text);
+      if (session == null) {
+        // Falta confirmar el correo: se pasa a pedir el código que le llegó.
+        if (mounted) setState(() => _confirming = _email.text.trim());
+        return;
+      }
       await _enter(session);
     }, _registering ? 'No se pudo crear la cuenta. Inténtalo de nuevo.' : 'No se pudo iniciar sesión. Inténtalo de nuevo.');
+  }
+
+  /// Con el código del correo, la cuenta se crea y se entra.
+  Future<void> _confirm() async {
+    final email = _confirming;
+    if (email == null) return;
+    if (_code.text.trim().length != 6) {
+      setState(() => _error = 'Escribe los 6 dígitos del código');
+      return;
+    }
+    await _run(() async {
+      await _enter(await widget.api.confirmRegistration(email: email, code: _code.text));
+    }, 'No se pudo confirmar el código. Inténtalo de nuevo.');
+  }
+
+  /// Pide otro código para el mismo registro.
+  Future<void> _resend() async {
+    await _run(() async {
+      final session =
+          await widget.api.register(displayName: _name.text, email: _email.text, password: _password.text);
+      if (session != null) {
+        await _enter(session);
+      } else if (mounted) {
+        setState(() => _notice = 'Listo. Si no te llega en un minuto, revisa el correo no deseado y vuelve a pedirlo.');
+      }
+    }, 'No se pudo enviar otro código. Inténtalo de nuevo.');
   }
 
   /// Google ya confirmó la cuenta; el servidor comprueba su credencial.
@@ -138,7 +179,99 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
+  /// El paso de escribir el código que llegó al correo.
+  Widget _codeCard(BuildContext context, String email) {
+    final text = Theme.of(context).textTheme;
+    return Card(
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(18),
+        side: const BorderSide(color: Palette.line),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text('CONFIRMA TU CORREO', style: text.labelSmall?.copyWith(color: Palette.accentText)),
+                ),
+                if (widget.onClose != null)
+                  IconButton(
+                    tooltip: 'Cerrar',
+                    onPressed: _busy ? null : widget.onClose,
+                    icon: const Icon(Icons.close, size: 20),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Text('Escribe el código', style: text.titleLarge?.copyWith(fontSize: 23)),
+            const SizedBox(height: 6),
+            Text('Te enviamos un código de 6 dígitos a $email. Vale 15 minutos.',
+                style: text.bodySmall?.copyWith(fontSize: 13)),
+            const SizedBox(height: 24),
+            TextField(
+              controller: _code,
+              enabled: !_busy,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              maxLength: 6,
+              textAlign: TextAlign.center,
+              style: const TextStyle(fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.w600),
+              onSubmitted: (_) => _confirm(),
+              decoration: const InputDecoration(labelText: 'Código', counterText: ''),
+            ),
+            const SizedBox(height: 16),
+            if (_error != null) ...[
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Palette.dangerSoft,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFFE8C3B9)),
+                ),
+                child: Text(_error!, style: const TextStyle(color: Palette.danger, fontSize: 13)),
+              ),
+              const SizedBox(height: 12),
+            ],
+            if (_notice != null) ...[
+              Text(_notice!, style: text.bodySmall?.copyWith(fontSize: 13, color: Palette.success)),
+              const SizedBox(height: 12),
+            ],
+            FilledButton(
+              onPressed: _busy ? null : _confirm,
+              child: Text(_busy ? 'Un momento…' : 'Confirmar y entrar'),
+            ),
+            const SizedBox(height: 6),
+            Wrap(
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                TextButton(onPressed: _busy ? null : _resend, child: const Text('Enviar otro código')),
+                TextButton(
+                  onPressed: _busy
+                      ? null
+                      : () => setState(() {
+                            _confirming = null;
+                            _code.clear();
+                            _error = null;
+                            _notice = null;
+                          }),
+                  child: const Text('Cambiar el correo'),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _card(BuildContext context) {
+    final confirming = _confirming;
+    if (confirming != null) return _codeCard(context, confirming);
     final text = Theme.of(context).textTheme;
     return Card(
       shape: RoundedRectangleBorder(

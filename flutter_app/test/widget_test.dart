@@ -50,7 +50,21 @@ ApiClient _fakeApi({List<http.Request>? log}) {
         };
       }
       if (path == '/api/auth/register') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        // Con este correo el servidor pide confirmar con un código.
+        if (body['email'] == 'nuevo@correo.pe') {
+          return json({'verificationRequired': true, 'email': 'nuevo@correo.pe', 'minutes': 15}, 202);
+        }
+        if (body['email'] == 'ana@correo.pe') {
+          return json({'error': 'correo_en_uso', 'message': 'Ese correo ya tiene una cuenta. Inicia sesión con ella'}, 409);
+        }
         return json({'token': 'token-de-pasajero', 'user': {'displayName': 'Rosa Díaz'}}, 201);
+      }
+      if (path == '/api/auth/register/verify') {
+        final body = jsonDecode(request.body) as Map<String, dynamic>;
+        return body['code'] == '482913'
+            ? json({'token': 'token-de-pasajero', 'user': {'displayName': 'Rosa Díaz'}}, 201)
+            : json({'error': 'peticion_invalida', 'message': 'Ese código no es correcto o ya caducó. Pide uno nuevo'}, 400);
       }
       // Las líneas publicadas y las alertas las ve cualquiera, con o sin cuenta.
       if (request.method == 'GET' && path == '/api/routes') return json({'routes': [_route]});
@@ -471,6 +485,67 @@ void main() {
       expect(sent, {'displayName': 'Rosa Díaz', 'email': 'rosa@correo.pe', 'password': 'micro-seguro-1'});
       expect(find.text('Hola, Rosa. ¿Qué micro tomas hoy?'), findsOneWidget);
       expect(find.text('Editar ruta'), findsNothing);
+    });
+
+    testWidgets('al crear la cuenta hay que escribir el código que llega al correo', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final log = <http.Request>[];
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _openMap(tester);
+      await tester.tap(find.text('Iniciar sesión'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crea tu cuenta'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tu nombre'), 'Rosa Díaz');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'nuevo@correo.pe');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), 'micro-seguro-1');
+      await tester.tap(find.text('Crear mi cuenta'));
+      await tester.pumpAndSettle();
+
+      // Todavía no entra: se le pide el código.
+      expect(find.text('Escribe el código'), findsOneWidget);
+      expect(find.text('Te enviamos un código de 6 dígitos a nuevo@correo.pe. Vale 15 minutos.'), findsOneWidget);
+      expect(find.text('Hola, Rosa. ¿Qué micro tomas hoy?'), findsNothing);
+
+      // Un código equivocado no entra y dice por qué.
+      await tester.enterText(find.widgetWithText(TextField, 'Código'), '000000');
+      await tester.tap(find.text('Confirmar y entrar'));
+      await tester.pumpAndSettle();
+      expect(find.text('Ese código no es correcto o ya caducó. Pide uno nuevo'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextField, 'Código'), '482913');
+      await tester.tap(find.text('Confirmar y entrar'));
+      await tester.pumpAndSettle();
+
+      final sent = jsonDecode(log.lastWhere((r) => r.url.path.endsWith('/register/verify')).body) as Map;
+      expect(sent, {'email': 'nuevo@correo.pe', 'code': '482913'});
+      expect(find.text('Hola, Rosa. ¿Qué micro tomas hoy?'), findsOneWidget);
+    });
+
+    testWidgets('no se puede crear una cuenta con un correo que ya tiene una', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Iniciar sesión'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Crea tu cuenta'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Tu nombre'), 'Otra Ana');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Correo'), 'ana@correo.pe');
+      await tester.enterText(find.widgetWithText(TextFormField, 'Contraseña'), 'otra-clave-99');
+      await tester.tap(find.text('Crear mi cuenta'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ese correo ya tiene una cuenta. Inicia sesión con ella'), findsOneWidget);
+      expect(find.text('Escribe el código'), findsNothing);
     });
 
     testWidgets('al entrar se ve el catálogo y se puede filtrar', (tester) async {

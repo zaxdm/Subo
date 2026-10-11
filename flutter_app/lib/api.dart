@@ -440,27 +440,44 @@ class ApiClient {
     );
   }
 
-  /// Crea una cuenta de pasajero y entra con ella. Por aquí nunca sale una
-  /// cuenta de administrador: esas las da el administrador principal.
-  Future<Session> register({
+  /// Pide una cuenta de pasajero. Por aquí nunca sale una cuenta de
+  /// administrador: esas las da el administrador principal.
+  ///
+  /// Devuelve `null` si el servidor mandó un código al correo: la cuenta se
+  /// crea al confirmarlo con [confirmRegistration]. Si no pide confirmar,
+  /// devuelve la sesión ya abierta.
+  Future<Session?> register({
     String? server,
     required String displayName,
     required String email,
     required String password,
-  }) {
-    return _open(
-      server,
+  }) async {
+    if (server != null) baseUrl = normalizeServerUrl(server);
+    _token = null;
+    final opened = await _send(
+      'POST',
       '/api/auth/register',
-      {'displayName': displayName.trim(), 'email': email.trim(), 'password': password},
-      email,
+      body: {'displayName': displayName.trim(), 'email': email.trim(), 'password': password},
     );
+    if (opened['verificationRequired'] == true) return null;
+    return _adopt(opened, email);
+  }
+
+  /// El segundo paso del registro: con el código que llegó al correo, la
+  /// cuenta se crea y se entra con ella.
+  Future<Session> confirmRegistration({required String email, required String code}) {
+    return _open(null, '/api/auth/register/verify', {'email': email.trim(), 'code': code.trim()}, email);
   }
 
   Future<Session> _open(String? server, String path, Map<String, dynamic> body, String email) async {
     if (server != null) baseUrl = normalizeServerUrl(server);
     _token = null;
+    return _adopt(await _send('POST', path, body: body), email);
+  }
+
+  /// Se queda con la sesión que abrió el servidor y mira de qué tipo es la cuenta.
+  Future<Session> _adopt(Map<String, dynamic> opened, String email) async {
     try {
-      final opened = await _send('POST', path, body: body);
       _token = opened['token'] as String?;
       if (_token == null) throw ApiException('El servidor no devolvió una sesión. Revisa su dirección.');
       final user = opened['user'];
