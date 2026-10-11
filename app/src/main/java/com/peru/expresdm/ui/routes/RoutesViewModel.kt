@@ -11,6 +11,7 @@ import com.peru.expresdm.data.BusRoute
 import com.peru.expresdm.data.GeoCoordinate
 import com.peru.expresdm.data.Journey
 import com.peru.expresdm.data.JourneyPlanner
+import com.peru.expresdm.data.KnownPlaces
 import com.peru.expresdm.data.NearbyRoute
 import com.peru.expresdm.data.NearbyRoutes
 import com.peru.expresdm.data.Place
@@ -295,10 +296,25 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
                     NearbyRoutes.distanceMeters(known.latitude, known.longitude, found.latitude, found.longitude) < SAME_PLACE_METERS
             }
         }
-        val places = (local + extra).sortedBy {
+        // Los sitios conocidos (la UPAO, el Mall, un hospital) van primero y en
+        // su orden: son lo que casi siempre se busca. Lo demás, de cerca a lejos.
+        val known = knownPlaces(query)
+        val rest = (local + extra).filterNot { sameAsAny(it, known) }.sortedBy {
             NearbyRoutes.distanceMeters(reference.latitude, reference.longitude, it.latitude, it.longitude)
         }
-        return PlaceLookup(places, offline = remote == null)
+        return PlaceLookup(known + rest, offline = remote == null && known.isEmpty())
+    }
+
+    /**
+     * Universidades, hospitales, mercados, centros comerciales y demás sitios
+     * que vienen con la app. No sale del teléfono: sirve mientras se escribe y
+     * sin conexión.
+     */
+    fun knownPlaces(text: String): List<Place> = KnownPlaces.search(text, position.value)
+
+    private fun sameAsAny(place: Place, others: List<Place>): Boolean = others.any { other ->
+        normalize(other.name) == normalize(place.name) &&
+            NearbyRoutes.distanceMeters(other.latitude, other.longitude, place.latitude, place.longitude) < SAME_PLACE_METERS
     }
 
     /**
@@ -309,8 +325,11 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
     suspend fun suggestPlaces(text: String): PlaceLookup {
         val query = text.trim()
         if (query.length < MIN_QUERY_LENGTH) return PlaceLookup(emptyList(), offline = false)
+        val known = knownPlaces(query)
         val found = PlaceSuggest.suggest(query, position.value) ?: PlaceSearch.search(query)
-        return PlaceLookup(found.orEmpty(), offline = found == null)
+        val rest = found.orEmpty().filterNot { sameAsAny(it, known) }
+        // Sin conexión, los sitios conocidos siguen saliendo.
+        return PlaceLookup(known + rest, offline = found == null && known.isEmpty())
     }
 
     /**

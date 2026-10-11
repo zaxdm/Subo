@@ -2,6 +2,8 @@ package com.peru.expresdm.ui.routes
 
 import android.Manifest
 import android.content.Context
+import android.content.ActivityNotFoundException
+import android.widget.Toast
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -62,6 +64,7 @@ import com.peru.expresdm.data.RecordingDraft
 import com.peru.expresdm.data.RoadAlert
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.net.AccountRepository
+import com.peru.expresdm.data.SharedLink
 import com.peru.expresdm.data.Stop
 import com.peru.expresdm.data.StreetRouter
 import com.peru.expresdm.data.UserPosition
@@ -276,6 +279,7 @@ class RoutesFragment : Fragment() {
         binding.routePanel.isNestedScrollingEnabled = false
 
         binding.fabMyLocation.setOnClickListener { centerOnUser() }
+        binding.btnStreetView.setOnClickListener { openStreetView() }
         binding.btnStatusAction.setOnClickListener { onStatusAction() }
         binding.btnWalkAction.setOnClickListener { onStatusAction() }
         binding.btnCloseRoute.setOnClickListener { viewModel.clearSelection() }
@@ -288,6 +292,9 @@ class RoutesFragment : Fragment() {
                     RouteDetailFragment.args(route.id)
                 )
             }
+        }
+        binding.btnShareTrip.setOnClickListener {
+            lastState?.selected?.route?.let { route -> shareTrip(route) }
         }
         binding.btnDeleteRoute.setOnClickListener {
             lastState?.selected?.route?.let { route -> confirmDelete(route) }
@@ -359,6 +366,23 @@ class RoutesFragment : Fragment() {
 
             override fun longPressHelper(p: GeoPoint?): Boolean = false
         }))
+    }
+
+    /**
+     * Abre la vista de calle de Google Maps en el centro de lo que se ve del
+     * mapa. Es un enlace: no pide clave ni cuenta de Google.
+     */
+    private fun openStreetView() {
+        val center = binding.mapView.mapCenter
+        val link = Uri.parse(
+            "https://www.google.com/maps/@?api=1&map_action=pano" +
+                "&viewpoint=${center.latitude},${center.longitude}"
+        )
+        try {
+            startActivity(Intent(Intent.ACTION_VIEW, link))
+        } catch (_: ActivityNotFoundException) {
+            Toast.makeText(requireContext(), R.string.street_view_unavailable, Toast.LENGTH_SHORT).show()
+        }
     }
 
     /** Franja del mapa que no tapan ni los controles de arriba ni la hoja. */
@@ -971,6 +995,40 @@ class RoutesFragment : Fragment() {
             if (user != null && boardingMeters <= FRAME_USER_MAX_METERS) add(GeoPoint(user.latitude, user.longitude))
         }
         scheduleFrame(points)
+    }
+
+    /**
+     * Avisa a alguien de en qué micro va uno: "Voy en el California C, me bajo
+     * en Av. España, llego en unos 20 min", con el enlace al recorrido. Con el
+     * aviso de llegada activo se sabe dónde se baja y cuánto falta; sin él, solo
+     * el micro. Va a WhatsApp si está instalado y, si no, a la app que se elija.
+     */
+    private fun shareTrip(route: BusRoute) {
+        val arrival = ArrivalAlarmService.state.value
+        val target = arrival.target?.takeIf { it.routeId == route.id }
+        val meters = arrival.distanceMeters
+        val text = when {
+            target != null && meters != null -> getString(
+                R.string.trip_share_arriving,
+                route.name,
+                target.stopName,
+                kotlin.math.ceil(meters / TRIP_METERS_PER_MINUTE).toInt().coerceAtLeast(1)
+            )
+            target != null -> getString(R.string.trip_share_stop, route.name, target.stopName)
+            else -> getString(R.string.trip_share_riding, route.name, route.subtitle)
+        }
+        val message = listOfNotNull(
+            text,
+            SharedLink.forRoute(route.id)?.let { getString(R.string.trip_share_link, it) },
+            getString(R.string.trip_share_footer)
+        ).joinToString("\n")
+
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message)
+        try {
+            startActivity(Intent(send).setPackage(WHATSAPP_PACKAGE))
+        } catch (e: ActivityNotFoundException) {
+            startActivity(Intent.createChooser(send, getString(R.string.trip_share)))
+        }
     }
 
     /** Borrar una ruta propia no se puede deshacer: se pregunta antes. */
@@ -2073,6 +2131,11 @@ class RoutesFragment : Fragment() {
         /** Mientras uno no se aleje más que esto, vale el camino a pie ya trazado. */
         const val STREET_WALK_REUSE_METERS = 30.0
         const val MAX_STREET_WALKS = 12
+
+        const val WHATSAPP_PACKAGE = "com.whatsapp"
+
+        /** Lo que avanza un micro por minuto en ciudad, para estimar la llegada: unos 15 km/h. */
+        const val TRIP_METERS_PER_MINUTE = 250.0
         const val USER_ZOOM = 16.0
         const val STOP_ZOOM = 16.5
         const val ALERT_ZOOM = 17.0

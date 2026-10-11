@@ -654,6 +654,16 @@
                     app:icon="@drawable/ic_info"
                     app:iconSize="18dp" />
 
+                <!-- Avisar a alguien de en qué micro va uno, con el enlace al recorrido -->
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnShareTrip"
+                    style="@style/Widget.Material3.Button.TextButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/trip_share"
+                    app:icon="@drawable/ic_send"
+                    app:iconSize="18dp" />
+
                 <!-- Solo en las rutas que grabó quien usa el teléfono -->
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/btnDeleteRoute"
@@ -798,6 +808,55 @@
             android:contentDescription="@string/my_location"
             app:srcCompat="@drawable/ic_my_location" />
     </LinearLayout>
+
+    <!--
+      El cuadradito que abre la vista de calle de lo que se ve en el mapa, como
+      el de Google Maps. El relleno de abajo lo deja encima de la atribución.
+    -->
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="46dp"
+        app:layout_anchor="@id/sheet"
+        app:layout_anchorGravity="top|start">
+
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/btnStreetView"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:clickable="true"
+            android:contentDescription="@string/street_view"
+            android:focusable="true"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="6dp"
+            app:strokeWidth="0dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="26dp"
+                    android:layout_height="26dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_streetview"
+                    app:tint="?attr/colorPrimary" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/street_view"
+                    android:textColor="?attr/colorOnSurface"
+                    android:textSize="10sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+    </FrameLayout>
 
     <!-- Las licencias de OpenStreetMap y del servicio de rutas exigen la atribución -->
     <TextView

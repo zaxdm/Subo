@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import com.peru.expresdm.data.AlertRepository
 import com.peru.expresdm.data.AppSettings
+import com.peru.expresdm.data.KnownPlaces
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.tracking.AlertWatchWorker
@@ -20,6 +21,12 @@ import org.osmdroid.config.Configuration
  */
 class ExpresdmApp : Application() {
 
+    private companion object {
+        const val TILE_KEEP_MS = 30L * 24 * 60 * 60 * 1000
+        const val TILE_CACHE_MAX_BYTES = 400L * 1024 * 1024
+        const val TILE_CACHE_TRIM_BYTES = 350L * 1024 * 1024
+    }
+
     override fun onCreate() {
         super.onCreate()
 
@@ -29,6 +36,8 @@ class ExpresdmApp : Application() {
 
         AccountRepository.init(this)
         RouteRepository.init(this)
+        // Los sitios conocidos se leen aparte: son más de mil y no hay prisa.
+        Thread { KnownPlaces.load(this) }.start()
         AlertRepository.init(this)
         // Si Android cerró la app mientras se grababa una ruta, se recupera.
         RouteRecorderService.restoreInterrupted(this)
@@ -45,6 +54,11 @@ class ExpresdmApp : Application() {
             userAgentValue = "$packageName/${BuildConfig.VERSION_NAME}"
             osmdroidBasePath = java.io.File(filesDir, "osmdroid")
             osmdroidTileCache = java.io.File(osmdroidBasePath, "tiles")
+            // Sin internet se ve el mapa que ya se vio: lo visto se guarda un mes
+            // más de lo que pide el servidor, y con sitio para toda la ciudad.
+            expirationExtendedDuration = TILE_KEEP_MS
+            tileFileSystemCacheMaxBytes = TILE_CACHE_MAX_BYTES
+            tileFileSystemCacheTrimBytes = TILE_CACHE_TRIM_BYTES
         }
     }
 }

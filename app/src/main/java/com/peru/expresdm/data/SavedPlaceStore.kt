@@ -92,7 +92,7 @@ class SavedPlaceStore private constructor(context: Context) {
 
     companion object {
         /** Más que estos dejan de ser "los de siempre" y vuelven a ser una lista que recorrer. */
-        const val MAX_FAVORITES = 3
+        const val MAX_FAVORITES = 4
 
         private const val PREFS_NAME = "saved_places"
         private const val KEY_FAVORITES = "favorites"

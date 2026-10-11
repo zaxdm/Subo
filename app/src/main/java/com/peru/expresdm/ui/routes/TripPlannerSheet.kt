@@ -214,6 +214,11 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
 
     private fun lookUp(text: String, delayMs: Long) {
         lookupJob?.cancel()
+        // Los sitios conocidos salen al instante, mientras se pregunta al mapa.
+        val known = viewModel.knownPlaces(text)
+        if (known.isNotEmpty()) {
+            showResults(R.string.planner_places_label, getString(R.string.planner_places_hint), known)
+        }
         lookupJob = viewLifecycleOwner.lifecycleScope.launch {
             delay(delayMs)
             _binding?.searchProgress?.isInvisible = false

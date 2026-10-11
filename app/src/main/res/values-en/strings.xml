@@ -71,6 +71,8 @@
     <string name="distance_km">%1$.1f km</string>
     <string name="stop_marker">Landmark: %1$s</string>
     <string name="my_location">My location</string>
+    <string name="street_view">Street view</string>
+    <string name="street_view_unavailable">No app can open street view</string>
     <string name="map_attribution">© OpenStreetMap contributors</string>
     <string name="map_attribution_routing">© OpenStreetMap contributors · Routing: FOSSGIS</string>
 
@@ -393,6 +395,12 @@
 
     <!-- Ficha del micro -->
     <string name="route_detail_title">Bus details</string>
+    <string name="trip_share">Share my trip</string>
+    <string name="trip_share_arriving">I’m on the %1$s bus and I get off at %2$s. I’ll arrive in about %3$d min.</string>
+    <string name="trip_share_stop">I’m on the %1$s bus and I get off at %2$s.</string>
+    <string name="trip_share_riding">I’m on the %1$s bus (%2$s).</string>
+    <string name="trip_share_link">See where it goes: %1$s</string>
+    <string name="trip_share_footer">Sent from Subo, the Trujillo bus app.</string>
     <string name="route_delete">Delete my route</string>
     <string name="route_delete_title">Delete this route?</string>
     <string name="route_delete_message">“%1$s” will be removed from your phone. This can’t be undone.</string>

@@ -84,7 +84,7 @@ class SavedRoutes private constructor(context: Context) {
         private const val KEY_IDS = "ids"
 
         /** Tope de la cuenta gratuita; con suscripción podrá ser mayor. */
-        const val MAX_SAVED = 5
+        const val MAX_SAVED = 20
 
         /** De ver el barrio a ver la calle. Más cerca serían demasiadas teselas. */
         private const val MIN_ZOOM = 13
