@@ -8,6 +8,7 @@ import 'pages/feedback_page.dart';
 import 'pages/home_page.dart';
 import 'pages/info_pages.dart';
 import 'pages/login_page.dart';
+import 'pages/profile_page.dart';
 import 'pages/stats_page.dart';
 import 'pages/team_page.dart';
 import 'theme.dart';
@@ -96,6 +97,9 @@ class _AdminHomeState extends State<AdminHome> {
 
   AdminSection _section = AdminSection.routes;
 
+  /// El administrador está mirando la web como la ve un pasajero.
+  bool _viewingSite = false;
+
   ApiClient get _api => widget.api;
 
   bool get _isAdmin => _session?.isAdmin ?? false;
@@ -182,6 +186,7 @@ class _AdminHomeState extends State<AdminHome> {
       _routes = [];
       _editing = null;
       _section = AdminSection.routes;
+      _viewingSite = false;
       _openLine = null;
       _wantedLine = null;
       _page = SitePage.about;
@@ -279,8 +284,28 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   Widget build(BuildContext context) {
     if (_restoring) return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    return _isAdmin ? _buildPanel() : _buildSite();
+    return _isAdmin && !_viewingSite ? _buildPanel() : _buildSite();
   }
+
+  /// El administrador sale del panel a la web de los pasajeros, con su misma
+  /// sesión: ve lo que ve un cliente.
+  void _viewSite() {
+    setState(() {
+      _viewingSite = true;
+      _page = SitePage.map;
+    });
+    // Lo que cambió en el panel ya se ve en el mapa.
+    _loadLines();
+  }
+
+  Widget _profile({required bool centered}) => ProfilePage(
+        api: _api,
+        session: _session!,
+        onChanged: (session) => setState(() => _session = session),
+        onSignOut: _signOut,
+        onError: _onError,
+        centered: centered,
+      );
 
   Widget _buildSite() {
     final session = _session;
@@ -310,6 +335,7 @@ class _AdminHomeState extends State<AdminHome> {
           onError: _onError,
           onPage: goTo,
         ),
+      SitePage.profile => session == null ? AboutPage(routes: _lines, onPage: goTo) : _profile(centered: true),
     };
 
     return SiteShell(
@@ -318,6 +344,7 @@ class _AdminHomeState extends State<AdminHome> {
       accountName: session?.name,
       onSignIn: _openLogin,
       onSignOut: session == null ? null : _signOut,
+      onPanel: _isAdmin ? () => setState(() => _viewingSite = false) : null,
       child: page,
     );
   }
@@ -334,6 +361,8 @@ class _AdminHomeState extends State<AdminHome> {
       page = StatsPage(api: _api, onError: _onError);
     } else if (_section == AdminSection.team) {
       page = TeamPage(api: _api, onError: _onError);
+    } else if (_section == AdminSection.profile) {
+      page = _profile(centered: false);
     } else if (editing != null) {
       page = EditorPage(
         // Una ruta distinta es un editor distinto: no se mezclan sus campos.
@@ -357,6 +386,7 @@ class _AdminHomeState extends State<AdminHome> {
     return AdminShell(
       accountName: _session?.name,
       onSignOut: _signOut,
+      onViewSite: _viewSite,
       admin: true,
       section: _section,
       // Quién más es administrador lo decide solo el principal.

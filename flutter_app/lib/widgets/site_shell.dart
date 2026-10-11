@@ -12,7 +12,10 @@ enum SitePage {
   download('Descargar app'),
   privacy('Privacidad'),
   terms('Términos'),
-  contact('Contacto');
+  contact('Contacto'),
+
+  /// La cuenta con la que se entró; sin sesión no se enseña.
+  profile('Mi perfil');
 
   const SitePage(this.label);
 
@@ -76,6 +79,7 @@ class SiteShell extends StatelessWidget {
     required this.onSignIn,
     this.accountName,
     this.onSignOut,
+    this.onPanel,
   });
 
   final Widget child;
@@ -87,8 +91,18 @@ class SiteShell extends StatelessWidget {
   final VoidCallback onSignIn;
   final VoidCallback? onSignOut;
 
+  /// Vuelve al panel; `null` si la cuenta no es de administrador.
+  final VoidCallback? onPanel;
+
   /// Las páginas que caben en la barra de arriba; las legales van en el pie.
-  static const _navPages = [SitePage.about, SitePage.map, SitePage.download, SitePage.contact];
+  /// El perfil solo está con sesión.
+  List<SitePage> get _navPages => [
+        SitePage.about,
+        SitePage.map,
+        SitePage.download,
+        SitePage.contact,
+        if (accountName != null) SitePage.profile,
+      ];
 
   @override
   Widget build(BuildContext context) {
@@ -141,11 +155,19 @@ class SiteShell extends StatelessWidget {
                 child: Text(name,
                     overflow: TextOverflow.ellipsis, style: const TextStyle(color: Color(0xFFD6CDB0), fontSize: 13)),
               ),
-            TextButton(
-              onPressed: onSignOut,
-              style: TextButton.styleFrom(foregroundColor: Palette.accent),
-              child: const Text('Cerrar sesión'),
-            ),
+            if (onPanel != null)
+              TextButton(
+                onPressed: onPanel,
+                style: TextButton.styleFrom(foregroundColor: Palette.accent),
+                child: const Text('Panel'),
+              ),
+            // En una pantalla estrecha no caben los dos: el administrador sale desde Mi perfil.
+            if (wide || onPanel == null)
+              TextButton(
+                onPressed: onSignOut,
+                style: TextButton.styleFrom(foregroundColor: Palette.accent),
+                child: const Text('Cerrar sesión'),
+              ),
           ] else
             FilledButton(
               onPressed: onSignIn,

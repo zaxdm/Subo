@@ -31,7 +31,20 @@ class ApiException implements Exception {
 
 /// La cuenta con la que se entró.
 class Session {
-  const Session(this.name, {required this.isAdmin, this.isSuperAdmin = false});
+  const Session(this.name, {required this.isAdmin, this.isSuperAdmin = false, this.email = '', this.avatarUrl});
+
+  /// La sesión de la cuenta que describe el servidor en [user]. Lo que [user]
+  /// no traiga se toma de [fallback].
+  factory Session.of(Map<dynamic, dynamic> user, {required Session fallback}) {
+    final role = user['role'];
+    return Session(
+      user['displayName'] as String? ?? fallback.name,
+      isAdmin: role == null ? fallback.isAdmin : role == 'admin' || role == 'super_admin',
+      isSuperAdmin: role == null ? fallback.isSuperAdmin : role == 'super_admin',
+      email: user['email'] as String? ?? fallback.email,
+      avatarUrl: user.containsKey('avatarUrl') ? user['avatarUrl'] as String? : fallback.avatarUrl,
+    );
+  }
 
   final String name;
 
@@ -40,6 +53,12 @@ class Session {
 
   /// El administrador principal: el único que da o quita el acceso a los demás.
   final bool isSuperAdmin;
+
+  /// Vacío si el servidor no lo dijo.
+  final String email;
+
+  /// La foto de perfil; `null` si no tiene.
+  final String? avatarUrl;
 }
 
 /// Un punto del mapa.
@@ -436,12 +455,7 @@ class ApiClient {
     _token = token;
     try {
       final user = await _send('GET', '/api/me');
-      final role = user['role'];
-      return Session(
-        user['displayName'] as String? ?? 'Tu cuenta',
-        isAdmin: role == 'admin' || role == 'super_admin',
-        isSuperAdmin: role == 'super_admin',
-      );
+      return Session.of(user, fallback: const Session('Tu cuenta', isAdmin: false));
     } on ApiException {
       // Caducada ya se borró al recibir el 401; si solo falló la conexión, se
       // queda guardada para la próxima vez.
@@ -538,19 +552,21 @@ class ApiClient {
       _token = opened['token'] as String?;
       if (_token == null) throw ApiException('El servidor no devolvió una sesión. Revisa su dirección.');
       final user = opened['user'];
-      final name = (user is Map ? user['displayName'] as String? : null) ?? email.trim();
+      final passenger = Session.of(
+        user is Map ? {...user, 'role': 'client'} : const {},
+        fallback: Session(email.trim(), isAdmin: false, email: email.contains('@') ? email.trim() : ''),
+      );
       Session session;
       try {
         final admin = await _send('GET', '/api/admin/me');
-        session = Session(
-          admin['displayName'] as String? ?? name,
-          isAdmin: true,
-          isSuperAdmin: admin['role'] == 'super_admin',
+        session = Session.of(
+          admin,
+          fallback: Session(passenger.name, isAdmin: true, email: passenger.email, avatarUrl: passenger.avatarUrl),
         );
       } on ApiException catch (error) {
         // Que no sea administrador no es un fallo: es un pasajero.
         if (!error.forbidden) rethrow;
-        session = Session(name, isAdmin: false);
+        session = passenger;
       }
       await _remember();
       return session;
@@ -639,6 +655,21 @@ class ApiClient {
     if (url == null) throw ApiException('El servidor no devolvió la dirección de la foto.');
     return url;
   }
+
+  /// Cambia el nombre de la cuenta con la que se entró. Devuelve la sesión al día.
+  Future<Session> rename(Session session, String name) async =>
+      Session.of(await _send('POST', '/api/me', body: {'displayName': name.trim()}), fallback: session);
+
+  /// Sube una foto de perfil, que el servidor revisa, y la pone en la cuenta.
+  Future<Session> changeAvatar(Session session, Uint8List bytes, String contentType) async {
+    final uploaded = await _send('POST', '/api/images?purpose=avatar', bytes: bytes, contentType: contentType);
+    final url = uploaded['url'] as String?;
+    if (url == null) throw ApiException('El servidor no devolvió la dirección de la foto.');
+    return Session.of(await _send('POST', '/api/me/avatar', body: {'avatarUrl': url}), fallback: session);
+  }
+
+  Future<Session> removeAvatar(Session session) async =>
+      Session.of(await _send('POST', '/api/me/avatar', body: {'avatarUrl': null}), fallback: session);
 
   /// Las alertas que la gente dejó en la calle y siguen vigentes. No pide sesión.
   Future<List<CityAlert>> alerts() async {

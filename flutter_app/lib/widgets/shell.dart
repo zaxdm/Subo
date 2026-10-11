@@ -11,6 +11,7 @@ class AdminShell extends StatelessWidget {
     required this.child,
     this.accountName,
     this.onSignOut,
+    this.onViewSite,
     this.admin = false,
     this.signOutLabel = 'Cerrar sesión',
     this.section = AdminSection.routes,
@@ -23,6 +24,9 @@ class AdminShell extends StatelessWidget {
   /// `null` antes de entrar.
   final String? accountName;
   final VoidCallback? onSignOut;
+
+  /// Sale del panel a la web de los pasajeros, sin cerrar sesión.
+  final VoidCallback? onViewSite;
 
   /// `true` con una cuenta de administrador: el marco enseña el panel. Si no,
   /// es la web de los pasajeros.
@@ -53,6 +57,7 @@ class AdminShell extends StatelessWidget {
               _Header(
                 accountName: accountName,
                 onSignOut: onSignOut,
+                onViewSite: onViewSite,
                 signOutLabel: signOutLabel,
                 admin: admin,
                 compact: !wide,
@@ -116,7 +121,8 @@ enum AdminSection {
   alerts('Alertas', Icons.report_outlined),
   feedback('Sugerencias', Icons.mail_outline),
   stats('Estadísticas', Icons.insights),
-  team('Administradores', Icons.admin_panel_settings_outlined);
+  team('Administradores', Icons.admin_panel_settings_outlined),
+  profile('Mi perfil', Icons.person_outline);
 
   const AdminSection(this.label, this.icon);
 
@@ -269,6 +275,7 @@ class _Header extends StatelessWidget {
   const _Header({
     required this.accountName,
     required this.onSignOut,
+    required this.onViewSite,
     required this.signOutLabel,
     required this.admin,
     required this.compact,
@@ -276,6 +283,7 @@ class _Header extends StatelessWidget {
 
   final String? accountName;
   final VoidCallback? onSignOut;
+  final VoidCallback? onViewSite;
   final String signOutLabel;
   final bool admin;
   final bool compact;
@@ -293,14 +301,20 @@ class _Header extends StatelessWidget {
                 style: Theme.of(context).textTheme.labelSmall?.copyWith(color: Palette.accentText)),
           ),
           // La cuenta va pegada a la derecha y, si el nombre es largo, se recorta.
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 260),
-            child: Text(
-              accountName ?? '',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: Palette.muted, fontSize: 12),
+          // En una pantalla estrecha deja su sitio a los botones.
+          if (!compact || onViewSite == null)
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: Text(
+                accountName ?? '',
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Palette.muted, fontSize: 12),
+              ),
             ),
-          ),
+          if (onViewSite != null) ...[
+            const SizedBox(width: 12),
+            TextButton(onPressed: onViewSite, child: const Text('Ver la web')),
+          ],
           if (onSignOut != null) ...[
             const SizedBox(width: 12),
             TextButton(onPressed: onSignOut, child: Text(signOutLabel)),

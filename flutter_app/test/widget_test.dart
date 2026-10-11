@@ -88,6 +88,12 @@ ApiClient _fakeApi({List<http.Request>? log}) {
       return switch ((request.method, path)) {
         ('GET', '/api/admin/me') => json({'displayName': 'Ana Quispe'}),
         ('GET', '/api/me') => json({'displayName': 'Ana Quispe', 'role': 'super_admin'}),
+        ('POST', '/api/me') => json({
+            'displayName': (jsonDecode(request.body) as Map)['displayName'],
+            'email': 'ana@correo.pe',
+            'role': 'admin',
+            'avatarUrl': null,
+          }),
         ('GET', '/api/admin/routes') => json({'routes': [_route]}),
         ('GET', '/api/admin/feedback') => json({
             'feedback': [
@@ -269,6 +275,49 @@ void main() {
 
       expect(find.text('Iniciar sesión'), findsOneWidget);
       expect((await SharedPreferences.getInstance()).getString('session_token'), isNull);
+    });
+
+    testWidgets('el administrador ve la web como un pasajero y vuelve al panel', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await _signIn(tester);
+      expect(find.text('Rutas y micros'), findsWidgets);
+
+      await tester.tap(find.text('Ver la web'));
+      await tester.pumpAndSettle();
+      expect(find.text('Rutas y micros'), findsNothing);
+      expect(find.text('Descargar app'), findsWidgets);
+      expect(find.text('Mi perfil'), findsOneWidget);
+
+      await tester.tap(find.text('Panel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Rutas y micros'), findsWidgets);
+    });
+
+    testWidgets('Mi perfil enseña la cuenta y deja cambiar el nombre', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final log = <http.Request>[];
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi(log: log)));
+      await _signIn(tester);
+      await tester.tap(find.text('Mi perfil'));
+      await tester.pumpAndSettle();
+      expect(find.text('Administrador'), findsOneWidget);
+
+      await tester.enterText(find.widgetWithText(TextFormField, 'Nombre'), ' Ana María ');
+      await tester.tap(find.text('Guardar nombre'));
+      await tester.pumpAndSettle();
+
+      expect(jsonDecode(log.last.body), {'displayName': 'Ana María'});
+      expect(find.text('Nombre guardado.'), findsOneWidget);
+      // El nombre nuevo sale en la tarjeta de la cuenta y en la cabecera.
+      expect(find.text('Ana María'), findsNWidgets(2));
+      expect(find.text('ana@correo.pe'), findsOneWidget);
     });
 
     testWidgets('con la contraseña mala no entra y dice por qué', (tester) async {
