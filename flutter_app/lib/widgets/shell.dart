@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../theme.dart';
+import 'subo_mark.dart';
 
 /// El marco común de todas las pantallas: la barra lateral de la marca y la
 /// cabecera con la cuenta. En pantallas estrechas la barra lateral se queda en
@@ -236,13 +237,7 @@ class _Brand extends StatelessWidget {
     final brand = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: compact ? 36 : 43,
-          height: compact ? 36 : 43,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(13)),
-          child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 15)),
-        ),
+        SuboMark(size: compact ? 36 : 43),
         const SizedBox(width: 12),
         Flexible(
           child: Column(

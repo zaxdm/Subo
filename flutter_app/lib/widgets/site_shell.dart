@@ -3,6 +3,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../site_info.dart';
 import '../theme.dart';
+import 'subo_mark.dart';
 
 /// Las páginas de la web pública.
 enum SitePage {
@@ -193,13 +194,7 @@ class _Brand extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          width: 34,
-          height: 34,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(10)),
-          child: const Text('S', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 15)),
-        ),
+        const SuboMark(),
         const SizedBox(width: 10),
         const Text('Subo', style: TextStyle(color: Palette.ink, fontWeight: FontWeight.w700, fontSize: 18)),
       ],

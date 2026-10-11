@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../api.dart';
 import '../theme.dart';
 import '../widgets/google_button.dart';
+import '../widgets/subo_mark.dart';
 
 /// La puerta de Subo: entrar o crear una cuenta de pasajero.
 ///
@@ -303,13 +304,7 @@ class _LoginPageState extends State<LoginPage> {
                             style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF5C4C10))),
                       )
                     else
-                      Container(
-                        width: 40,
-                        height: 40,
-                        alignment: Alignment.center,
-                        decoration: BoxDecoration(color: Palette.accent, borderRadius: BorderRadius.circular(12)),
-                        child: const Text('S', style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700)),
-                      ),
+                      const SuboMark(size: 40),
                     const Spacer(),
                     if (widget.onClose != null)
                       IconButton(
