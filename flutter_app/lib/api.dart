@@ -30,12 +30,15 @@ class ApiException implements Exception {
 
 /// La cuenta con la que se entró.
 class Session {
-  const Session(this.name, {required this.isAdmin});
+  const Session(this.name, {required this.isAdmin, this.isSuperAdmin = false});
 
   final String name;
 
   /// `false`: un pasajero, que no ve el panel de administración.
   final bool isAdmin;
+
+  /// El administrador principal: el único que da o quita el acceso a los demás.
+  final bool isSuperAdmin;
 }
 
 /// Un punto del mapa.
@@ -369,16 +372,20 @@ class Stats {
   final List<({String name, String letter, int views})> topRoutes;
 }
 
-/// Una cuenta que puede grabar rutas para que un administrador las apruebe.
-class Contributor {
-  Contributor.fromJson(Map<String, dynamic> json)
+/// Una cuenta con acceso al panel.
+class Admin {
+  Admin.fromJson(Map<String, dynamic> json)
       : id = json['id'] as String? ?? '',
         name = json['displayName'] as String? ?? '',
-        email = json['email'] as String? ?? '';
+        email = json['email'] as String? ?? '',
+        isPrincipal = json['role'] == 'super_admin';
 
   final String id;
   final String name;
   final String email;
+
+  /// El administrador principal: a él no se le quita el acceso.
+  final bool isPrincipal;
 }
 
 /// Deja la dirección del servidor en su forma canónica o explica qué le pasa.
@@ -484,7 +491,11 @@ class ApiClient {
       final name = (user is Map ? user['displayName'] as String? : null) ?? email.trim();
       try {
         final admin = await _send('GET', '/api/admin/me');
-        return Session(admin['displayName'] as String? ?? name, isAdmin: true);
+        return Session(
+          admin['displayName'] as String? ?? name,
+          isAdmin: true,
+          isSuperAdmin: admin['role'] == 'super_admin',
+        );
       } on ApiException catch (error) {
         // Que no sea administrador no es un fallo: es un pasajero.
         if (!error.forbidden) rethrow;
@@ -552,18 +563,18 @@ class ApiClient {
 
   Future<Stats> stats() async => Stats.fromJson(await _send('GET', '/api/admin/stats'));
 
-  Future<List<Contributor>> contributors() async {
-    final data = await _send('GET', '/api/admin/contributors');
-    return [
-      for (final user in data['contributors'] as List? ?? const []) Contributor.fromJson(user as Map<String, dynamic>),
-    ];
+  /// Los administradores, con el principal primero. Solo los ve el principal.
+  Future<List<Admin>> admins() async {
+    final data = await _send('GET', '/api/admin/admins');
+    return [for (final user in data['admins'] as List? ?? const []) Admin.fromJson(user as Map<String, dynamic>)];
   }
 
-  Future<Contributor> addContributor(String email) async =>
-      Contributor.fromJson(await _send('POST', '/api/admin/contributors', body: {'email': email.trim()}));
+  /// Da acceso al panel a una cuenta que ya existe.
+  Future<Admin> addAdmin(String email) async =>
+      Admin.fromJson(await _send('POST', '/api/admin/admins', body: {'email': email.trim()}));
 
-  Future<void> removeContributor(String id) =>
-      _send('DELETE', '/api/admin/contributors/${Uri.encodeComponent(id)}');
+  /// Quita el acceso: la cuenta sigue ahí, como la de cualquier pasajero.
+  Future<void> removeAdmin(String id) => _send('DELETE', '/api/admin/admins/${Uri.encodeComponent(id)}');
 
   /// Sube una foto y devuelve su dirección pública.
   Future<String> uploadImage(Uint8List bytes, String contentType) async {

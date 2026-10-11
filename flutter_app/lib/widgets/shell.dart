@@ -14,6 +14,7 @@ class AdminShell extends StatelessWidget {
     this.admin = false,
     this.signOutLabel = 'Cerrar sesión',
     this.section = AdminSection.routes,
+    this.sections = AdminSection.values,
     this.onSection,
   });
 
@@ -32,6 +33,9 @@ class AdminShell extends StatelessWidget {
 
   /// La sección que se está viendo.
   final AdminSection section;
+
+  /// Las secciones a las que esta cuenta puede ir.
+  final List<AdminSection> sections;
 
   /// `null` antes de entrar: sin sesión no hay a dónde ir.
   final void Function(AdminSection section)? onSection;
@@ -72,14 +76,14 @@ class AdminShell extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          for (final item in AdminSection.values) ...[
+                          for (final item in sections) ...[
                             _NavItem(
                               label: item.label,
                               icon: item.icon,
                               active: item == section,
                               onTap: () => onSection!(item),
                             ),
-                            if (item != AdminSection.values.last) const SizedBox(width: 8),
+                            if (item != sections.last) const SizedBox(width: 8),
                           ],
                         ],
                       ),
@@ -91,7 +95,10 @@ class AdminShell extends StatelessWidget {
           }
           return Row(
             children: [
-              SizedBox(width: 230, child: _Sidebar(section: section, onSection: onSection, admin: admin)),
+              SizedBox(
+                width: 230,
+                child: _Sidebar(section: section, sections: sections, onSection: onSection, admin: admin),
+              ),
               Expanded(
                 child: Padding(padding: const EdgeInsets.symmetric(horizontal: 44), child: content),
               ),
@@ -109,7 +116,7 @@ enum AdminSection {
   alerts('Alertas', Icons.report_outlined),
   feedback('Sugerencias', Icons.mail_outline),
   stats('Estadísticas', Icons.insights),
-  team('Colaboradores', Icons.group_outlined);
+  team('Administradores', Icons.admin_panel_settings_outlined);
 
   const AdminSection(this.label, this.icon);
 
@@ -162,10 +169,11 @@ class _NavItem extends StatelessWidget {
 }
 
 class _Sidebar extends StatelessWidget {
-  const _Sidebar({required this.section, required this.onSection, required this.admin});
+  const _Sidebar({required this.section, required this.sections, required this.onSection, required this.admin});
 
   final bool admin;
   final AdminSection section;
+  final List<AdminSection> sections;
   final void Function(AdminSection section)? onSection;
 
   @override
@@ -185,7 +193,7 @@ class _Sidebar extends StatelessWidget {
           if (onSection == null)
             const _NavItem(label: 'Líneas', icon: Icons.alt_route, active: true, onTap: null)
           else
-            for (final item in AdminSection.values) ...[
+            for (final item in sections) ...[
               _NavItem(label: item.label, icon: item.icon, active: item == section, onTap: () => onSection!(item)),
               const SizedBox(height: 6),
             ],

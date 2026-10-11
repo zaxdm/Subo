@@ -59,9 +59,14 @@ ApiClient _fakeApi(List<http.Request> log) {
               {'id': 'california', 'name': 'California', 'letter': 'A', 'views': 40},
             ],
           }),
-        ('GET', '/api/admin/contributors') => json({'contributors': []}),
-        ('POST', '/api/admin/contributors') => json({'id': 'u2', 'displayName': 'Rosa', 'email': 'rosa@correo.pe'}),
-        ('DELETE', '/api/admin/contributors/u2') => http.Response('', 204),
+        ('GET', '/api/admin/admins') => json({
+            'admins': [
+              {'id': 'u0', 'displayName': 'Ana Quispe', 'email': 'ana@correo.pe', 'role': 'super_admin'},
+            ],
+          }),
+        ('POST', '/api/admin/admins') =>
+          json({'id': 'u2', 'displayName': 'Rosa', 'email': 'rosa@correo.pe', 'role': 'admin'}),
+        ('DELETE', '/api/admin/admins/u2') => http.Response('', 204),
         ('GET', '/api/admin/feedback') => json({
             'feedback': [
               {
@@ -129,10 +134,12 @@ void main() {
     expect(find.byTooltip('7:00 · 5 alertas'), findsOneWidget);
   });
 
-  testWidgets('se añade y se quita un colaborador por su correo', (tester) async {
+  testWidgets('se añade y se quita un administrador por su correo, pero no al principal', (tester) async {
     final log = <http.Request>[];
     await _open(tester, TeamPage(api: _fakeApi(log), onError: (error) => fail('$error')));
-    expect(find.text('Todavía no hay colaboradores.'), findsOneWidget);
+    expect(find.text('Ana Quispe'), findsOneWidget);
+    expect(find.text('Principal'), findsOneWidget);
+    expect(find.text('Quitar'), findsNothing);
 
     await tester.enterText(find.byType(TextField), ' rosa@correo.pe ');
     await tester.tap(find.text('Añadir'));
@@ -143,7 +150,8 @@ void main() {
     await tester.tap(find.text('Quitar'));
     await tester.pumpAndSettle();
     expect(log.last.method, 'DELETE');
-    expect(find.text('Todavía no hay colaboradores.'), findsOneWidget);
+    expect(find.text('Rosa'), findsNothing);
+    expect(find.text('Ana Quispe'), findsOneWidget);
   });
 
   testWidgets('responder una sugerencia la deja resuelta', (tester) async {

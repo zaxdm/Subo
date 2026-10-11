@@ -330,6 +330,11 @@ class _AdminHomeState extends State<AdminHome> {
       onSignOut: _signOut,
       admin: true,
       section: _section,
+      // Quién más es administrador lo decide solo el principal.
+      sections: [
+        for (final section in AdminSection.values)
+          if (section != AdminSection.team || (_session?.isSuperAdmin ?? false)) section,
+      ],
       // Una ruta a medio editar se queda esperando al volver de Sugerencias.
       onSection: (section) => setState(() => _section = section),
       child: page,

@@ -4,10 +4,9 @@ import '../api.dart';
 import '../theme.dart';
 import '../widgets/page_frame.dart';
 
-/// Colaboradores: cuentas que pueden grabar rutas desde la app.
+/// Administradores: cuentas que entran al panel y graban rutas desde la app.
 ///
-/// Lo que graban no se publica solo: queda como «Pendiente» en el catálogo
-/// hasta que un administrador lo revisa y lo publica.
+/// Solo la ve el administrador principal, que es quien da y quita el acceso.
 class TeamPage extends StatefulWidget {
   const TeamPage({super.key, required this.api, required this.onError});
 
@@ -22,7 +21,7 @@ class _TeamPageState extends State<TeamPage> {
   final _email = TextEditingController();
 
   /// `null` mientras llega la primera respuesta.
-  List<Contributor>? _people;
+  List<Admin>? _people;
   bool _loading = false;
   bool _adding = false;
 
@@ -41,7 +40,7 @@ class _TeamPageState extends State<TeamPage> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final people = await widget.api.contributors();
+      final people = await widget.api.admins();
       if (mounted) setState(() => _people = people);
     } catch (error) {
       if (mounted) setState(() => _people ??= []);
@@ -56,7 +55,7 @@ class _TeamPageState extends State<TeamPage> {
     if (email.isEmpty) return;
     setState(() => _adding = true);
     try {
-      final added = await widget.api.addContributor(email);
+      final added = await widget.api.addAdmin(email);
       if (!mounted) return;
       setState(() {
         _people = [...?_people?.where((person) => person.id != added.id), added];
@@ -69,9 +68,9 @@ class _TeamPageState extends State<TeamPage> {
     }
   }
 
-  Future<void> _remove(Contributor person) async {
+  Future<void> _remove(Admin person) async {
     try {
-      await widget.api.removeContributor(person.id);
+      await widget.api.removeAdmin(person.id);
       if (mounted) setState(() => _people = _people?.where((other) => other.id != person.id).toList());
     } catch (error) {
       widget.onError(error);
@@ -84,8 +83,8 @@ class _TeamPageState extends State<TeamPage> {
     final people = _people;
     return PageFrame(
       label: 'EQUIPO',
-      title: 'Colaboradores',
-      subtitle: 'Graban rutas desde la app; tú las revisas y las publicas desde el catálogo.',
+      title: 'Administradores',
+      subtitle: 'Entran a este panel y graban rutas desde la app, que salen publicadas.',
       loading: _loading,
       onRefresh: _load,
       ready: people != null,
@@ -99,7 +98,7 @@ class _TeamPageState extends State<TeamPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Añadir colaborador', style: text.titleMedium),
+                    Text('Añadir administrador', style: text.titleMedium),
                     const SizedBox(height: 4),
                     Text('Tiene que tener ya una cuenta en la app.', style: text.bodySmall),
                     const SizedBox(height: 12),
@@ -134,7 +133,7 @@ class _TeamPageState extends State<TeamPage> {
           padding: padding.copyWith(top: 16, bottom: 40),
           sliver: people!.isEmpty
               ? SliverToBoxAdapter(
-                  child: Text('Todavía no hay colaboradores.', style: text.bodyMedium?.copyWith(color: Palette.muted)),
+                  child: Text('Todavía no hay administradores.', style: text.bodyMedium?.copyWith(color: Palette.muted)),
                 )
               : SliverList.separated(
                   itemCount: people.length,
@@ -145,7 +144,10 @@ class _TeamPageState extends State<TeamPage> {
                       child: ListTile(
                         title: Text(person.name.isEmpty ? person.email : person.name),
                         subtitle: Text(person.email),
-                        trailing: TextButton(onPressed: () => _remove(person), child: const Text('Quitar')),
+                        // Al principal no se le quita el acceso: el panel no se queda sin dueño.
+                        trailing: person.isPrincipal
+                            ? Text('Principal', style: text.bodySmall?.copyWith(color: Palette.muted))
+                            : TextButton(onPressed: () => _remove(person), child: const Text('Quitar')),
                       ),
                     );
                   },
