@@ -158,15 +158,21 @@ class _HomePageState extends State<HomePage> {
   /// el navegador se queda parado.
   static Color _dimmed(Color color) => Color.lerp(color, const Color(0xFFE9E6DF), 0.72)!;
 
-  /// Encuadra la línea abierta o, si no hay, todas.
-  void _frame() {
-    if (!mounted || !_mapReady) return;
+  /// El encuadre de la línea abierta o, si no hay, de todas; `null` sin líneas.
+  CameraFit? _fit() {
     final selected = _selected;
     final points = [
       for (final route in selected == null ? widget.routes : [selected]) ..._lineOf(route),
     ];
-    if (points.length < 2) return;
-    _map.fitCamera(CameraFit.bounds(bounds: LatLngBounds.fromPoints(points), padding: const EdgeInsets.all(48)));
+    if (points.length < 2) return null;
+    return CameraFit.bounds(bounds: LatLngBounds.fromPoints(points), padding: const EdgeInsets.all(48));
+  }
+
+  /// Encuadra la línea abierta o, si no hay, todas.
+  void _frame() {
+    if (!mounted || !_mapReady) return;
+    final fit = _fit();
+    if (fit != null) _map.fitCamera(fit);
   }
 
   List<BusRoute> get _visible {
@@ -240,13 +246,13 @@ class _HomePageState extends State<HomePage> {
       options: MapOptions(
         initialCenter: _trujillo,
         initialZoom: 12.5,
+        // El mapa nace ya encuadrado: moverlo nada más crearlo dejaba el
+        // fondo de calles sin cargar hasta que alguien lo tocaba.
+        initialCameraFit: _fit(),
         // Más lejos que esto ya no se distingue la ciudad.
         minZoom: 10,
         maxZoom: 18,
-        onMapReady: () {
-          _mapReady = true;
-          _frame();
-        },
+        onMapReady: () => _mapReady = true,
       ),
       children: [
         TileLayer(
