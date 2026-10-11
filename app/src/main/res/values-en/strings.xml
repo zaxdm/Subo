@@ -72,8 +72,8 @@
     <string name="stop_marker">Landmark: %1$s</string>
     <string name="my_location">My location</string>
     <string name="street_view">Street view</string>
-    <string name="street_view_title">Street view</string>
     <string name="street_view_close">Close street view</string>
+    <string name="street_view_hint">Tap the map to see another street</string>
     <string name="street_view_failed">Street view could not be loaded. Check your connection.</string>
     <!-- Con un destino elegido: las acciones del viaje y guardar el lugar -->
     <string name="journey_arrival_enable">Alert me</string>

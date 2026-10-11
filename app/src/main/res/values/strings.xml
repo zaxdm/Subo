@@ -70,8 +70,8 @@
     <string name="stop_marker">Punto de referencia: %1$s</string>
     <string name="my_location">Mi ubicación</string>
     <string name="street_view">Ver calle</string>
-    <string name="street_view_title">Vista de calle</string>
     <string name="street_view_close">Cerrar la vista de calle</string>
+    <string name="street_view_hint">Toca el mapa para ver otra calle</string>
     <string name="street_view_failed">No se pudo cargar la vista de calle. Revisa tu conexión.</string>
     <!-- Con un destino elegido: las acciones del viaje y guardar el lugar -->
     <string name="journey_arrival_enable">Avisarme</string>

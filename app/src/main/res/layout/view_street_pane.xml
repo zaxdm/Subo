@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  La vista de calle, en la mitad de arriba del inicio: el mapa sigue debajo y
+  al tocarlo la calle cambia a ese punto. La página la pone StreetViewPane.
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
+    android:clickable="true"
+    android:focusable="true">
+
+    <!-- El navegador se crea al abrir la calle por primera vez -->
+    <FrameLayout
+        android:id="@+id/webHolder"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Tapa la página hasta que aparece la calle: antes pasa por el mapa de Google -->
+    <FrameLayout
+        android:id="@+id/cover"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="?attr/colorSurface"
+        android:clickable="true"
+        android:focusable="true">
+
+        <com.google.android.material.progressindicator.CircularProgressIndicator
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:indeterminate="true" />
+    </FrameLayout>
+
+    <TextView
+        android:id="@+id/errorText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:gravity="center"
+        android:padding="24dp"
+        android:text="@string/street_view_failed"
+        android:textAppearance="@style/TextAppearance.Expresdm.Body"
+        android:visibility="gone" />
+
+    <ImageButton
+        android:id="@+id/btnCloseStreet"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="10dp"
+        android:background="@drawable/bg_circle_badge"
+        android:backgroundTint="?attr/colorSurface"
+        android:contentDescription="@string/street_view_close"
+        android:elevation="4dp"
+        android:src="@drawable/ic_close"
+        app:tint="?attr/colorOnSurface" />
+</FrameLayout>

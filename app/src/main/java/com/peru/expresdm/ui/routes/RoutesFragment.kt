@@ -137,6 +137,10 @@ class RoutesFragment : Fragment() {
     private var placeLayer: FolderOverlay? = null
     private var alertLayer: FolderOverlay? = null
     private var pickLayer: FolderOverlay? = null
+    private var streetLayer: FolderOverlay? = null
+
+    /** La vista de calle, en la mitad de arriba de la pantalla. */
+    private var streetPane: StreetViewPane? = null
     private var locationOverlay: UserLocationOverlay? = null
 
     /** Elección en curso del punto de bajada; `null` cuando no se está eligiendo. */
@@ -201,6 +205,10 @@ class RoutesFragment : Fragment() {
     /** "Atrás" cierra primero la ruta elegida y después la búsqueda, antes de salir. */
     private val backHandler = object : OnBackPressedCallback(false) {
         override fun handleOnBackPressed() {
+            if (streetPane?.isOpen == true) {
+                closeStreetView()
+                return
+            }
             if (picking != null) {
                 stopPicking()
                 return
@@ -289,6 +297,7 @@ class RoutesFragment : Fragment() {
 
         binding.fabMyLocation.setOnClickListener { centerOnUser() }
         binding.btnStreetView.setOnClickListener { openStreetView() }
+        binding.streetPane.btnCloseStreet.setOnClickListener { closeStreetView() }
         binding.btnStatusAction.setOnClickListener { onStatusAction() }
         binding.btnWalkAction.setOnClickListener { onStatusAction() }
         binding.btnCloseRoute.setOnClickListener { viewModel.clearSelection() }
@@ -366,6 +375,7 @@ class RoutesFragment : Fragment() {
         placeLayer = FolderOverlay().also { map.overlays.add(it) }
         alertLayer = FolderOverlay().also { map.overlays.add(it) }
         pickLayer = FolderOverlay().also { map.overlays.add(it) }
+        streetLayer = FolderOverlay().also { map.overlays.add(it) }
 
         // Los toques se atienden al final: primero los marcadores, que tienen
         // su propia respuesta. Un toque libre elige el destino del viaje.
@@ -381,11 +391,15 @@ class RoutesFragment : Fragment() {
     }
 
     /**
-     * Enseña la vista de calle sin salir de la app: la del sitio que el usuario
-     * marcó (la bajada que está eligiendo o el destino) y, si no marcó ninguno,
-     * la del centro de lo que se ve del mapa.
+     * Abre o cierra la vista de calle, que comparte la pantalla con el mapa. Se
+     * abre en el sitio que el usuario marcó (la bajada que está eligiendo o el
+     * destino) y, si no marcó ninguno, en el centro de lo que se ve del mapa.
      */
     private fun openStreetView() {
+        if (streetPane?.isOpen == true) {
+            closeStreetView()
+            return
+        }
         val map = binding.mapView
         val marked = picking?.drop?.point
             ?: (lastState?.search as? PlaceSearchState.Chosen)?.place?.let { GeoCoordinate(it.latitude, it.longitude) }
@@ -393,7 +407,62 @@ class RoutesFragment : Fragment() {
         val point = marked?.toGeoPoint()
             ?: visibleBand()?.let { map.projection.fromPixels(map.width / 2, it.center) }
             ?: map.mapCenter
-        StreetViewDialog.show(childFragmentManager, point.latitude, point.longitude)
+        showStreet(GeoPoint(point.latitude, point.longitude))
+        showLongMessage(getString(R.string.street_view_hint))
+    }
+
+    /** Enseña arriba la calle de [point] y lleva el mapa, debajo, a ese punto. */
+    private fun showStreet(point: GeoPoint) {
+        val binding = _binding ?: return
+        val pane = streetPane ?: StreetViewPane(binding.streetPane).also { streetPane = it }
+        val opening = !pane.isOpen
+        if (opening) {
+            binding.streetPane.root.layoutParams = binding.streetPane.root.layoutParams.apply {
+                height = (binding.root.height * STREET_PANE_RATIO).toInt()
+            }
+            // El mapa se queda con el hueco entre la calle y la hoja: la hoja, al mínimo.
+            sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
+        }
+        pane.show(point.latitude, point.longitude)
+        refreshBackHandler()
+
+        streetLayer?.let { layer ->
+            layer.items.clear()
+            layer.add(
+                Marker(binding.mapView).apply {
+                    position = point
+                    icon = MapMarkers.streetView(requireContext())
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    setOnMarkerClickListener { _, _ -> true }
+                }
+            )
+        }
+        cancelPendingFrame()
+        locationOverlay?.disableFollowLocation()
+        // Al abrir, el panel y la hoja aún se están colocando: se espera a que acaben.
+        binding.mapView.postDelayed({
+            val map = _binding?.mapView ?: return@postDelayed
+            updateMapCenterOffset()
+            map.controller.stopAnimation(false)
+            map.controller.animateTo(point, maxOf(map.zoomLevelDouble, STREET_ZOOM), CAMERA_ANIMATION_MS)
+        }, if (opening) SHEET_SETTLE_MS else 0L)
+    }
+
+    private fun closeStreetView() {
+        val binding = _binding ?: return
+        streetPane?.close()
+        streetLayer?.items?.clear()
+        binding.mapView.invalidate()
+        refreshBackHandler()
+        restSheet()
+        binding.root.post { updateMapCenterOffset() }
+    }
+
+    /** "Atrás" tiene algo que cerrar: la calle, la elección de bajada, la ruta o la búsqueda. */
+    private fun refreshBackHandler() {
+        val state = lastState
+        backHandler.isEnabled = streetPane?.isOpen == true || picking != null ||
+            state?.selected != null || (state != null && state.search != PlaceSearchState.Idle)
     }
 
     /** Franja del mapa que no tapan ni los controles de arriba ni la hoja. */
@@ -401,7 +470,9 @@ class RoutesFragment : Fragment() {
         val binding = _binding ?: return null
         val mapHeight = binding.mapView.height
         if (mapHeight == 0) return null
-        val top = binding.topArea.bottom
+        // Con la calle abierta, el mapa empieza debajo de ella.
+        val street = binding.streetPane.root
+        val top = maxOf(binding.topArea.bottom, if (street.isVisible) street.bottom else 0)
         return VisibleBand(top, binding.sheet.top.coerceIn(top + 1, mapHeight))
     }
 
@@ -1825,6 +1896,11 @@ class RoutesFragment : Fragment() {
     }
 
     private fun onMapTapped(point: GeoPoint) {
+        // Con la calle abierta, tocar el mapa es pedir la calle de ese punto.
+        if (streetPane?.isOpen == true) {
+            showStreet(point)
+            return
+        }
         val session = picking
         if (session == null) {
             hideKeyboard()
@@ -1918,7 +1994,7 @@ class RoutesFragment : Fragment() {
         if (picking == null) return
         picking = null
         renderPick()
-        backHandler.isEnabled = lastState?.let { it.selected != null || it.search != PlaceSearchState.Idle } ?: false
+        refreshBackHandler()
     }
 
     private fun requestArrival(target: ArrivalTarget) {
@@ -2148,7 +2224,7 @@ class RoutesFragment : Fragment() {
         fitSheet()
         // Elegir la bajada solo tiene sentido con su ruta delante.
         if (picking != null && picking?.routeId != selected?.route?.id) stopPicking()
-        backHandler.isEnabled = picking != null || selected != null || state.search != PlaceSearchState.Idle
+        refreshBackHandler()
 
         drawPlaces(state)
         val journey = state.chosenJourney
@@ -2303,6 +2379,9 @@ class RoutesFragment : Fragment() {
         placeLayer = null
         alertLayer = null
         pickLayer = null
+        streetLayer = null
+        streetPane?.destroy()
+        streetPane = null
         picking = null
         sheetBehavior = null
         sheetRaised = false
@@ -2349,6 +2428,10 @@ class RoutesFragment : Fragment() {
         const val TRIP_METERS_PER_MINUTE = 250.0
         const val USER_ZOOM = 16.0
         const val STOP_ZOOM = 16.5
+        const val STREET_ZOOM = 17.5
+
+        /** Parte de la pantalla que ocupa la vista de calle; el resto es del mapa y la hoja. */
+        const val STREET_PANE_RATIO = 0.45f
         const val ALERT_ZOOM = 17.0
         const val CAMERA_ANIMATION_MS = 700L
         const val SHEET_SETTLE_MS = 320L

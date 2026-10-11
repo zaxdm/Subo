@@ -119,6 +119,12 @@ object MapMarkers {
             iconTint = context.getColor(R.color.on_brand)
         )
 
+    /** El punto cuya calle se está viendo en el panel de arriba. */
+    fun streetView(context: Context): Drawable {
+        val color = context.themeColor(com.google.android.material.R.attr.colorPrimary)
+        return iconBadge(context, R.drawable.ic_streetview, color, diameterDp = 46f, haloAlpha = 70)
+    }
+
     /** Dónde se baja el usuario: el punto que eligió tocando el recorrido. */
     fun dropOff(context: Context): Drawable {
         val color = context.themeColor(com.google.android.material.R.attr.colorSecondary)

@@ -290,6 +290,16 @@
         </com.google.android.material.card.MaterialCardView>
     </LinearLayout>
 
+    <!-- La vista de calle: la mitad de arriba, con el mapa debajo. Su alto lo pone RoutesFragment. -->
+    <include
+        android:id="@+id/streetPane"
+        layout="@layout/view_street_pane"
+        android:layout_width="match_parent"
+        android:layout_height="320dp"
+        android:layout_gravity="top"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
     <!--
       Hoja deslizable sobre el mapa: rutas cercanas, lugares buscados o la ruta
       elegida. Tiene tres alturas: mínima (solo el título, para ver el mapa),
