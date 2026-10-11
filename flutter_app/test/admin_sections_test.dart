@@ -141,6 +141,13 @@ void main() {
     expect(find.text('Principal'), findsOneWidget);
     expect(find.text('Quitar'), findsNothing);
 
+    // Sin correo no se pide nada al servidor: se dice qué falta.
+    final asked = log.length;
+    await tester.tap(find.text('Añadir'));
+    await tester.pumpAndSettle();
+    expect(find.text('Escribe el correo de la cuenta'), findsOneWidget);
+    expect(log.length, asked);
+
     await tester.enterText(find.byType(TextField), ' rosa@correo.pe ');
     await tester.tap(find.text('Añadir'));
     await tester.pumpAndSettle();

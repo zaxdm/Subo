@@ -25,6 +25,9 @@ class _TeamPageState extends State<TeamPage> {
   bool _loading = false;
   bool _adding = false;
 
+  /// Lo que le falta al correo escrito; `null` si no hay nada que decir.
+  String? _emailProblem;
+
   @override
   void initState() {
     super.initState();
@@ -52,8 +55,14 @@ class _TeamPageState extends State<TeamPage> {
 
   Future<void> _add() async {
     final email = _email.text.trim();
-    if (email.isEmpty) return;
-    setState(() => _adding = true);
+    if (!email.contains('@')) {
+      setState(() => _emailProblem = 'Escribe el correo de la cuenta');
+      return;
+    }
+    setState(() {
+      _emailProblem = null;
+      _adding = true;
+    });
     try {
       final added = await widget.api.addAdmin(email);
       if (!mounted) return;
@@ -113,7 +122,7 @@ class _TeamPageState extends State<TeamPage> {
                             controller: _email,
                             keyboardType: TextInputType.emailAddress,
                             onSubmitted: (_) => _add(),
-                            decoration: const InputDecoration(hintText: 'Correo de su cuenta'),
+                            decoration: InputDecoration(hintText: 'Correo de su cuenta', errorText: _emailProblem),
                           ),
                         ),
                         FilledButton.icon(

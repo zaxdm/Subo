@@ -67,10 +67,17 @@ class StreetRouter private constructor(context: Context) {
         val key = String.format(
             Locale.US, "walk_%.4f_%.4f_%.5f_%.5f", from.latitude, from.longitude, to.latitude, to.longitude
         )
-        cached(key, fromDisk = false) ?: request(
-            PROFILE_FOOT,
-            listOf(GeoCoordinate(from.latitude, from.longitude), GeoCoordinate(to.latitude, to.longitude))
-        )?.also { store(key, it, persist = false) }
+        val ends = listOf(GeoCoordinate(from.latitude, from.longitude), GeoCoordinate(to.latitude, to.longitude))
+        val straight = NearbyRoutes.distanceMeters(from.latitude, from.longitude, to.latitude, to.longitude)
+        // El mapa no deja caminar por algunas vías grandes (una vía de
+        // evitamiento, una carretera) aunque la gente sí lo haga por su berma,
+        // y entonces manda a dar un rodeo absurdo. Si pasa, se prueba el camino
+        // de los carros, que sí va por ellas; y si también rodea, no se devuelve
+        // ninguno y se dibuja la línea recta.
+        cached(key, fromDisk = false)
+            ?: (request(PROFILE_FOOT, ends)?.takeUnless { isDetour(it.meters, straight) }
+                ?: request(PROFILE_CAR, ends)?.takeUnless { isDetour(it.meters, straight) })
+                ?.also { store(key, it, persist = false) }
     }
 
     private fun cached(key: String, fromDisk: Boolean): StreetPath? {
@@ -167,6 +174,10 @@ class StreetRouter private constructor(context: Context) {
         private const val TAG = "StreetRouter"
         private const val BASE_URL = "https://routing.openstreetmap.de"
         internal const val PROFILE_CAR = "routed-car"
+
+        /** Un camino a pie tan largo frente a la línea recta es un rodeo, no un camino. */
+        internal fun isDetour(pathMeters: Double, straightMeters: Double): Boolean =
+            pathMeters > straightMeters * 1.7 + 120.0
         internal const val PROFILE_FOOT = "routed-foot"
 
         private const val CACHE_DIR = "street_paths"

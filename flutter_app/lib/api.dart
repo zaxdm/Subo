@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Dirección del servidor de Subo (la función `server` de Supabase).
 ///
@@ -404,18 +405,67 @@ String normalizeServerUrl(String raw) {
   return url.toString().replaceAll(RegExp(r'/+$'), '');
 }
 
-/// Habla con el servidor. La sesión vive solo en memoria: al recargar la
-/// página hay que volver a entrar.
+/// Habla con el servidor. La sesión se guarda en el navegador: al recargar la
+/// página se sigue dentro hasta cerrar sesión o hasta que caduque.
 class ApiClient {
   ApiClient({http.Client? client}) : _client = client ?? http.Client();
 
   final http.Client _client;
   static const _timeout = Duration(seconds: 30);
+  static const _tokenKey = 'session_token';
+  static const _serverKey = 'session_server';
 
   String baseUrl = defaultServerUrl;
   String? _token;
 
   bool get isSignedIn => _token != null;
+
+  /// Recupera la sesión guardada en este navegador; `null` si no hay ninguna o
+  /// ya no vale.
+  Future<Session?> restore() async {
+    final String? token;
+    try {
+      final saved = await SharedPreferences.getInstance();
+      token = saved.getString(_tokenKey);
+      if (token == null) return null;
+      baseUrl = saved.getString(_serverKey) ?? baseUrl;
+    } catch (_) {
+      // Sin almacenamiento (una ventana privada, por ejemplo) no hay nada que recuperar.
+      return null;
+    }
+    _token = token;
+    try {
+      final user = await _send('GET', '/api/me');
+      final role = user['role'];
+      return Session(
+        user['displayName'] as String? ?? 'Tu cuenta',
+        isAdmin: role == 'admin' || role == 'super_admin',
+        isSuperAdmin: role == 'super_admin',
+      );
+    } on ApiException {
+      // Caducada ya se borró al recibir el 401; si solo falló la conexión, se
+      // queda guardada para la próxima vez.
+      _token = null;
+      return null;
+    }
+  }
+
+  /// Guarda la sesión abierta en el navegador, o la borra si ya no hay.
+  Future<void> _remember() async {
+    try {
+      final saved = await SharedPreferences.getInstance();
+      final token = _token;
+      if (token == null) {
+        await saved.remove(_tokenKey);
+        await saved.remove(_serverKey);
+      } else {
+        await saved.setString(_tokenKey, token);
+        await saved.setString(_serverKey, baseUrl);
+      }
+    } catch (_) {
+      // Sin almacenamiento la sesión dura lo que dure la página abierta.
+    }
+  }
 
   /// Entra con una cuenta. Todos usan el mismo acceso: es el servidor quien
   /// dice si la cuenta es de administrador o de pasajero.
@@ -489,9 +539,10 @@ class ApiClient {
       if (_token == null) throw ApiException('El servidor no devolvió una sesión. Revisa su dirección.');
       final user = opened['user'];
       final name = (user is Map ? user['displayName'] as String? : null) ?? email.trim();
+      Session session;
       try {
         final admin = await _send('GET', '/api/admin/me');
-        return Session(
+        session = Session(
           admin['displayName'] as String? ?? name,
           isAdmin: true,
           isSuperAdmin: admin['role'] == 'super_admin',
@@ -499,15 +550,20 @@ class ApiClient {
       } on ApiException catch (error) {
         // Que no sea administrador no es un fallo: es un pasajero.
         if (!error.forbidden) rethrow;
-        return Session(name, isAdmin: false);
+        session = Session(name, isAdmin: false);
       }
+      await _remember();
+      return session;
     } catch (_) {
       _token = null;
       rethrow;
     }
   }
 
-  void signOut() => _token = null;
+  void signOut() {
+    _token = null;
+    _remember();
+  }
 
   /// Las líneas publicadas, tal como las ve cualquier pasajero. No pide sesión.
   Future<List<BusRoute>> publicRoutes({String? server}) async {
@@ -644,7 +700,10 @@ class ApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       // Un 401 al entrar es una contraseña mala; en cualquier otro momento, la sesión caducó.
       final expired = response.statusCode == 401 && !path.startsWith('/api/auth/');
-      if (expired) _token = null;
+      if (expired) {
+        _token = null;
+        _remember();
+      }
       throw ApiException(
         data['message'] as String? ?? 'No se pudo completar la operación (${response.statusCode}).',
         unauthorized: expired,

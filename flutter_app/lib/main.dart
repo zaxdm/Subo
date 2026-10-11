@@ -65,6 +65,9 @@ class _AdminHomeState extends State<AdminHome> {
   /// Quién entró; `null` sin sesión.
   Session? _session;
 
+  /// `true` mientras se mira si el navegador tenía una sesión guardada.
+  bool _restoring = true;
+
   // --- La web de los pasajeros ---
 
   /// Las líneas publicadas, las que ve todo el mundo.
@@ -100,7 +103,30 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   void initState() {
     super.initState();
-    _loadLines();
+    _start();
+  }
+
+  /// Antes de enseñar nada se mira si este navegador ya tenía una sesión: así
+  /// quien recarga la página sigue donde estaba.
+  Future<void> _start() async {
+    final session = await _api.restore();
+    if (!mounted) return;
+    if (session != null && session.isAdmin) {
+      try {
+        final routes = await _api.routes();
+        if (!mounted) return;
+        setState(() => _routes = routes);
+      } catch (error) {
+        _onError(error);
+        if (!mounted) return;
+      }
+    }
+    // Si la sesión caducó justo ahora, `_onError` ya la cerró.
+    setState(() {
+      if (_api.isSignedIn) _session = session;
+      _restoring = false;
+    });
+    if (!_isAdmin) _loadLines();
   }
 
   Future<void> _loadLines() async {
@@ -251,7 +277,10 @@ class _AdminHomeState extends State<AdminHome> {
   }
 
   @override
-  Widget build(BuildContext context) => _isAdmin ? _buildPanel() : _buildSite();
+  Widget build(BuildContext context) {
+    if (_restoring) return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    return _isAdmin ? _buildPanel() : _buildSite();
+  }
 
   Widget _buildSite() {
     final session = _session;

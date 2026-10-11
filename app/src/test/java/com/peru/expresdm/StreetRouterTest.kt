@@ -4,6 +4,7 @@ import com.peru.expresdm.data.GeoCoordinate
 import com.peru.expresdm.data.StreetPath
 import com.peru.expresdm.data.StreetRouter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -103,5 +104,13 @@ class StreetRouterTest {
     fun `un camino guardado en cache se recupera igual`() {
         val original = StreetPath(listOf(plaza, espana), meters = 480.0, seconds = 390.0)
         assertEquals(original, StreetRouter.decode(StreetRouter.encode(original)))
+    }
+    @Test
+    fun `un camino a pie mucho mas largo que la linea recta es un rodeo`() {
+        // 250 m en línea recta y kilómetro y medio de camino: no se enseña.
+        assertTrue(StreetRouter.isDetour(pathMeters = 1500.0, straightMeters = 250.0))
+        // Rodear una manzana sí es caminar.
+        assertFalse(StreetRouter.isDetour(pathMeters = 380.0, straightMeters = 250.0))
+        assertFalse(StreetRouter.isDetour(pathMeters = 100.0, straightMeters = 20.0))
     }
 }

@@ -87,6 +87,7 @@ ApiClient _fakeApi({List<http.Request>? log}) {
       }
       return switch ((request.method, path)) {
         ('GET', '/api/admin/me') => json({'displayName': 'Ana Quispe'}),
+        ('GET', '/api/me') => json({'displayName': 'Ana Quispe', 'role': 'super_admin'}),
         ('GET', '/api/admin/routes') => json({'routes': [_route]}),
         ('GET', '/api/admin/feedback') => json({
             'feedback': [
@@ -119,6 +120,8 @@ Future<void> _openMap(WidgetTester tester) async {
 }
 
 Future<void> _signIn(WidgetTester tester, {String password = 'micro-2026'}) async {
+  // Al abrir se mira primero si había una sesión guardada.
+  await tester.pumpAndSettle();
   // Se entra a la web por el mapa; el acceso se abre desde la barra de arriba.
   if (find.text('Entrar').evaluate().isEmpty) {
     await tester.tap(find.text('Iniciar sesión'));
@@ -237,6 +240,37 @@ void main() {
   });
 
   group('panel', () {
+    testWidgets('al recargar con la sesión guardada se sigue en el panel', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({'session_token': 'token-de-prueba'});
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Ana Quispe'), findsOneWidget);
+      expect(find.text('Administradores'), findsOneWidget);
+
+      // Cerrar sesión la olvida: la próxima recarga ya no entra sola.
+      await tester.tap(find.text('Cerrar sesión'));
+      await tester.pumpAndSettle();
+      expect((await SharedPreferences.getInstance()).getString('session_token'), isNull);
+    });
+
+    testWidgets('una sesión guardada que caducó se olvida y se ve la web', (tester) async {
+      tester.view.physicalSize = const Size(1400, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({'session_token': 'token-caducado'});
+
+      await tester.pumpWidget(AdminApp(api: _fakeApi()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Iniciar sesión'), findsOneWidget);
+      expect((await SharedPreferences.getInstance()).getString('session_token'), isNull);
+    });
+
     testWidgets('con la contraseña mala no entra y dice por qué', (tester) async {
       tester.view.physicalSize = const Size(1400, 1000);
       tester.view.devicePixelRatio = 1;
