@@ -3,7 +3,6 @@ package com.peru.expresdm.ui.routes
 import android.Manifest
 import android.content.Context
 import android.content.ActivityNotFoundException
-import android.widget.Toast
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.res.ColorStateList
@@ -61,8 +60,10 @@ import com.peru.expresdm.data.PathCleaner
 import com.peru.expresdm.data.Place
 import com.peru.expresdm.data.PlaceSearch
 import com.peru.expresdm.data.RecordingDraft
+import com.peru.expresdm.data.RidePoint
 import com.peru.expresdm.data.RoadAlert
 import com.peru.expresdm.data.RouteRepository
+import com.peru.expresdm.data.SavedPlaceStore
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.data.SharedLink
 import com.peru.expresdm.data.Stop
@@ -82,6 +83,7 @@ import com.peru.expresdm.ui.MapMarkers
 import com.peru.expresdm.ui.MapRouteRequests
 import com.peru.expresdm.ui.RouteAccent
 import com.peru.expresdm.ui.RouteImages
+import com.peru.expresdm.ui.SavedPlaceStyle
 import com.peru.expresdm.ui.StopMarkerStyle
 import com.peru.expresdm.ui.TRUJILLO_CENTER
 import com.peru.expresdm.ui.UserLocationOverlay
@@ -131,6 +133,7 @@ class RoutesFragment : Fragment() {
     // Capas del mapa, de abajo arriba. El punto del usuario se añade el último.
     private var routeLayer: FolderOverlay? = null
     private var recordingLayer: FolderOverlay? = null
+    private var favoriteLayer: FolderOverlay? = null
     private var placeLayer: FolderOverlay? = null
     private var alertLayer: FolderOverlay? = null
     private var pickLayer: FolderOverlay? = null
@@ -142,6 +145,9 @@ class RoutesFragment : Fragment() {
     private var sheetBehavior: BottomSheetBehavior<LinearLayout>? = null
 
     private var lastState: HomeState? = null
+
+    /** Los lugares favoritos del usuario, que se ven en el mapa. */
+    private var favorites: List<SavedPlaceStore.Favorite> = emptyList()
 
     /** Un tramo a pie de "Cómo llegar" ya trazado por las calles. */
     private class StreetWalk(val from: GeoCoordinate, val to: GeoCoordinate, val points: List<GeoCoordinate>)
@@ -286,13 +292,14 @@ class RoutesFragment : Fragment() {
         binding.btnClosePlace.setOnClickListener { clearSearch() }
         binding.alertsOnRoute.setOnClickListener { openAlertsTab() }
         binding.btnRouteDetail.setOnClickListener {
-            lastState?.selected?.route?.let { route ->
-                findNavController().navigate(
-                    R.id.action_routes_to_route_detail,
-                    RouteDetailFragment.args(route.id)
-                )
-            }
+            lastState?.selected?.route?.let { route -> openRouteDetail(route) }
         }
+        binding.btnJourneyArrival.setOnClickListener { onJourneyArrival() }
+        binding.btnJourneyDetail.setOnClickListener {
+            pickRide(R.string.journey_detail_which) { ride -> openRouteDetail(ride.route) }
+        }
+        binding.btnJourneyShare.setOnClickListener { shareJourney() }
+        binding.btnSavePlace.setOnClickListener { onSavePlace() }
         binding.btnShareTrip.setOnClickListener {
             lastState?.selected?.route?.let { route -> shareTrip(route) }
         }
@@ -326,6 +333,10 @@ class RoutesFragment : Fragment() {
         binding.routesRecycler.addOnLayoutChangeListener { _, _, top, _, _, _, oldTop, _, _ ->
             if (top != oldTop || !binding.routesRecycler.isLaidOut) fitSheet()
         }
+        // Y la lista baja cuando aparecen las acciones del destino elegido.
+        (binding.routesRecycler.parent as View).addOnLayoutChangeListener { _, _, top, _, _, _, oldTop, _, _ ->
+            if (top != oldTop) fitSheet()
+        }
         binding.root.doOnLayout { fitSheet() }
         binding.topArea.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
             if (bottom - top != oldBottom - oldTop) updateMapCenterOffset()
@@ -351,6 +362,7 @@ class RoutesFragment : Fragment() {
 
         routeLayer = FolderOverlay().also { map.overlays.add(it) }
         recordingLayer = FolderOverlay().also { map.overlays.add(it) }
+        favoriteLayer = FolderOverlay().also { map.overlays.add(it) }
         placeLayer = FolderOverlay().also { map.overlays.add(it) }
         alertLayer = FolderOverlay().also { map.overlays.add(it) }
         pickLayer = FolderOverlay().also { map.overlays.add(it) }
@@ -369,20 +381,19 @@ class RoutesFragment : Fragment() {
     }
 
     /**
-     * Abre la vista de calle de Google Maps en el centro de lo que se ve del
-     * mapa. Es un enlace: no pide clave ni cuenta de Google.
+     * Enseña la vista de calle sin salir de la app: la del sitio que el usuario
+     * marcó (la bajada que está eligiendo o el destino) y, si no marcó ninguno,
+     * la del centro de lo que se ve del mapa.
      */
     private fun openStreetView() {
-        val center = binding.mapView.mapCenter
-        val link = Uri.parse(
-            "https://www.google.com/maps/@?api=1&map_action=pano" +
-                "&viewpoint=${center.latitude},${center.longitude}"
-        )
-        try {
-            startActivity(Intent(Intent.ACTION_VIEW, link))
-        } catch (_: ActivityNotFoundException) {
-            Toast.makeText(requireContext(), R.string.street_view_unavailable, Toast.LENGTH_SHORT).show()
-        }
+        val map = binding.mapView
+        val marked = picking?.drop?.point
+            ?: (lastState?.search as? PlaceSearchState.Chosen)?.place?.let { GeoCoordinate(it.latitude, it.longitude) }
+        // El centro de la vista queda debajo de la hoja: se toma el de la franja libre.
+        val point = marked?.toGeoPoint()
+            ?: visibleBand()?.let { map.projection.fromPixels(map.width / 2, it.center) }
+            ?: map.mapCenter
+        StreetViewDialog.show(childFragmentManager, point.latitude, point.longitude)
     }
 
     /** Franja del mapa que no tapan ni los controles de arriba ni la hoja. */
@@ -1017,9 +1028,14 @@ class RoutesFragment : Fragment() {
             target != null -> getString(R.string.trip_share_stop, route.name, target.stopName)
             else -> getString(R.string.trip_share_riding, route.name, route.subtitle)
         }
+        sendTrip(text, route.id)
+    }
+
+    /** Manda [text] con el enlace al recorrido de [routeId] y la firma de la app. */
+    private fun sendTrip(text: String, routeId: String) {
         val message = listOfNotNull(
             text,
-            SharedLink.forRoute(route.id)?.let { getString(R.string.trip_share_link, it) },
+            SharedLink.forRoute(routeId)?.let { getString(R.string.trip_share_link, it) },
             getString(R.string.trip_share_footer)
         ).joinToString("\n")
 
@@ -1029,6 +1045,192 @@ class RoutesFragment : Fragment() {
         } catch (e: ActivityNotFoundException) {
             startActivity(Intent.createChooser(send, getString(R.string.trip_share)))
         }
+    }
+
+    private fun openRouteDetail(route: BusRoute) {
+        findNavController().navigate(R.id.action_routes_to_route_detail, RouteDetailFragment.args(route.id))
+    }
+
+    // --- Con un destino elegido: las acciones del viaje y guardar el lugar ---
+
+    /**
+     * Tocando el mapa o buscando un lugar se llega a un viaje, no al panel de
+     * una ruta: aquí se le da lo mismo que ofrece ese panel (el aviso de
+     * llegada, la ficha del micro y compartir) y el botón de guardar el lugar.
+     */
+    private fun renderPlaceActions() {
+        val binding = _binding ?: return
+        val state = lastState ?: return
+        val place = (state.search as? PlaceSearchState.Chosen)?.place
+        val rides = state.chosenJourney?.rides.orEmpty()
+
+        binding.placeActions.isVisible = place != null
+        binding.btnJourneyArrival.isVisible = rides.isNotEmpty()
+        binding.btnJourneyDetail.isVisible = rides.isNotEmpty()
+        binding.btnJourneyShare.isVisible = rides.isNotEmpty()
+        binding.btnJourneyArrival.setText(
+            if (arrivalOn(rides)) R.string.journey_arrival_cancel else R.string.journey_arrival_enable
+        )
+
+        val saved = place?.let { favoriteAt(it) } != null
+        binding.btnSavePlace.setText(if (saved) R.string.place_saved else R.string.place_save)
+        binding.btnSavePlace.setIconResource(if (saved) R.drawable.ic_star else R.drawable.ic_star_outline)
+    }
+
+    /** El aviso de llegada activo es de uno de estos micros. */
+    private fun arrivalOn(rides: List<JourneyLeg.Ride>): Boolean {
+        val routeId = ArrivalAlarmService.state.value.target?.routeId ?: return false
+        return rides.any { it.route.id == routeId }
+    }
+
+    /**
+     * Activa el aviso donde el viaje dice que hay que bajarse, sin tener que
+     * marcarlo en el mapa. Con transbordo se pregunta en cuál de las bajadas.
+     */
+    private fun onJourneyArrival() {
+        val state = lastState ?: return
+        val rides = state.chosenJourney?.rides.orEmpty()
+        if (arrivalOn(rides)) {
+            cancelArrival()
+            return
+        }
+        pickRide(R.string.journey_arrival_which, { ride ->
+            getString(R.string.journey_arrival_option, ride.route.name, exitName(ride, state))
+        }) { ride ->
+            requestArrival(
+                ArrivalTarget(
+                    routeId = ride.route.id,
+                    routeName = ride.route.name,
+                    stopName = exitName(ride, state),
+                    latitude = ride.to.latitude,
+                    longitude = ride.to.longitude
+                )
+            )
+        }
+    }
+
+    /**
+     * Cómo llamar al sitio donde se baja de [ride]. Un punto del recorrido
+     * lejos de toda parada no tiene nombre propio: si es la última bajada, vale
+     * el del destino.
+     */
+    private fun exitName(ride: JourneyLeg.Ride, state: HomeState): String {
+        val place = (state.search as? PlaceSearchState.Chosen)?.place
+        val last = ride === state.chosenJourney?.rides?.lastOrNull()
+        return when {
+            ride.toKind != RidePoint.ON_ROUTE && ride.to.name.isNotBlank() -> ride.to.name
+            last && place != null && place.name != getString(R.string.destination_map) -> place.name
+            // Sin nada mejor, la parada conocida más próxima sirve de referencia.
+            ride.to.name.isNotBlank() -> ride.to.name
+            else -> getString(R.string.arrival_pick_point)
+        }
+    }
+
+    /**
+     * Uno de los micros del viaje que se ve en el mapa. Con uno solo no hay nada
+     * que preguntar; con transbordo se elige en una lista.
+     */
+    private fun pickRide(
+        title: Int,
+        label: (JourneyLeg.Ride) -> String = { it.route.vehicleName.ifBlank { it.route.name } },
+        onPicked: (JourneyLeg.Ride) -> Unit
+    ) {
+        val rides = lastState?.chosenJourney?.rides.orEmpty()
+        when (rides.size) {
+            0 -> Unit
+            1 -> onPicked(rides.single())
+            else -> MaterialAlertDialogBuilder(requireContext())
+                .setTitle(title)
+                .setItems(rides.map(label).toTypedArray()) { _, which -> onPicked(rides[which]) }
+                .show()
+        }
+    }
+
+    /** "Voy en el California y me bajo en Av. España. Llego en unos 25 min." */
+    private fun shareJourney() {
+        val state = lastState ?: return
+        val journey = state.chosenJourney ?: return
+        val rides = journey.rides
+        if (rides.isEmpty()) return
+        sendTrip(
+            getString(
+                R.string.trip_share_arriving,
+                rides.joinToString(" + ") { it.route.name },
+                exitName(rides.last(), state),
+                journey.totalMinutes
+            ),
+            rides.first().route.id
+        )
+    }
+
+    /** El favorito guardado en ese mismo sitio, si lo hay. */
+    private fun favoriteAt(place: Place): SavedPlaceStore.Favorite? = favorites.firstOrNull {
+        NearbyRoutes.distanceMeters(it.place.latitude, it.place.longitude, place.latitude, place.longitude) <=
+            SAME_PLACE_METERS
+    }
+
+    /** Guarda el destino elegido como favorito o, si ya lo era, ofrece quitarlo. */
+    private fun onSavePlace() {
+        val place = (lastState?.search as? PlaceSearchState.Chosen)?.place ?: return
+        val context = requireContext()
+        val store = SavedPlaceStore.get(context)
+
+        val saved = favoriteAt(place)
+        if (saved != null) {
+            MaterialAlertDialogBuilder(context)
+                .setTitle(getString(R.string.saved_place_title, getString(SavedPlaceStyle.label(saved.kind)), saved.place.name))
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.saved_place_remove) { _, _ ->
+                    store.remove(saved)
+                    showMessage(getString(R.string.place_removed))
+                }
+                .show()
+            return
+        }
+        if (favorites.size >= SavedPlaceStore.MAX_FAVORITES) {
+            showLongMessage(getString(R.string.place_save_full, SavedPlaceStore.MAX_FAVORITES))
+            return
+        }
+        SavedPlaceStyle.pickKind(context, favorites) { kind -> savePlace(kind, place) }
+    }
+
+    private fun savePlace(kind: SavedPlaceStore.Kind, place: Place) {
+        val store = SavedPlaceStore.get(requireContext())
+        val label = getString(SavedPlaceStyle.label(kind))
+        viewLifecycleOwner.lifecycleScope.launch {
+            // Un punto tocado en el mapa no tiene nombre: se guarda con el de su calle.
+            val named = if (place.name == getString(R.string.destination_map)) {
+                val street = PlaceSearch.streetName(place.latitude, place.longitude)
+                place.copy(name = street ?: getString(R.string.place_point))
+            } else {
+                place
+            }
+            if (store.save(kind, named)) showMessage(getString(R.string.saved_place_done, label))
+        }
+    }
+
+    /** Los favoritos sobre el mapa, cada uno con su icono: al tocar uno se va hacia él. */
+    private fun drawFavorites() {
+        val binding = _binding ?: return
+        val layer = favoriteLayer ?: return
+        val map = binding.mapView
+        val context = requireContext()
+        layer.items.clear()
+        favorites.forEach { favorite ->
+            layer.add(
+                Marker(map).apply {
+                    position = GeoPoint(favorite.place.latitude, favorite.place.longitude)
+                    icon = MapMarkers.favorite(context, SavedPlaceStyle.icon(favorite.kind))
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    setOnMarkerClickListener { _, _ ->
+                        // Eligiendo la bajada, un toque aquí es un toque en el mapa.
+                        if (picking != null) onMapTapped(position) else choosePlace(favorite.place)
+                        true
+                    }
+                }
+            )
+        }
+        map.invalidate()
     }
 
     /** Borrar una ruta propia no se puede deshacer: se pregunta antes. */
@@ -1800,6 +2002,7 @@ class RoutesFragment : Fragment() {
     private fun renderArrival(arrival: ArrivalState) {
         if (_binding == null) return
         renderArrivalViews()
+        renderPlaceActions()
 
         arrival.arrivedAt?.let { target ->
             showLongMessage(getString(R.string.arrival_arrived, target.stopName))
@@ -1905,6 +2108,13 @@ class RoutesFragment : Fragment() {
                 launch { ArrivalAlarmService.state.collect { renderArrival(it) } }
                 // Al entrar o salir de una cuenta cambia quién puede grabar rutas.
                 launch { AccountRepository.session.collect { renderAddRoute() } }
+                launch {
+                    SavedPlaceStore.get(requireContext()).favorites.collect {
+                        favorites = it
+                        drawFavorites()
+                        renderPlaceActions()
+                    }
+                }
 
                 // "Ver ruta" desde el asistente, el perfil o una ruta recién guardada.
                 launch {
@@ -1936,6 +2146,7 @@ class RoutesFragment : Fragment() {
 
         renderList(state)
         renderStatus(state)
+        renderPlaceActions()
 
         val selected = state.selected
         showRoutePanel(selected != null)
@@ -2092,6 +2303,7 @@ class RoutesFragment : Fragment() {
         locationOverlay = null
         routeLayer = null
         recordingLayer = null
+        favoriteLayer = null
         placeLayer = null
         alertLayer = null
         pickLayer = null
@@ -2131,6 +2343,9 @@ class RoutesFragment : Fragment() {
         /** Mientras uno no se aleje más que esto, vale el camino a pie ya trazado. */
         const val STREET_WALK_REUSE_METERS = 30.0
         const val MAX_STREET_WALKS = 12
+
+        /** Un favorito a menos de esto del destino elegido es ese mismo lugar. */
+        const val SAME_PLACE_METERS = 15.0
 
         const val WHATSAPP_PACKAGE = "com.whatsapp"
 

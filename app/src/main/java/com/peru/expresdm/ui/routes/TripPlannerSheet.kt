@@ -8,7 +8,6 @@ import android.view.ViewGroup
 import android.view.WindowManager
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
-import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.DrawableRes
@@ -35,6 +34,7 @@ import com.peru.expresdm.data.RecentPlaceStore
 import com.peru.expresdm.data.SavedPlaceStore
 import com.peru.expresdm.databinding.ItemPlaceBinding
 import com.peru.expresdm.databinding.SheetTripPlannerBinding
+import com.peru.expresdm.ui.SavedPlaceStyle
 import com.peru.expresdm.ui.formatDistance
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -394,27 +394,8 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
     }
 
     /** Antes de buscar el lugar se dice qué es: de ahí salen su nombre y su icono. */
-    private fun pickKind(favorites: List<SavedPlaceStore.Favorite>) {
-        // Una sola casa, un solo trabajo…; "otro" sirve las veces que haga falta.
-        val used = favorites.map { it.kind }.toSet()
-        val kinds = SavedPlaceStore.Kind.entries.filter { it == SavedPlaceStore.Kind.OTHER || it !in used }
-        val iconGap = (ICON_GAP_DP * resources.displayMetrics.density).toInt()
-        val adapter = object : ArrayAdapter<String>(
-            requireContext(),
-            android.R.layout.select_dialog_item,
-            kinds.map { getString(labelOf(it)) }
-        ) {
-            override fun getView(position: Int, convertView: View?, parent: ViewGroup): View =
-                (super.getView(position, convertView, parent) as TextView).apply {
-                    setCompoundDrawablesRelativeWithIntrinsicBounds(iconOf(kinds[position]), 0, 0, 0)
-                    compoundDrawablePadding = iconGap
-                }
-        }
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.saved_place_kind_title)
-            .setAdapter(adapter) { _, which -> startSaving(kinds[which]) }
-            .show()
-    }
+    private fun pickKind(favorites: List<SavedPlaceStore.Favorite>) =
+        SavedPlaceStyle.pickKind(requireContext(), favorites) { startSaving(it) }
 
     /**
      * A partir de aquí, el próximo lugar que se elija se guarda como [kind];
@@ -432,26 +413,10 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
     }
 
     @StringRes
-    private fun labelOf(kind: SavedPlaceStore.Kind): Int = when (kind) {
-        SavedPlaceStore.Kind.HOME -> R.string.saved_place_home
-        SavedPlaceStore.Kind.WORK -> R.string.saved_place_work
-        SavedPlaceStore.Kind.STUDY -> R.string.saved_place_study
-        SavedPlaceStore.Kind.PARTNER -> R.string.saved_place_partner
-        SavedPlaceStore.Kind.FAMILY -> R.string.saved_place_family
-        SavedPlaceStore.Kind.GYM -> R.string.saved_place_gym
-        SavedPlaceStore.Kind.OTHER -> R.string.saved_place_other
-    }
+    private fun labelOf(kind: SavedPlaceStore.Kind): Int = SavedPlaceStyle.label(kind)
 
     @DrawableRes
-    private fun iconOf(kind: SavedPlaceStore.Kind): Int = when (kind) {
-        SavedPlaceStore.Kind.HOME -> R.drawable.ic_fav_home
-        SavedPlaceStore.Kind.WORK -> R.drawable.ic_fav_work
-        SavedPlaceStore.Kind.STUDY -> R.drawable.ic_fav_study
-        SavedPlaceStore.Kind.PARTNER -> R.drawable.ic_fav_partner
-        SavedPlaceStore.Kind.FAMILY -> R.drawable.ic_fav_family
-        SavedPlaceStore.Kind.GYM -> R.drawable.ic_fav_gym
-        SavedPlaceStore.Kind.OTHER -> R.drawable.ic_fav_other
-    }
+    private fun iconOf(kind: SavedPlaceStore.Kind): Int = SavedPlaceStyle.icon(kind)
 
     private fun hideKeyboard() {
         val binding = _binding ?: return
@@ -475,7 +440,6 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
         private const val TYPING_PAUSE_MS = 450L
         private const val HINT_EDGE_DP = 8
         private const val HINT_TEXT_SP = 12f
-        private const val ICON_GAP_DP = 16
 
         /** Con qué clave avisa esta hoja a quien la abrió, y de qué. */
         const val REQUEST_KEY = "trip_planner"

@@ -91,8 +91,11 @@ class SavedPlaceStore private constructor(context: Context) {
     }.toString()
 
     companion object {
-        /** Más que estos dejan de ser "los de siempre" y vuelven a ser una lista que recorrer. */
-        const val MAX_FAVORITES = 4
+        /**
+         * Más que estos dejan de ser "los de siempre" y vuelven a ser una lista
+         * que recorrer. Caben los de todos los días y algunos puntos del mapa.
+         */
+        const val MAX_FAVORITES = 8
 
         private const val PREFS_NAME = "saved_places"
         private const val KEY_FAVORITES = "favorites"

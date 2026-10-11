@@ -108,6 +108,17 @@ object MapMarkers {
         )
     }
 
+    /** Un lugar favorito, con el icono de lo que es (casa, trabajo…) sobre el amarillo de la marca. */
+    fun favorite(context: Context, @DrawableRes icon: Int): Drawable =
+        iconBadge(
+            context,
+            icon,
+            context.getColor(R.color.brand),
+            diameterDp = 34f,
+            haloAlpha = 0,
+            iconTint = context.getColor(R.color.on_brand)
+        )
+
     /** Dónde se baja el usuario: el punto que eligió tocando el recorrido. */
     fun dropOff(context: Context): Drawable {
         val color = context.themeColor(com.google.android.material.R.attr.colorSecondary)
@@ -119,7 +130,8 @@ object MapMarkers {
         @DrawableRes icon: Int,
         @ColorInt color: Int,
         diameterDp: Float,
-        haloAlpha: Int
+        haloAlpha: Int,
+        @ColorInt iconTint: Int = Color.WHITE
     ): Drawable {
         val size = context.dp(diameterDp)
         val center = size / 2f
@@ -140,7 +152,7 @@ object MapMarkers {
         canvas.drawCircle(center, center, badgeRadius - context.dp(2.5f), paint)
 
         AppCompatResources.getDrawable(context, icon)?.mutate()?.let { drawable ->
-            DrawableCompat.setTint(drawable, Color.WHITE)
+            DrawableCompat.setTint(drawable, iconTint)
             val half = (badgeRadius * 0.55f).roundToInt()
             val c = center.roundToInt()
             drawable.setBounds(c - half, c - half, c + half, c + half)
