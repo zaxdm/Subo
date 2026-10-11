@@ -143,11 +143,20 @@ class _HomePageState extends State<HomePage> {
 
   Color _colorOf(BusRoute route) => _lineColors[widget.routes.indexOf(route) % _lineColors.length];
 
-  static List<LatLng> _lineOf(BusRoute route) {
-    // Sin trazado dibujado, la línea une los puntos de referencia.
-    final points = route.path.length >= 2 ? route.path : route.stops;
-    return [for (final point in points) LatLng(point.latitude, point.longitude)];
-  }
+  /// Las líneas ya convertidas: con el catálogo de una ciudad son miles de
+  /// puntos, y rehacerlas en cada repintado frena el mapa.
+  final _linePoints = Expando<List<LatLng>>();
+
+  List<LatLng> _lineOf(BusRoute route) => _linePoints[route] ??= () {
+        // Sin trazado dibujado, la línea une los puntos de referencia.
+        final points = route.path.length >= 2 ? route.path : route.stops;
+        return [for (final point in points) LatLng(point.latitude, point.longitude)];
+      }();
+
+  /// El color de una línea que no es la abierta: apagado, pero opaco. Una línea
+  /// translúcida obliga al mapa a pintarla en una capa aparte, y con más de cien
+  /// el navegador se queda parado.
+  static Color _dimmed(Color color) => Color.lerp(color, const Color(0xFFE9E6DF), 0.72)!;
 
   /// Encuadra la línea abierta o, si no hay, todas.
   void _frame() {
@@ -252,7 +261,7 @@ class _HomePageState extends State<HomePage> {
                 Polyline(
                   points: _lineOf(route),
                   strokeWidth: route == selected ? 6 : 4,
-                  color: _colorOf(route).withValues(alpha: selected == null || route == selected ? 0.9 : 0.22),
+                  color: selected == null || route == selected ? _colorOf(route) : _dimmed(_colorOf(route)),
                   borderStrokeWidth: route == selected ? 1.5 : 0,
                   borderColor: Palette.ink,
                 ),
