@@ -17,12 +17,19 @@ import java.util.Locale
  * de Google, y no saca al usuario de la app. Donde Google no tiene fotos de la
  * calle, enseña su mapa de la zona.
  */
-class StreetViewPane(private val binding: ViewStreetPaneBinding) {
+class StreetViewPane(
+    private val binding: ViewStreetPaneBinding,
+    /** El usuario salió de la calle con la flecha de la propia página. */
+    private val onLeftStreet: () -> Unit
+) {
 
     private var web: WebView? = null
 
     /** Cambia con cada punto pedido: lo que llegue tarde de uno anterior se ignora. */
     private var request = 0
+
+    /** La página ya enseña la calle del punto pedido. */
+    private var inStreet = false
 
     val isOpen: Boolean get() = binding.root.isVisible
 
@@ -30,6 +37,7 @@ class StreetViewPane(private val binding: ViewStreetPaneBinding) {
     fun show(latitude: Double, longitude: Double) {
         val web = web ?: createWeb().also { web = it }
         val current = ++request
+        inStreet = false
         binding.root.isVisible = true
         binding.cover.isVisible = true
         binding.errorText.isVisible = false
@@ -49,6 +57,7 @@ class StreetViewPane(private val binding: ViewStreetPaneBinding) {
 
     fun close() {
         request++
+        inStreet = false
         binding.root.isVisible = false
         // La página deja de gastar datos y batería mientras no se ve.
         web?.loadUrl(BLANK)
@@ -78,8 +87,16 @@ class StreetViewPane(private val binding: ViewStreetPaneBinding) {
         web.webViewClient = object : WebViewClient() {
             // Los enlaces que abrirían la app de Google Maps o la tienda
             // (intent://, market://) se ignoran: la vista se queda aquí.
-            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean =
-                request.url.scheme !in WEB_SCHEMES
+            override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
+                if (request.url.scheme == CLOSE_SCHEME) {
+                    onLeftStreet()
+                    return true
+                }
+                // Ya en la calle, moverse por ella no cambia de página: lo que
+                // la cambiaría son los enlaces de Google (su portada, informar
+                // de un problema), que aquí no llevan a ningún sitio útil.
+                return inStreet || request.url.scheme !in WEB_SCHEMES
+            }
 
             override fun onPageFinished(view: WebView, url: String?) {
                 // Antes de la calle, Google pregunta si se quiere abrir su app:
@@ -88,8 +105,18 @@ class StreetViewPane(private val binding: ViewStreetPaneBinding) {
             }
 
             override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
-                // La dirección de una vista de calle lleva sus datos detrás.
-                if (url?.contains(PANORAMA_MARK) == true) reveal()
+                // La dirección de una vista de calle lleva su marca. Si estando
+                // en la calle la pierde, es que se pulsó la flecha de Google, que
+                // lleva a su mapa: aquí el mapa es el de abajo, así que se cierra.
+                if (url == null || url == BLANK) return
+                if (url.contains(PANORAMA_MARK)) {
+                    inStreet = true
+                    reveal()
+                    view.evaluateJavascript(HOOK_BACK, null)
+                } else if (inStreet) {
+                    inStreet = false
+                    onLeftStreet()
+                }
             }
 
             override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
@@ -109,8 +136,21 @@ class StreetViewPane(private val binding: ViewStreetPaneBinding) {
     private companion object {
         const val BLANK = "about:blank"
         val WEB_SCHEMES = setOf("http", "https")
-        const val PANORAMA_MARK = "/data="
+        const val PANORAMA_MARK = "!1e1"
         const val REVEAL_TIMEOUT_MS = 8_000L
+
+        const val CLOSE_SCHEME = "subo"
+
+        /**
+         * La flecha de "atrás" que Google pinta sobre la calle no hace nada
+         * dentro de este panel: se le da el sentido que uno espera, cerrarlo.
+         */
+        const val HOOK_BACK =
+            "(function(){if(window.__subo)return;window.__subo=true;" +
+                "document.addEventListener('click',function(e){" +
+                "var a=e.target.closest&&e.target.closest('a[href=\"\"][jsaction]');" +
+                "if(a){e.preventDefault();e.stopPropagation();location.href='subo://close'}" +
+                "},true)})()"
 
         /** Pulsa "Permanecer en la versión web" en cuanto aparece; a los cinco segundos deja de buscarlo. */
         const val STAY_ON_WEB =

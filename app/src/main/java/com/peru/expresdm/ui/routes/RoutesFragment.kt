@@ -348,7 +348,10 @@ class RoutesFragment : Fragment() {
         }
         binding.root.doOnLayout { fitSheet() }
         binding.topArea.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
-            if (bottom - top != oldBottom - oldTop) updateMapCenterOffset()
+            if (bottom - top != oldBottom - oldTop) {
+                if (streetPane?.isOpen == true) placeStreetPane()
+                updateMapCenterOffset()
+            }
         }
 
         observeState()
@@ -414,12 +417,10 @@ class RoutesFragment : Fragment() {
     /** Enseña arriba la calle de [point] y lleva el mapa, debajo, a ese punto. */
     private fun showStreet(point: GeoPoint) {
         val binding = _binding ?: return
-        val pane = streetPane ?: StreetViewPane(binding.streetPane).also { streetPane = it }
+        val pane = streetPane ?: StreetViewPane(binding.streetPane, ::closeStreetView).also { streetPane = it }
         val opening = !pane.isOpen
         if (opening) {
-            binding.streetPane.root.layoutParams = binding.streetPane.root.layoutParams.apply {
-                height = (binding.root.height * STREET_PANE_RATIO).toInt()
-            }
+            placeStreetPane()
             // El mapa se queda con el hueco entre la calle y la hoja: la hoja, al mínimo.
             sheetBehavior?.state = BottomSheetBehavior.STATE_COLLAPSED
         }
@@ -446,6 +447,19 @@ class RoutesFragment : Fragment() {
             map.controller.stopAnimation(false)
             map.controller.animateTo(point, maxOf(map.zoomLevelDouble, STREET_ZOOM), CAMERA_ANIMATION_MS)
         }, if (opening) SHEET_SETTLE_MS else 0L)
+    }
+
+    /** La calle va debajo del buscador, que sigue a mano, y ocupa su parte de la pantalla. */
+    private fun placeStreetPane() {
+        val binding = _binding ?: return
+        val pane = binding.streetPane.root
+        val params = pane.layoutParams as ViewGroup.MarginLayoutParams
+        val top = binding.topArea.bottom
+        val height = (binding.root.height * STREET_PANE_RATIO).toInt()
+        if (params.topMargin == top && params.height == height) return
+        params.topMargin = top
+        params.height = height
+        pane.layoutParams = params
     }
 
     private fun closeStreetView() {
@@ -2218,6 +2232,13 @@ class RoutesFragment : Fragment() {
         renderList(state)
         renderStatus(state)
         renderPlaceActions()
+        // Buscar un lugar con la calle abierta es pedir la calle de ese lugar.
+        val place = (state.search as? PlaceSearchState.Chosen)?.place
+        if (streetPane?.isOpen == true && place != null &&
+            place != (previous?.search as? PlaceSearchState.Chosen)?.place
+        ) {
+            showStreet(GeoPoint(place.latitude, place.longitude))
+        }
 
         val selected = state.selected
         showRoutePanel(selected != null)
@@ -2431,7 +2452,7 @@ class RoutesFragment : Fragment() {
         const val STREET_ZOOM = 17.5
 
         /** Parte de la pantalla que ocupa la vista de calle; el resto es del mapa y la hoja. */
-        const val STREET_PANE_RATIO = 0.45f
+        const val STREET_PANE_RATIO = 0.4f
         const val ALERT_ZOOM = 17.0
         const val CAMERA_ANIMATION_MS = 700L
         const val SHEET_SETTLE_MS = 320L
