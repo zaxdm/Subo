@@ -348,10 +348,7 @@ class RoutesFragment : Fragment() {
         }
         binding.root.doOnLayout { fitSheet() }
         binding.topArea.addOnLayoutChangeListener { _, _, top, _, bottom, _, oldTop, _, oldBottom ->
-            if (bottom - top != oldBottom - oldTop) {
-                if (streetPane?.isOpen == true) placeStreetPane()
-                updateMapCenterOffset()
-            }
+            if (bottom - top != oldBottom - oldTop) updateMapCenterOffset()
         }
 
         observeState()
@@ -426,6 +423,7 @@ class RoutesFragment : Fragment() {
         }
         pane.show(point.latitude, point.longitude)
         refreshBackHandler()
+        renderStreetButton()
 
         streetLayer?.let { layer ->
             layer.items.clear()
@@ -449,17 +447,23 @@ class RoutesFragment : Fragment() {
         }, if (opening) SHEET_SETTLE_MS else 0L)
     }
 
-    /** La calle va debajo del buscador, que sigue a mano, y ocupa su parte de la pantalla. */
+    /** La calle ocupa su parte de la pantalla desde arriba, tapando el buscador. */
     private fun placeStreetPane() {
         val binding = _binding ?: return
         val pane = binding.streetPane.root
-        val params = pane.layoutParams as ViewGroup.MarginLayoutParams
-        val top = binding.topArea.bottom
         val height = (binding.root.height * STREET_PANE_RATIO).toInt()
-        if (params.topMargin == top && params.height == height) return
-        params.topMargin = top
-        params.height = height
-        pane.layoutParams = params
+        if (pane.layoutParams.height == height) return
+        pane.layoutParams = pane.layoutParams.apply { this.height = height }
+    }
+
+    /**
+     * "Ver calle" solo se ofrece cuando hay un sitio marcado del que enseñarla:
+     * el destino elegido o la bajada. Con la calle abierta se queda, para cerrarla.
+     */
+    private fun renderStreetButton() {
+        val binding = _binding ?: return
+        binding.streetViewHolder.isVisible = streetPane?.isOpen == true ||
+            picking?.drop != null || lastState?.search is PlaceSearchState.Chosen
     }
 
     private fun closeStreetView() {
@@ -468,6 +472,7 @@ class RoutesFragment : Fragment() {
         streetLayer?.items?.clear()
         binding.mapView.invalidate()
         refreshBackHandler()
+        renderStreetButton()
         restSheet()
         binding.root.post { updateMapCenterOffset() }
     }
@@ -1971,6 +1976,7 @@ class RoutesFragment : Fragment() {
         }
 
         drawPick(session?.drop)
+        renderStreetButton()
     }
 
     private fun drawPick(drop: DropOff?) {
@@ -2232,6 +2238,7 @@ class RoutesFragment : Fragment() {
         renderList(state)
         renderStatus(state)
         renderPlaceActions()
+        renderStreetButton()
         // Buscar un lugar con la calle abierta es pedir la calle de ese lugar.
         val place = (state.search as? PlaceSearchState.Chosen)?.place
         if (streetPane?.isOpen == true && place != null &&
@@ -2452,7 +2459,7 @@ class RoutesFragment : Fragment() {
         const val STREET_ZOOM = 17.5
 
         /** Parte de la pantalla que ocupa la vista de calle; el resto es del mapa y la hoja. */
-        const val STREET_PANE_RATIO = 0.4f
+        const val STREET_PANE_RATIO = 0.45f
         const val ALERT_ZOOM = 17.0
         const val CAMERA_ANIMATION_MS = 700L
         const val SHEET_SETTLE_MS = 320L
