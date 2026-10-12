@@ -121,6 +121,10 @@
     <string name="arrival_bar_distance">Arrival alert · %1$s · %2$s to go</string>
     <string name="arrival_action_enable">Turn on</string>
     <string name="arrival_action_cancel">Cancel</string>
+    <string name="background_access_title">Let the alert ring with the app closed</string>
+    <string name="background_access_message">To save battery, your phone may close Subo when you are not looking at it, and the get-off alert would not reach you. Allow Subo to keep running in the background so it warns you even if you close the app or turn off the screen.</string>
+    <string name="background_access_allow">Allow</string>
+    <string name="background_access_later">Not now</string>
     <string name="arrival_pick_hint">Tap the map where you get off, on the route line</string>
     <string name="arrival_pick_far">This bus does not go there: tap on its route line</string>
     <string name="arrival_pick_point">Point on the route</string>
@@ -671,6 +675,7 @@
     <string name="voice_arrival_already">The arrival alert is already on.</string>
     <string name="voice_no_arrival">There is no alert on.</string>
     <string name="voice_not_sharing">You are not sharing any trip.</string>
+    <string name="voice_prompt">Where do you want to go?</string>
     <string name="voice_place_not_found">I could not find %1$s. Try another name or a street.</string>
     <string name="voice_going_to">Here is how to get to %1$s.</string>
     <string name="voice_no_location">I do not know where you are yet. Turn on location.</string>

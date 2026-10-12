@@ -22,6 +22,9 @@ object Speaker {
     private const val TAG = "Speaker"
     private const val UTTERANCE_ID = "subo_voz"
 
+    /** Con qué nombre pide la voz el turno para sonar: ver [AudioFocus]. */
+    private const val FOCUS = "voz"
+
     private val handler = Handler(Looper.getMainLooper())
     private var engine: TextToSpeech? = null
     private var pending: Runnable? = null
@@ -34,6 +37,8 @@ object Speaker {
      * suena con el volumen de la música, como cualquier asistente.
      *
      * Con audífonos puestos suena siempre por ellos: ver [AudioRoute].
+     *
+     * Mientras habla, la música de otras apps se pausa: ver [AudioFocus].
      *
      * [onWord] avisa de cada palabra que se va diciendo (Android 8 en
      * adelante), para mover algo al ritmo de la voz. [onDone] se llama al
@@ -49,6 +54,9 @@ object Speaker {
     ) {
         val appContext = context.applicationContext
         pending?.let(handler::removeCallbacks)
+        // El turno se pide ya, no al empezar a hablar: si antes suena un tono,
+        // la música no vuelve en el hueco entre los dos.
+        AudioFocus.hold(appContext, FOCUS, AudioRoute.attributes(appContext, urgent = asAlarm, speech = true))
         val job = Runnable { start(appContext, text, asAlarm, onWord, onDone) }
         pending = job
         handler.postDelayed(job, delayMs)
@@ -59,6 +67,7 @@ object Speaker {
         pending?.let(handler::removeCallbacks)
         pending = null
         release()
+        AudioFocus.release(FOCUS)
     }
 
     private fun start(
@@ -75,6 +84,7 @@ object Speaker {
         fun finish() = handler.post {
             if (engine === created) {
                 release()
+                AudioFocus.release(FOCUS)
                 onDone?.invoke()
             }
         }

@@ -16,6 +16,7 @@ import com.peru.expresdm.R
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.ArrivalTone
 import com.peru.expresdm.data.Premium
+import com.peru.expresdm.voice.AudioFocus
 import com.peru.expresdm.voice.AudioRoute
 
 /**
@@ -33,6 +34,9 @@ object ArrivalSignal {
     /** Un sonido propio puede ser una canción entera: se corta aquí. */
     private const val MAX_SOUND_MS = 6_000L
 
+    /** Con qué nombre pide el tono el turno para sonar: ver [AudioFocus]. */
+    private const val FOCUS = "tono"
+
     /** Tres golpes largos: se notan con el teléfono en el bolsillo y el micro en marcha. */
     private val VIBRATION_TIMINGS = longArrayOf(0, 600, 200, 600, 200, 900)
     private val VIBRATION_AMPLITUDES = intArrayOf(0, 255, 0, 255, 0, 255)
@@ -46,6 +50,7 @@ object ArrivalSignal {
     private val stopSound = Runnable {
         player?.release()
         player = null
+        AudioFocus.release(FOCUS)
     }
 
     fun play(context: Context, vibrate: Boolean, sound: Boolean) {
@@ -109,10 +114,13 @@ object ArrivalSignal {
             // Como alarma suena aunque el teléfono esté en silencio, con el
             // volumen de alarmas: de eso se trata un aviso para bajarse. Con
             // audífonos puestos suena por ellos, no por el altavoz.
-            media.setAudioAttributes(AudioRoute.attributes(context, urgent = true, speech = false))
+            val attributes = AudioRoute.attributes(context, urgent = true, speech = false)
+            media.setAudioAttributes(attributes)
             setSource(media)
             media.setOnCompletionListener { stopSound.run() }
             media.prepare()
+            // La música de otras apps se pausa mientras suena el aviso.
+            AudioFocus.hold(context, FOCUS, attributes)
             media.start()
             player = media
             handler.postDelayed(stopSound, MAX_SOUND_MS)
@@ -120,6 +128,7 @@ object ArrivalSignal {
         } catch (e: Exception) {
             Log.w(TAG, "No se pudo reproducir el sonido del aviso", e)
             media.release()
+            AudioFocus.release(FOCUS)
             false
         }
     }

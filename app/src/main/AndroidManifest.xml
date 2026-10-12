@@ -17,6 +17,14 @@
     <!-- Aviso de bajada: vibra al llegar a la parada, si el usuario lo deja encendido -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!--
+      Aviso de bajada con la app cerrada y la pantalla apagada: mantener el
+      teléfono atento mientras dura, y poder pedirle al usuario que el ahorro de
+      batería no cierre la app.
+    -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+
     <!-- Voz (Premium): preguntarle al asistente hablando. La app funciona sin él. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
 
@@ -94,7 +102,8 @@
         <service
             android:name=".tracking.ArrivalAlarmService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="location"
+            android:stopWithTask="false" />
 
         <!-- Viaje en vivo: manda por dónde va mientras el usuario lo comparte. -->
         <service

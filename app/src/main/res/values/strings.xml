@@ -119,6 +119,10 @@
     <string name="arrival_bar_distance">Aviso de llegada · %1$s · faltan %2$s</string>
     <string name="arrival_action_enable">Activar</string>
     <string name="arrival_action_cancel">Cancelar</string>
+    <string name="background_access_title">Que el aviso suene con la app cerrada</string>
+    <string name="background_access_message">Para ahorrar batería, tu teléfono puede cerrar Subo cuando no la estás mirando, y el aviso de bajada no llegaría. Permite que Subo siga en segundo plano para que te avise aunque cierres la app o apagues la pantalla.</string>
+    <string name="background_access_allow">Permitir</string>
+    <string name="background_access_later">Ahora no</string>
     <string name="arrival_pick_hint">Toca el mapa donde te bajas, sobre el recorrido</string>
     <string name="arrival_pick_far">Por ahí no pasa este micro: toca sobre su recorrido</string>
     <string name="arrival_pick_point">Punto del recorrido</string>
@@ -669,6 +673,7 @@
     <string name="voice_arrival_already">El aviso de llegada ya está activo.</string>
     <string name="voice_no_arrival">No hay ningún aviso activo.</string>
     <string name="voice_not_sharing">No estás compartiendo ningún viaje.</string>
+    <string name="voice_prompt">¿A dónde quieres ir?</string>
     <string name="voice_place_not_found">No encontré %1$s. Prueba con otro nombre o una calle.</string>
     <string name="voice_going_to">Te muestro cómo llegar a %1$s.</string>
     <string name="voice_no_location">Todavía no sé dónde estás. Activa la ubicación.</string>

@@ -18,6 +18,8 @@ import com.peru.expresdm.data.SavedRoutes
 import com.peru.expresdm.data.SharedLink
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.databinding.ActivityMainBinding
+import com.peru.expresdm.tracking.ArrivalAlarmService
+import com.peru.expresdm.tracking.BackgroundAccess
 import com.peru.expresdm.tracking.PushRegistration
 import com.peru.expresdm.ui.routes.RouteDetailFragment
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -66,6 +68,13 @@ class MainActivity : AppCompatActivity() {
         // Premium y el permiso de administrador se activan en el servidor: al
         // abrir la app se pregunta cómo está la cuenta.
         if (savedInstanceState == null) lifecycleScope.launch { AccountRepository.refresh() }
+
+        // Al activar un aviso de bajada se pide, una vez, que el teléfono no
+        // cierre la app por ahorrar batería: sin eso el aviso no llega.
+        lifecycleScope.launch {
+            ArrivalAlarmService.state.map { it.target != null }.distinctUntilChanged()
+                .collect { watching -> if (watching) BackgroundAccess.askOnce(this@MainActivity) }
+        }
 
         // Al entrar o salir de la cuenta, el servidor sabe de quién es este
         // teléfono: así no le avisa a alguien de su propia alerta.

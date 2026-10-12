@@ -18,6 +18,7 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -82,6 +83,12 @@ class ArrivalAlarmService : Service(), LocationListener {
     private var cameFromFar = false
     private var earlyWarned = false
 
+    /**
+     * Mantiene el teléfono atento con la pantalla apagada: sin él, Android
+     * puede dormirse entre dos lecturas del GPS y dar el aviso tarde.
+     */
+    private var wakeLock: PowerManager.WakeLock? = null
+
     private val giveUp = Runnable {
         Log.i(TAG, "Aviso de llegada caducado sin llegar a la parada")
         _state.value = ArrivalState()
@@ -110,7 +117,17 @@ class ArrivalAlarmService : Service(), LocationListener {
     private fun startWatching(target: ArrivalTarget, announce: Boolean = true) {
         // Android exige mostrar la notificación nada más arrancar el servicio.
         createChannels()
-        startForegroundCompat(buildTrackingNotification(target, distanceMeters = null))
+        try {
+            startForegroundCompat(buildTrackingNotification(target, distanceMeters = null))
+        } catch (e: RuntimeException) {
+            // Si Android cerró la app y la vuelve a levantar sin ella a la vista,
+            // puede no dejar seguir la ubicación: el aviso se da por perdido en
+            // vez de tumbar la app.
+            Log.e(TAG, "Android no dejó retomar el aviso de llegada", e)
+            _state.value = ArrivalState(failed = true)
+            stopEverything()
+            return
+        }
 
         val manager = getSystemService<LocationManager>()
         val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
@@ -143,6 +160,7 @@ class ArrivalAlarmService : Service(), LocationListener {
 
         handler.removeCallbacks(giveUp)
         handler.postDelayed(giveUp, MAX_WATCH_MS)
+        holdAwake()
 
         if (announce && guideOn()) {
             Speaker.speak(this, target.intro ?: getString(R.string.voice_guide_start, target.stopName))
@@ -201,9 +219,12 @@ class ArrivalAlarmService : Service(), LocationListener {
                 .setSmallIcon(R.drawable.ic_arrival_alarm)
                 .setContentIntent(openAppIntent())
                 .setAutoCancel(true)
-                .setSilent(true)
-                .setCategory(NotificationCompat.CATEGORY_REMINDER)
-                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                // Sin setSilent: Android no asoma encima de otra app una
+                // notificación marcada como silenciosa. El canal ya va mudo.
+                .setVibrate(NO_VIBRATION)
+                .setCategory(NotificationCompat.CATEGORY_ALARM)
+                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+                .setPriority(NotificationCompat.PRIORITY_MAX)
                 .build()
             notifyArrival(notification)
         }
@@ -239,8 +260,22 @@ class ArrivalAlarmService : Service(), LocationListener {
         stopEverything()
     }
 
+    private fun holdAwake() {
+        if (wakeLock?.isHeld == true) return
+        wakeLock = getSystemService<PowerManager>()
+            ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "subo:aviso_llegada")
+            // Caduca solo, por si el servicio muere sin soltarlo.
+            ?.apply { acquire(MAX_WATCH_MS) }
+    }
+
+    private fun releaseAwake() {
+        wakeLock?.takeIf { it.isHeld }?.release()
+        wakeLock = null
+    }
+
     private fun stopEverything() {
         handler.removeCallbacks(giveUp)
+        releaseAwake()
         stopLocationUpdates()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
             stopForeground(STOP_FOREGROUND_REMOVE)
@@ -262,6 +297,7 @@ class ArrivalAlarmService : Service(), LocationListener {
 
     override fun onDestroy() {
         handler.removeCallbacks(giveUp)
+        releaseAwake()
         stopLocationUpdates()
         super.onDestroy()
     }
@@ -344,9 +380,12 @@ class ArrivalAlarmService : Service(), LocationListener {
             .setSmallIcon(R.drawable.ic_arrival_alarm)
             .setContentIntent(openAppIntent())
             .setAutoCancel(true)
-            .setSilent(true)
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            // Sin setSilent: Android no asoma encima de otra app una
+            // notificación marcada como silenciosa. El canal ya va mudo.
+            .setVibrate(NO_VIBRATION)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setPriority(NotificationCompat.PRIORITY_MAX)
             .build()
         notifyArrival(notification)
     }
@@ -420,6 +459,9 @@ class ArrivalAlarmService : Service(), LocationListener {
         private const val EXTRA_NEXT_LONS = "nextLons"
 
         private const val UPDATE_INTERVAL_MS = 5_000L
+
+        /** Antes de Android 8, una notificación solo asoma si dice que vibra, aunque sea nada. */
+        private val NO_VIBRATION = longArrayOf(0L)
 
         /** Lo que dura el tono del aviso, más un respiro: la voz entra después. */
         const val VOICE_AFTER_SOUND_MS = 3_600L
