@@ -7,6 +7,7 @@ import com.google.firebase.messaging.FirebaseMessaging
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.FrequentRoutes
 import com.peru.expresdm.data.RouteUsageStore
+import com.peru.expresdm.data.SavedRoutes
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.data.net.ApiClient
 import com.peru.expresdm.data.net.ApiResult
@@ -22,7 +23,8 @@ import org.json.JSONObject
  * Apunta este teléfono a los avisos al momento, o lo borra, según diga Ajustes.
  *
  * Al servidor se le cuenta lo justo para que sepa a quién avisar: por dónde
- * andaba el teléfono la última vez que se usó la app y qué rutas usa más.
+ * andaba el teléfono la última vez que se usó la app, qué rutas usa más y
+ * cuáles tiene guardadas (de esas se le avisa si cambian, con Premium).
  *
  * Si la app se compiló sin el archivo de Firebase (`app/google-services.json`)
  * no hace nada: los avisos llegan igual, más tarde, por [AlertWatchWorker].
@@ -67,6 +69,7 @@ object PushRegistration {
             val routes = FrequentRoutes.rank(RouteUsageStore.get(context).uses.value)
                 .take(AlertWatchWorker.FAVOURITE_ROUTES)
             body.put("routeIds", JSONArray(routes))
+            body.put("savedRouteIds", JSONArray(SavedRoutes.get(context).ids.value.sorted()))
             ApiClient.post("/api/push/devices", body, AccountRepository.token)
         } else {
             ApiClient.post("/api/push/devices/remove", JSONObject().put("token", token))

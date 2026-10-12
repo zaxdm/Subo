@@ -85,7 +85,6 @@
     <string name="journey_share">Share</string>
     <string name="place_save">Save</string>
     <string name="place_saved">Saved</string>
-    <string name="place_save_full">You already have %1$d saved places: remove one to save another</string>
     <string name="place_removed">Place removed from your favorites</string>
     <string name="place_point">Map point</string>
     <string name="map_attribution">© OpenStreetMap contributors</string>
@@ -540,7 +539,6 @@
     <string name="saved_place_gym">Gym</string>
     <string name="saved_place_other">Other</string>
     <string name="saved_place_add">Add a favorite</string>
-    <string name="saved_place_add_detail">Pin up to %1$d places: home, work, partner…</string>
     <string name="saved_place_kind_title">What place is it?</string>
     <string name="saved_place_manage_hint">Press and hold a favorite to change or remove it</string>
     <string name="saved_place_go">Go to %1$s: %2$s</string>
@@ -570,7 +568,7 @@
     <string name="premium_badge_active">Active</string>
     <string name="premium_includes">WHAT YOU GET</string>
     <string name="premium_benefit_offline">Up to %1$d routes with their map to use without internet</string>
-    <string name="premium_free_note">Trip planning, alerts, the arrival alert and your favorite places stay free.</string>
+    <string name="premium_free_note">Trip planning, alerts, the arrival alert, 1 offline route, 3 favorite places and 5 assistant questions a day stay free.</string>
     <string name="premium_action_request">I want Subo Premium</string>
     <string name="premium_action_requested">Request sent</string>
     <string name="premium_action_sign_in">Sign in</string>
@@ -584,4 +582,47 @@
         <item quantity="one">Free: %1$d offline route · Premium: up to %2$d</item>
         <item quantity="other">Free: %1$d offline routes · Premium: up to %2$d</item>
     </plurals>
+
+    <!-- What Premium adds -->
+    <string name="premium_benefit_route_alerts">Notices when the path, fare or schedule of a route you saved changes</string>
+    <string name="premium_benefit_live">Live trip: whoever you choose sees where you are on a map</string>
+    <string name="premium_benefit_arrival">Arrival alert with a heads-up a few blocks before and the sound you choose</string>
+    <string name="premium_benefit_places">Unlimited favorite places</string>
+    <string name="premium_benefit_assistant">Assistant with no daily question limit</string>
+
+    <string name="saved_place_add_detail_free">Up to %1$d on the free account: home, work, partner…</string>
+    <string name="saved_place_add_detail_premium">Home, work, partner… as many as you like</string>
+    <string name="saved_place_more_premium">More favorites with Premium</string>
+    <string name="saved_place_more_premium_detail">The free account keeps %1$d. With Premium there is no limit.</string>
+
+    <string name="settings_arrival_early">Also warn me a few blocks before · Premium</string>
+    <string name="settings_arrival_tone_premium">Choosing the sound is part of Subo Premium. Without it the bell plays.</string>
+    <string name="arrival_early_title">Almost at %1$s</string>
+    <string name="arrival_early_text">About %1$s to go. Get ready.</string>
+    <string name="arrival_early_voice">About %1$s to %2$s</string>
+
+    <string name="assistant_daily_limit">You have used today\'s questions. With Subo Premium there is no limit.</string>
+
+    <string name="route_change_channel_name">Changes to your routes</string>
+    <string name="route_change_channel_description">Tells you when the path, fare or schedule of a route you saved changes (Subo Premium)</string>
+    <string name="route_change_title">Route %1$s changed</string>
+    <string name="route_change_text">It has %1$s. Tap to see it.</string>
+    <string name="route_change_path">a new path</string>
+    <string name="route_change_fare">a new fare</string>
+    <string name="route_change_schedule">a new schedule</string>
+    <string name="route_change_and">%1$s and %2$s</string>
+
+    <string name="trip_share_message">Send a message</string>
+    <string name="live_trip_start">Share live</string>
+    <string name="live_trip_start_premium">Share live · Premium</string>
+    <string name="live_trip_resend">Send the live link again</string>
+    <string name="live_trip_stop">Stop sharing</string>
+    <string name="live_trip_link">Follow me live: %1$s</string>
+    <string name="live_trip_failed">Could not start sharing. Check your connection and try again.</string>
+    <string name="live_trip_stopped">You stopped sharing your trip</string>
+    <string name="live_trip_needs_location">Sharing live needs the location permission</string>
+    <string name="live_trip_channel_name">Live trip</string>
+    <string name="live_trip_channel_description">Shown while you share where you are</string>
+    <string name="live_trip_notification_title">Sharing your trip live</string>
+    <string name="live_trip_notification_text">You are on %1$s. Whoever has your link sees where you are.</string>
 </resources>

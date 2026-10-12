@@ -30,11 +30,13 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.peru.expresdm.R
 import com.peru.expresdm.data.Place
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.data.RecentPlaceStore
 import com.peru.expresdm.data.SavedPlaceStore
 import com.peru.expresdm.databinding.ItemPlaceBinding
 import com.peru.expresdm.databinding.SheetTripPlannerBinding
 import com.peru.expresdm.ui.SavedPlaceStyle
+import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.ui.formatDistance
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -371,15 +373,26 @@ class TripPlannerSheet : BottomSheetDialogFragment() {
             container.addView(row.root)
         }
 
-        if (favorites.size < SavedPlaceStore.MAX_FAVORITES) {
-            val row = ItemPlaceBinding.inflate(layoutInflater, container, false)
+        val premium = Premium.active
+        val row = ItemPlaceBinding.inflate(layoutInflater, container, false)
+        row.placeDistance.isVisible = false
+        if (favorites.size < Premium.favoritePlacesLimit(premium)) {
             row.placeIcon.setImageResource(R.drawable.ic_add)
             row.placeName.setText(R.string.saved_place_add)
-            row.placeDetail.text = getString(R.string.saved_place_add_detail, SavedPlaceStore.MAX_FAVORITES)
-            row.placeDistance.isVisible = false
+            row.placeDetail.text = if (premium) {
+                getString(R.string.saved_place_add_detail_premium)
+            } else {
+                getString(R.string.saved_place_add_detail_free, Premium.FREE_FAVORITE_PLACES)
+            }
             row.root.setOnClickListener { pickKind(favorites) }
-            container.addView(row.root)
+        } else {
+            // La cuenta gratuita llegó a su tope: lo que sigue es de Premium.
+            row.placeIcon.setImageResource(R.drawable.ic_star)
+            row.placeName.setText(R.string.saved_place_more_premium)
+            row.placeDetail.text = getString(R.string.saved_place_more_premium_detail, Premium.FREE_FAVORITE_PLACES)
+            row.root.setOnClickListener { PremiumSheet.show(parentFragmentManager) }
         }
+        container.addView(row.root)
         if (favorites.isNotEmpty()) {
             val edge = (HINT_EDGE_DP * resources.displayMetrics.density).toInt()
             container.addView(

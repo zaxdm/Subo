@@ -34,8 +34,16 @@ enum class ApiFailure {
 sealed interface ApiResult<out T> {
     data class Success<T>(val data: T) : ApiResult<T>
 
-    /** [message] es el texto que manda el servidor, listo para mostrar. */
-    data class Failure(val reason: ApiFailure, val message: String? = null) : ApiResult<Nothing>
+    /**
+     * [message] es el texto que manda el servidor, listo para mostrar, y [code]
+     * su nombre del error (`limite_asistente`, `solo_premium`…), para cuando la
+     * app tiene que hacer algo distinto según cuál sea.
+     */
+    data class Failure(
+        val reason: ApiFailure,
+        val message: String? = null,
+        val code: String? = null
+    ) : ApiResult<Nothing>
 }
 
 /**
@@ -108,7 +116,7 @@ object ApiClient {
             val code = connection.responseCode
             if (code !in 200..299) {
                 val error = connection.errorStream?.bufferedReader()?.use(BufferedReader::readText)
-                return@withContext ApiResult.Failure(reasonFor(code), messageOf(error))
+                return@withContext ApiResult.Failure(reasonFor(code), fieldOf(error, "message"), fieldOf(error, "error"))
             }
 
             // 204 y otras respuestas sin cuerpo: no hay nada que leer.
@@ -133,7 +141,7 @@ object ApiClient {
         else -> ApiFailure.SERVER
     }
 
-    /** El servidor manda `{"error":..., "message":...}`; nos quedamos con el mensaje. */
-    private fun messageOf(errorBody: String?): String? = errorBody
-        ?.let { runCatching { JSONObject(it).optString("message").takeIf(String::isNotBlank) }.getOrNull() }
+    /** El servidor manda `{"error":..., "message":...}`: el nombre del error y el texto para mostrar. */
+    private fun fieldOf(errorBody: String?, field: String): String? = errorBody
+        ?.let { runCatching { JSONObject(it).optString(field).takeIf(String::isNotBlank) }.getOrNull() }
 }

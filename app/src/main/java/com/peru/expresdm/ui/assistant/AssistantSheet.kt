@@ -21,6 +21,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.peru.expresdm.R
 import com.peru.expresdm.databinding.FragmentAssistantBinding
 import com.peru.expresdm.ui.MapRouteRequests
+import com.peru.expresdm.ui.account.PremiumSheet
 import kotlinx.coroutines.launch
 
 /**
@@ -139,6 +140,15 @@ class AssistantSheet : BottomSheetDialogFragment() {
                         // Las sugerencias solo estorban una vez hay conversación.
                         binding.suggestionsScroll.visibility =
                             if (messages.isEmpty()) View.VISIBLE else View.GONE
+                    }
+                }
+
+                launch {
+                    viewModel.premiumOffer.collect { offered ->
+                        if (offered) {
+                            viewModel.premiumOfferShown()
+                            PremiumSheet.show(parentFragmentManager)
+                        }
                     }
                 }
 

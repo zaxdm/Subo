@@ -16,6 +16,7 @@ import androidx.core.content.getSystemService
 import com.peru.expresdm.R
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.ArrivalTone
+import com.peru.expresdm.data.Premium
 
 /**
  * La vibración y el sonido del aviso de bajada.
@@ -36,6 +37,10 @@ object ArrivalSignal {
     private val VIBRATION_TIMINGS = longArrayOf(0, 600, 200, 600, 200, 900)
     private val VIBRATION_AMPLITUDES = intArrayOf(0, 255, 0, 255, 0, 255)
 
+    /** El preaviso: dos toques cortos, para no confundirlo con el aviso de bajarse. */
+    private val NUDGE_TIMINGS = longArrayOf(0, 250, 150, 250)
+    private val NUDGE_AMPLITUDES = intArrayOf(0, 200, 0, 200)
+
     private val handler = Handler(Looper.getMainLooper())
     private var player: MediaPlayer? = null
     private val stopSound = Runnable {
@@ -45,9 +50,19 @@ object ArrivalSignal {
 
     fun play(context: Context, vibrate: Boolean, sound: Boolean) {
         val appContext = context.applicationContext
-        if (vibrate) vibrate(appContext)
-        if (sound) handler.post { ring(appContext, AppSettings.get(appContext).arrivalSoundChoice) }
+        if (vibrate) vibrate(appContext, VIBRATION_TIMINGS, VIBRATION_AMPLITUDES)
+        if (sound) handler.post { ring(appContext, soundChoice(appContext)) }
     }
+
+    /** La vibración corta del preaviso. */
+    fun nudge(context: Context) = vibrate(context.applicationContext, NUDGE_TIMINGS, NUDGE_AMPLITUDES)
+
+    /**
+     * Con qué suena el aviso. Elegir el sonido es de Premium: sin él suena el
+     * de siempre, aunque quede guardada otra elección de cuando lo tuvo.
+     */
+    fun soundChoice(context: Context): String =
+        if (Premium.active) AppSettings.get(context).arrivalSoundChoice else ArrivalTone.DEFAULT.key
 
     /** Corta el sonido que esté sonando, si hay alguno. */
     fun stop() {
@@ -55,7 +70,7 @@ object ArrivalSignal {
         handler.post(stopSound)
     }
 
-    private fun vibrate(context: Context) {
+    private fun vibrate(context: Context, timings: LongArray, amplitudes: IntArray) {
         val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             context.getSystemService<VibratorManager>()?.defaultVibrator
         } else {
@@ -64,10 +79,10 @@ object ArrivalSignal {
         if (vibrator == null || !vibrator.hasVibrator()) return
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            vibrator.vibrate(VibrationEffect.createWaveform(VIBRATION_TIMINGS, VIBRATION_AMPLITUDES, -1))
+            vibrator.vibrate(VibrationEffect.createWaveform(timings, amplitudes, -1))
         } else {
             @Suppress("DEPRECATION")
-            vibrator.vibrate(VIBRATION_TIMINGS, -1)
+            vibrator.vibrate(timings, -1)
         }
     }
 

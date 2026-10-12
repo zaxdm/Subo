@@ -83,7 +83,6 @@
     <string name="journey_share">Compartir</string>
     <string name="place_save">Guardar</string>
     <string name="place_saved">Guardado</string>
-    <string name="place_save_full">Ya tienes %1$d lugares guardados: quita uno para guardar otro</string>
     <string name="place_removed">Lugar quitado de tus favoritos</string>
     <string name="place_point">Punto del mapa</string>
     <string name="map_attribution">© OpenStreetMap contributors</string>
@@ -538,7 +537,6 @@
     <string name="saved_place_gym">Gimnasio</string>
     <string name="saved_place_other">Otro</string>
     <string name="saved_place_add">Añadir favorito</string>
-    <string name="saved_place_add_detail">Destaca hasta %1$d lugares: casa, trabajo, pareja…</string>
     <string name="saved_place_kind_title">¿Qué lugar es?</string>
     <string name="saved_place_manage_hint">Mantén presionado un favorito para cambiarlo o quitarlo</string>
     <string name="saved_place_go">Ir a %1$s: %2$s</string>
@@ -568,7 +566,7 @@
     <string name="premium_badge_active">Activo</string>
     <string name="premium_includes">LO QUE TRAE DE MÁS</string>
     <string name="premium_benefit_offline">Hasta %1$d rutas con su mapa para verlas sin internet</string>
-    <string name="premium_free_note">Buscar cómo llegar, las alertas, el aviso de llegada y tus lugares favoritos siguen siendo gratis.</string>
+    <string name="premium_free_note">Buscar cómo llegar, las alertas, el aviso de llegada, 1 ruta sin internet, 3 lugares favoritos y 5 preguntas al día al asistente siguen siendo gratis.</string>
     <string name="premium_action_request">Quiero Subo Premium</string>
     <string name="premium_action_requested">Solicitud enviada</string>
     <string name="premium_action_sign_in">Iniciar sesión</string>
@@ -582,4 +580,47 @@
         <item quantity="one">Gratis: %1$d ruta sin conexión · Premium: hasta %2$d</item>
         <item quantity="other">Gratis: %1$d rutas sin conexión · Premium: hasta %2$d</item>
     </plurals>
+
+    <!-- Lo que trae Premium -->
+    <string name="premium_benefit_route_alerts">Avisos cuando cambia el recorrido, el pasaje o el horario de una ruta que guardaste</string>
+    <string name="premium_benefit_live">Viaje en vivo: quien tú elijas ve en un mapa por dónde vas</string>
+    <string name="premium_benefit_arrival">Aviso de llegada con preaviso unas cuadras antes y el sonido que elijas</string>
+    <string name="premium_benefit_places">Lugares favoritos sin límite</string>
+    <string name="premium_benefit_assistant">Asistente sin tope de preguntas al día</string>
+
+    <string name="saved_place_add_detail_free">Hasta %1$d con la cuenta gratuita: casa, trabajo, pareja…</string>
+    <string name="saved_place_add_detail_premium">Casa, trabajo, pareja… todos los que quieras</string>
+    <string name="saved_place_more_premium">Más favoritos con Premium</string>
+    <string name="saved_place_more_premium_detail">La cuenta gratuita guarda %1$d. Con Premium no hay límite.</string>
+
+    <string name="settings_arrival_early">Avisar también unas cuadras antes · Premium</string>
+    <string name="settings_arrival_tone_premium">Elegir el sonido es parte de Subo Premium. Sin él suena la campana.</string>
+    <string name="arrival_early_title">Ya falta poco para %1$s</string>
+    <string name="arrival_early_text">Quedan unos %1$s. Ve preparándote.</string>
+    <string name="arrival_early_voice">Quedan unos %1$s para %2$s</string>
+
+    <string name="assistant_daily_limit">Ya hiciste tus preguntas de hoy. Con Subo Premium no hay tope.</string>
+
+    <string name="route_change_channel_name">Cambios en tus rutas</string>
+    <string name="route_change_channel_description">Avisa cuando cambia el recorrido, el pasaje o el horario de una ruta que guardaste (Subo Premium)</string>
+    <string name="route_change_title">Cambió la ruta %1$s</string>
+    <string name="route_change_text">Tiene %1$s. Toca para verla.</string>
+    <string name="route_change_path">nuevo recorrido</string>
+    <string name="route_change_fare">nuevo pasaje</string>
+    <string name="route_change_schedule">nuevo horario</string>
+    <string name="route_change_and">%1$s y %2$s</string>
+
+    <string name="trip_share_message">Enviar un mensaje</string>
+    <string name="live_trip_start">Compartir en vivo</string>
+    <string name="live_trip_start_premium">Compartir en vivo · Premium</string>
+    <string name="live_trip_resend">Volver a enviar el enlace en vivo</string>
+    <string name="live_trip_stop">Dejar de compartir</string>
+    <string name="live_trip_link">Sígueme en vivo: %1$s</string>
+    <string name="live_trip_failed">No se pudo empezar a compartir. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="live_trip_stopped">Dejaste de compartir tu viaje</string>
+    <string name="live_trip_needs_location">Para compartir en vivo hace falta el permiso de ubicación</string>
+    <string name="live_trip_channel_name">Viaje en vivo</string>
+    <string name="live_trip_channel_description">Se ve mientras compartes por dónde vas</string>
+    <string name="live_trip_notification_title">Compartiendo tu viaje en vivo</string>
+    <string name="live_trip_notification_text">Vas en %1$s. Quien tiene tu enlace ve por dónde vas.</string>
 </resources>

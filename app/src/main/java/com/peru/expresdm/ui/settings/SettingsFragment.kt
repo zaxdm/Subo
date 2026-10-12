@@ -24,6 +24,7 @@ import com.peru.expresdm.data.AppLanguage
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.ArrivalTone
 import com.peru.expresdm.data.CustomSound
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.data.ThemeMode
 import com.peru.expresdm.databinding.FragmentSettingsBinding
 import com.peru.expresdm.tracking.AlertWatchWorker
@@ -32,6 +33,7 @@ import com.peru.expresdm.tracking.ArrivalSignal
 import com.peru.expresdm.tracking.ArrivalVoice
 import com.peru.expresdm.tracking.PushRegistration
 import com.peru.expresdm.ui.AlertStyle
+import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.ui.themeColor
 
 /**
@@ -102,6 +104,20 @@ class SettingsFragment : Fragment() {
             settings.arrivalVoice = checked
         }
 
+        // El preaviso es de Premium: sin él la casilla no se queda marcada y se
+        // enseña qué es.
+        binding.arrivalEarly.setOnCheckedChangeListener { button, checked ->
+            if (bindingSelection) return@setOnCheckedChangeListener
+            if (checked && !Premium.active) {
+                bindingSelection = true
+                button.isChecked = false
+                bindingSelection = false
+                PremiumSheet.show(childFragmentManager)
+            } else {
+                settings.arrivalEarlyWarning = checked
+            }
+        }
+
         binding.alertNotifications.setOnCheckedChangeListener { _, checked ->
             if (bindingSelection) return@setOnCheckedChangeListener
             settings.alertNotifications = checked
@@ -117,12 +133,20 @@ class SettingsFragment : Fragment() {
         binding.arrivalToneGroup.setOnCheckedChangeListener { group, checkedId ->
             if (bindingSelection) return@setOnCheckedChangeListener
             val choice = group.findViewById<View>(checkedId)?.tag as? String ?: return@setOnCheckedChangeListener
+            // Elegir el sonido es de Premium: sin él se queda el de siempre.
+            if (!Premium.active && choice != ArrivalTone.DEFAULT.key) {
+                renderTones()
+                PremiumSheet.show(childFragmentManager)
+                return@setOnCheckedChangeListener
+            }
             settings.arrivalSoundChoice = choice
             // Se oye al elegirlo: nadie escoge un sonido por el nombre.
             ArrivalSignal.play(requireContext(), vibrate = false, sound = true)
         }
         binding.btnAddSound.setOnClickListener {
-            if (settings.customSounds.size >= AppSettings.MAX_CUSTOM_SOUNDS) {
+            if (!Premium.active) {
+                PremiumSheet.show(childFragmentManager)
+            } else if (settings.customSounds.size >= AppSettings.MAX_CUSTOM_SOUNDS) {
                 showMessage(getString(R.string.settings_arrival_tone_limit, AppSettings.MAX_CUSTOM_SOUNDS))
             } else {
                 pickSound.launch(arrayOf("audio/*"))
@@ -163,6 +187,7 @@ class SettingsFragment : Fragment() {
         binding.arrivalVibration.isChecked = settings.arrivalVibration
         binding.arrivalSound.isChecked = settings.arrivalSound
         binding.arrivalVoice.isChecked = settings.arrivalVoice
+        binding.arrivalEarly.isChecked = settings.arrivalEarlyWarning && Premium.active
         binding.alertNotifications.isChecked = settings.alertNotifications
 
         binding.themeGroup.check(
@@ -204,7 +229,7 @@ class SettingsFragment : Fragment() {
     /** Los tonos de la app y, debajo, los que añadió el usuario. */
     private fun renderTones() {
         val custom = settings.customSounds
-        val selected = settings.arrivalSoundChoice
+        val selected = ArrivalSignal.soundChoice(requireContext())
         val options = ArrivalTone.entries.map { it.key to getString(labelOf(it)) } +
             custom.map { it.uri to it.name }
 
@@ -231,6 +256,7 @@ class SettingsFragment : Fragment() {
         bindingSelection = false
 
         binding.customSoundsNote.isVisible = custom.isNotEmpty()
+        binding.tonePremiumNote.isVisible = !Premium.active
     }
 
     private fun addCustomSound(uri: Uri) {

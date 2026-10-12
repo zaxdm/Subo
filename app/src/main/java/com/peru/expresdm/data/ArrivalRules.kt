@@ -16,6 +16,9 @@ object ArrivalRules {
     /** Lecturas con más error que esto no bastan para decidir que ya llegó... */
     const val MAX_ACCURACY_METERS = 100f
 
+    /** Unas diez cuadras antes: ahí salta el preaviso de Premium. */
+    const val EARLY_WARNING_METERS = 1_000.0
+
     enum class Reading {
         /** Está llegando: toca avisar. */
         ARRIVED,
@@ -42,4 +45,15 @@ object ArrivalRules {
             else -> Reading.APPROACHING
         }
     }
+
+    /**
+     * Toca el preaviso: ya está a unas cuadras, pero todavía no llega.
+     * [cameFromFar] dice si antes se le vio más lejos: a quien activa el aviso
+     * estando ya así de cerca no hay nada que anticiparle.
+     */
+    fun isEarlyWarning(
+        distanceMeters: Double,
+        cameFromFar: Boolean,
+        radiusMeters: Double = ARRIVAL_RADIUS_METERS
+    ): Boolean = cameFromFar && distanceMeters <= EARLY_WARNING_METERS && distanceMeters > radiusMeters
 }

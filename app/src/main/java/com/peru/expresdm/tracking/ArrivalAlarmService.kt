@@ -28,6 +28,7 @@ import com.peru.expresdm.R
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.ArrivalRules
 import com.peru.expresdm.data.NearbyRoutes
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.ui.formatDistance
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -69,6 +70,10 @@ class ArrivalAlarmService : Service(), LocationListener {
     private val handler = Handler(Looper.getMainLooper())
     private var lastNotifiedDistance: Double? = null
 
+    /** Se le vio lejos de la parada: a partir de ahí tiene sentido el preaviso. */
+    private var cameFromFar = false
+    private var earlyWarned = false
+
     private val giveUp = Runnable {
         Log.i(TAG, "Aviso de llegada caducado sin llegar a la parada")
         _state.value = ArrivalState()
@@ -108,6 +113,8 @@ class ArrivalAlarmService : Service(), LocationListener {
         stopLocationUpdates()
         _state.value = ArrivalState(target = target)
         lastNotifiedDistance = null
+        cameFromFar = false
+        earlyWarned = false
 
         try {
             // Aquí sirven también las lecturas de la red: basta con saber que se
@@ -139,6 +146,12 @@ class ArrivalAlarmService : Service(), LocationListener {
             ArrivalRules.Reading.IMPRECISE -> Unit
             ArrivalRules.Reading.APPROACHING -> {
                 _state.value = _state.value.copy(distanceMeters = distance)
+                if (distance > ArrivalRules.EARLY_WARNING_METERS) {
+                    cameFromFar = true
+                } else if (!earlyWarned && ArrivalRules.isEarlyWarning(distance, cameFromFar, radius)) {
+                    earlyWarned = true
+                    warnEarly(target, distance)
+                }
                 val last = lastNotifiedDistance
                 // La notificación fija se actualiza cada tanto, no con cada lectura.
                 if (last == null || abs(last - distance) >= NOTIFICATION_STEP_METERS) {
@@ -156,6 +169,34 @@ class ArrivalAlarmService : Service(), LocationListener {
     override fun onProviderEnabled(provider: String) = Unit
 
     override fun onProviderDisabled(provider: String) = Unit
+
+    /**
+     * El preaviso de Premium: unas cuadras antes, un toque corto para ir
+     * guardando el teléfono. El aviso de verdad llega después, como siempre.
+     */
+    private fun warnEarly(target: ArrivalTarget, distanceMeters: Double) {
+        val settings = AppSettings.get(this)
+        if (!settings.arrivalEarlyWarning || !Premium.active) return
+
+        val distance = formatDistance(distanceMeters)
+        if (canPostNotifications()) {
+            val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
+                .setContentTitle(getString(R.string.arrival_early_title, target.stopName))
+                .setContentText(getString(R.string.arrival_early_text, distance))
+                .setSmallIcon(R.drawable.ic_arrival_alarm)
+                .setContentIntent(openAppIntent())
+                .setAutoCancel(true)
+                .setSilent(true)
+                .setCategory(NotificationCompat.CATEGORY_REMINDER)
+                .setPriority(NotificationCompat.PRIORITY_HIGH)
+                .build()
+            notifyArrival(notification)
+        }
+        if (settings.arrivalVibration) ArrivalSignal.nudge(this)
+        if (settings.arrivalVoice) {
+            ArrivalVoice.speak(this, getString(R.string.arrival_early_voice, distance, target.stopName), delayMs = 0)
+        }
+    }
 
     private fun arrive(target: ArrivalTarget) {
         stopLocationUpdates()
@@ -265,13 +306,14 @@ class ArrivalAlarmService : Service(), LocationListener {
             .build()
     }
 
+    private fun canPostNotifications(): Boolean =
+        Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+
     private fun postArrivalNotification(target: ArrivalTarget) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) {
-            // Sin permiso solo queda el aviso dentro de la app, si está abierta.
-            return
-        }
+        // Sin permiso solo queda el aviso dentro de la app, si está abierta.
+        if (!canPostNotifications()) return
         val notification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
             .setContentTitle(getString(R.string.arrival_notification_title, target.stopName))
             .setContentText(getString(R.string.arrival_notification_text, target.routeName))
@@ -282,7 +324,15 @@ class ArrivalAlarmService : Service(), LocationListener {
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .build()
-        NotificationManagerCompat.from(this).notify(ARRIVAL_NOTIFICATION_ID, notification)
+        notifyArrival(notification)
+    }
+
+    private fun notifyArrival(notification: Notification) {
+        try {
+            NotificationManagerCompat.from(this).notify(ARRIVAL_NOTIFICATION_ID, notification)
+        } catch (_: SecurityException) {
+            // El permiso se quitó entre la comprobación y el aviso: queda el de dentro de la app.
+        }
     }
 
     private fun startForegroundCompat(notification: Notification) {

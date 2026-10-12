@@ -13,6 +13,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
 import com.peru.expresdm.data.RouteRepository
+import com.peru.expresdm.data.SavedRoutes
 import com.peru.expresdm.data.SharedLink
 import com.peru.expresdm.data.net.AccountRepository
 import com.peru.expresdm.databinding.ActivityMainBinding
@@ -65,6 +66,12 @@ class MainActivity : AppCompatActivity() {
         // teléfono: así no le avisa a alguien de su propia alerta.
         lifecycleScope.launch {
             AccountRepository.session.map { it?.token }.distinctUntilChanged().drop(1)
+                .collect { PushRegistration.sync(this@MainActivity) }
+        }
+
+        // Y sabe qué rutas tiene guardadas, para avisarle si cambian.
+        lifecycleScope.launch {
+            SavedRoutes.get(this@MainActivity).ids.drop(1)
                 .collect { PushRegistration.sync(this@MainActivity) }
         }
     }

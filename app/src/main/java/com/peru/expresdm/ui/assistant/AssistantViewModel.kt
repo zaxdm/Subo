@@ -39,6 +39,15 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     private val _isThinking = MutableStateFlow(false)
     val isThinking: StateFlow<Boolean> = _isThinking.asStateFlow()
 
+    private val _premiumOffer = MutableStateFlow(false)
+
+    /** Se acabaron las preguntas del día: toca enseñar lo que da Premium. */
+    val premiumOffer: StateFlow<Boolean> = _premiumOffer.asStateFlow()
+
+    fun premiumOfferShown() {
+        _premiumOffer.value = false
+    }
+
     /** Con servidor, la clave de Gemini está allí; sin él, tiene que estar en la app. */
     val isAssistantAvailable: Boolean get() = ApiClient.isConfigured || GeminiClient.isConfigured
 
@@ -71,6 +80,17 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
                     fromUser = false,
                     isError = true
                 )
+
+                is AssistantResult.LimitReached -> {
+                    _premiumOffer.value = true
+                    ChatMessage(
+                        id = nextId++,
+                        text = result.message
+                            ?: getApplication<Application>().getString(R.string.assistant_daily_limit),
+                        fromUser = false,
+                        isError = true
+                    )
+                }
 
                 // Con servidor, el asistente gasta su cuota de IA: hace falta cuenta.
                 AssistantResult.NeedsAccount -> ChatMessage(

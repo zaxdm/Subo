@@ -65,6 +65,10 @@ import com.peru.expresdm.data.RoadAlert
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.SavedPlaceStore
 import com.peru.expresdm.data.net.AccountRepository
+import com.peru.expresdm.data.net.ApiClient
+import com.peru.expresdm.data.net.ApiResult
+import com.peru.expresdm.data.Premium
+import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.data.SharedLink
 import com.peru.expresdm.data.Stop
 import com.peru.expresdm.data.StreetRouter
@@ -74,6 +78,8 @@ import com.peru.expresdm.databinding.ItemRouteStopBinding
 import com.peru.expresdm.tracking.ArrivalAlarmService
 import com.peru.expresdm.tracking.ArrivalState
 import com.peru.expresdm.tracking.ArrivalTarget
+import com.peru.expresdm.tracking.LiveTrip
+import com.peru.expresdm.tracking.LiveTripService
 import com.peru.expresdm.tracking.RecorderState
 import com.peru.expresdm.tracking.RecorderStatus
 import com.peru.expresdm.tracking.RouteRecorderService
@@ -267,6 +273,24 @@ class RoutesFragment : Fragment() {
         startLocationUpdates()
         refreshLocationAccess()
         startArrival(target)
+    }
+
+    /** El viaje que se quiere compartir en vivo mientras se piden los permisos. */
+    private var pendingLiveTrip: TripShare? = null
+
+    private val requestLivePermissions = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) {
+        val share = pendingLiveTrip ?: return@registerForActivityResult
+        pendingLiveTrip = null
+        val context = context ?: return@registerForActivityResult
+        if (!context.hasAnyLocationPermission()) {
+            showLongMessage(getString(R.string.live_trip_needs_location))
+            return@registerForActivityResult
+        }
+        startLocationUpdates()
+        refreshLocationAccess()
+        startLiveTrip(share)
     }
 
     override fun onCreateView(
@@ -1128,16 +1152,121 @@ class RoutesFragment : Fragment() {
             target != null -> getString(R.string.trip_share_stop, route.name, target.stopName)
             else -> getString(R.string.trip_share_riding, route.name, route.subtitle)
         }
-        sendTrip(text, route.id)
+        offerShare(TripShare(text, route.id, route.name, target?.stopName, target?.latitude, target?.longitude))
+    }
+
+    /** Lo que se comparte de un viaje: el mensaje y, para el vivo, el micro y dónde se baja. */
+    private data class TripShare(
+        val text: String,
+        val routeId: String,
+        val routeName: String,
+        val stopName: String? = null,
+        val stopLatitude: Double? = null,
+        val stopLongitude: Double? = null
+    )
+
+    /**
+     * Pregunta cómo compartir: el mensaje de siempre o el viaje en vivo, con un
+     * enlace en el que se ve por dónde va (Premium). Con un viaje ya en vivo se
+     * ofrece reenviar su enlace o dejar de compartirlo.
+     */
+    private fun offerShare(share: TripShare) {
+        // Sin servidor o sin web no hay dónde ver el viaje: queda el mensaje.
+        if (!ApiClient.isConfigured || SharedLink.forTrip("x") == null) {
+            sendTrip(share.text, share.routeId)
+            return
+        }
+        val live = LiveTripService.state.value
+        val options: List<Pair<Int, () -> Unit>> = if (live != null) {
+            listOf(
+                R.string.live_trip_resend to { sendLiveLink(share.text, live.id) },
+                R.string.trip_share_message to { sendTrip(share.text, share.routeId) },
+                R.string.live_trip_stop to { stopLiveTrip() }
+            )
+        } else {
+            listOf(
+                R.string.trip_share_message to { sendTrip(share.text, share.routeId) },
+                (if (Premium.active) R.string.live_trip_start else R.string.live_trip_start_premium) to
+                    { requestLiveTrip(share) }
+            )
+        }
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.trip_share)
+            .setItems(options.map { getString(it.first) }.toTypedArray()) { _, which -> options[which].second() }
+            .show()
+    }
+
+    /** Comprueba que se puede compartir en vivo (Premium, ubicación) y lo empieza. */
+    private fun requestLiveTrip(share: TripShare) {
+        val context = context ?: return
+        if (!Premium.active) {
+            PremiumSheet.show(childFragmentManager)
+            return
+        }
+        if (!context.isLocationEnabled()) {
+            showLongMessage(getString(R.string.arrival_location_off))
+            startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+            return
+        }
+        val missing = buildList {
+            if (!context.hasAnyLocationPermission()) {
+                add(Manifest.permission.ACCESS_FINE_LOCATION)
+                add(Manifest.permission.ACCESS_COARSE_LOCATION)
+            }
+            // Sin notificaciones no se vería que se está compartiendo.
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) {
+                add(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        }
+        if (missing.isEmpty()) {
+            startLiveTrip(share)
+        } else {
+            pendingLiveTrip = share
+            requestLivePermissions.launch(missing.toTypedArray())
+        }
+    }
+
+    private fun startLiveTrip(share: TripShare) {
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = LiveTripService.create(share.routeId, share.stopName, share.stopLatitude, share.stopLongitude)
+            val context = context ?: return@launch
+            when (result) {
+                is ApiResult.Success -> {
+                    val trip = LiveTrip(result.data, share.routeName, share.stopLatitude, share.stopLongitude)
+                    val started = runCatching { LiveTripService.start(context.applicationContext, trip) }.isSuccess
+                    if (started) sendLiveLink(share.text, trip.id) else showLongMessage(getString(R.string.live_trip_failed))
+                }
+                // El motivo que da el servidor ya viene listo para mostrar.
+                is ApiResult.Failure -> showLongMessage(
+                    result.message?.takeIf { result.code != null } ?: getString(R.string.live_trip_failed)
+                )
+            }
+        }
+    }
+
+    private fun stopLiveTrip() {
+        val context = context ?: return
+        LiveTripService.stop(context.applicationContext)
+        showMessage(getString(R.string.live_trip_stopped))
     }
 
     /** Manda [text] con el enlace al recorrido de [routeId] y la firma de la app. */
-    private fun sendTrip(text: String, routeId: String) {
-        val message = listOfNotNull(
-            text,
-            SharedLink.forRoute(routeId)?.let { getString(R.string.trip_share_link, it) },
-            getString(R.string.trip_share_footer)
-        ).joinToString("\n")
+    private fun sendTrip(text: String, routeId: String) = sendMessage(
+        text,
+        SharedLink.forRoute(routeId)?.let { getString(R.string.trip_share_link, it) }
+    )
+
+    /** Manda [text] con el enlace en el que se ve el viaje en vivo. */
+    private fun sendLiveLink(text: String, tripId: String) = sendMessage(
+        text,
+        SharedLink.forTrip(tripId)?.let { getString(R.string.live_trip_link, it) }
+    )
+
+    private fun sendMessage(text: String, link: String?) {
+        val message = listOfNotNull(text, link, getString(R.string.trip_share_footer)).joinToString("\n")
 
         val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, message)
         try {
@@ -1254,14 +1383,21 @@ class RoutesFragment : Fragment() {
         val journey = state.chosenJourney ?: return
         val rides = journey.rides
         if (rides.isEmpty()) return
-        sendTrip(
-            getString(
-                R.string.trip_share_arriving,
-                rides.joinToString(" + ") { it.route.name },
-                exitName(rides.last(), state),
-                journey.totalMinutes
-            ),
-            rides.first().route.id
+        val exit = rides.last()
+        offerShare(
+            TripShare(
+                text = getString(
+                    R.string.trip_share_arriving,
+                    rides.joinToString(" + ") { it.route.name },
+                    exitName(exit, state),
+                    journey.totalMinutes
+                ),
+                routeId = rides.first().route.id,
+                routeName = rides.joinToString(" + ") { it.route.name },
+                stopName = exitName(exit, state),
+                stopLatitude = exit.to.latitude,
+                stopLongitude = exit.to.longitude
+            )
         )
     }
 
@@ -1289,8 +1425,9 @@ class RoutesFragment : Fragment() {
                 .show()
             return
         }
-        if (favorites.size >= SavedPlaceStore.MAX_FAVORITES) {
-            showLongMessage(getString(R.string.place_save_full, SavedPlaceStore.MAX_FAVORITES))
+        if (!store.hasRoom) {
+            // Solo la cuenta gratuita tiene tope: lo que sigue es de Premium.
+            PremiumSheet.show(childFragmentManager)
             return
         }
         SavedPlaceStyle.pickKind(context, favorites) { kind -> savePlace(kind, place) }

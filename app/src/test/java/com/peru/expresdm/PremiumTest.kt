@@ -32,4 +32,10 @@ class PremiumTest {
         assertEquals(Premium.PREMIUM_SAVED_ROUTES, Premium.savedRoutesLimit(premium = true))
         assertTrue(Premium.FREE_SAVED_ROUTES < Premium.PREMIUM_SAVED_ROUTES)
     }
+
+    @Test
+    fun `la cuenta gratuita tiene pocos lugares favoritos y la premium no tiene tope`() {
+        assertEquals(Premium.FREE_FAVORITE_PLACES, Premium.favoritePlacesLimit(premium = false))
+        assertEquals(Int.MAX_VALUE, Premium.favoritePlacesLimit(premium = true))
+    }
 }

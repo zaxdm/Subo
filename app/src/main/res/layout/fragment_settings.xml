@@ -108,6 +108,11 @@
                         android:id="@+id/arrivalVoice"
                         style="@style/Widget.Expresdm.Check"
                         android:text="@string/settings_arrival_voice" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/arrivalEarly"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_arrival_early" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
@@ -157,6 +162,16 @@
                         app:icon="@drawable/ic_add" />
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:id="@+id/tonePremiumNote"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_arrival_tone_premium"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp"
+                android:visibility="gone" />
 
             <TextView
                 android:id="@+id/customSoundsNote"

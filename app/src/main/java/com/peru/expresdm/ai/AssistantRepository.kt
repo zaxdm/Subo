@@ -23,6 +23,9 @@ sealed interface AssistantResult {
 
     /** Hay servidor, pero hace falta una cuenta para gastar su cuota de IA. */
     data object NeedsAccount : AssistantResult
+
+    /** La cuenta gratuita ya hizo sus preguntas de hoy; [message] lo explica. */
+    data class LimitReached(val message: String?) : AssistantResult
 }
 
 /**
@@ -36,6 +39,9 @@ sealed interface AssistantResult {
  * catálogo: si no existe, se ignora y nunca se muestra una ruta inventada.
  */
 object AssistantRepository {
+
+    /** El error con el que el servidor dice que se acabaron las preguntas del día. */
+    private const val DAILY_LIMIT_CODE = "limite_asistente"
 
     private const val SYSTEM_INSTRUCTION = """
 Eres el asistente de Subo, una app de transporte público de Trujillo, Perú.
@@ -109,7 +115,13 @@ Reglas:
             is ApiResult.Failure -> when (result.reason) {
                 ApiFailure.UNAUTHORIZED -> AssistantResult.NeedsAccount
                 ApiFailure.NETWORK, ApiFailure.NOT_CONFIGURED -> AssistantResult.Failure(GeminiResult.Reason.NETWORK)
-                ApiFailure.REJECTED -> AssistantResult.Failure(GeminiResult.Reason.MALFORMED)
+                // El único rechazo con nombre propio: se acabaron las preguntas de hoy.
+                ApiFailure.REJECTED ->
+                    if (result.code == DAILY_LIMIT_CODE) {
+                        AssistantResult.LimitReached(result.message)
+                    } else {
+                        AssistantResult.Failure(GeminiResult.Reason.MALFORMED)
+                    }
                 ApiFailure.SERVER -> AssistantResult.Failure(GeminiResult.Reason.SERVER)
             }
         }

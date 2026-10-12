@@ -10,10 +10,10 @@ import org.json.JSONObject
 
 /**
  * Los destinos favoritos —casa, trabajo, la pareja…—, para ir a ellos con un
- * toque en lugar de buscarlos cada vez. Son pocos a propósito: los de todos
- * los días.
+ * toque en lugar de buscarlos cada vez.
  *
- * Se guardan en el teléfono y no salen de él.
+ * Se guardan en el teléfono y no salen de él. Cuántos caben depende de la
+ * cuenta: ver [Premium].
  */
 class SavedPlaceStore private constructor(context: Context) {
 
@@ -29,18 +29,27 @@ class SavedPlaceStore private constructor(context: Context) {
     /** Los favoritos, en el orden en que se añadieron. */
     val favorites: StateFlow<List<Favorite>> = _favorites.asStateFlow()
 
+    /** Cuántos puede tener la cuenta que está usando la app. */
+    val limit: Int get() = Premium.favoritePlacesLimit()
+
+    /**
+     * Queda sitio para otro. Quien tenía más que su tope (dejó de ser Premium)
+     * los conserva, pero no puede añadir.
+     */
+    val hasRoom: Boolean get() = _favorites.value.size < limit
+
     /**
      * Guarda [place] como [kind]. Con [replacing] ocupa el sitio de ese
      * favorito; sin él se añade al final, si queda hueco.
      *
-     * @return `false` si ya hay [MAX_FAVORITES] y no se reemplaza ninguno.
+     * @return `false` si no queda sitio y no se reemplaza ninguno.
      */
     fun save(kind: Kind, place: Place, replacing: Favorite? = null): Boolean {
         val current = _favorites.value
         val index = current.indexOf(replacing)
         val next = when {
             index >= 0 -> current.toMutableList().apply { set(index, Favorite(kind, place)) }
-            current.size < MAX_FAVORITES -> current + Favorite(kind, place)
+            hasRoom -> current + Favorite(kind, place)
             else -> return false
         }
         store(next)
@@ -71,7 +80,7 @@ class SavedPlaceStore private constructor(context: Context) {
                         longitude = item.getDouble("longitude")
                     )
                 )
-            }.take(MAX_FAVORITES)
+            }
         } catch (_: JSONException) {
             emptyList()
         }
@@ -91,12 +100,6 @@ class SavedPlaceStore private constructor(context: Context) {
     }.toString()
 
     companion object {
-        /**
-         * Más que estos dejan de ser "los de siempre" y vuelven a ser una lista
-         * que recorrer. Caben los de todos los días y algunos puntos del mapa.
-         */
-        const val MAX_FAVORITES = 8
-
         private const val PREFS_NAME = "saved_places"
         private const val KEY_FAVORITES = "favorites"
 

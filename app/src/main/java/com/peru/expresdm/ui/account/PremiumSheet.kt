@@ -148,7 +148,14 @@ class PremiumSheet : BottomSheetDialogFragment() {
         private const val STATE_REQUESTED = "requested"
 
         /** Solo lo que ya funciona: no se promete lo que aún no existe. */
-        private val BENEFITS = listOf(R.string.premium_benefit_offline)
+        private val BENEFITS = listOf(
+            R.string.premium_benefit_offline,
+            R.string.premium_benefit_route_alerts,
+            R.string.premium_benefit_live,
+            R.string.premium_benefit_arrival,
+            R.string.premium_benefit_places,
+            R.string.premium_benefit_assistant
+        )
 
         fun show(manager: FragmentManager) {
             if (manager.findFragmentByTag(TAG) == null) PremiumSheet().show(manager, TAG)

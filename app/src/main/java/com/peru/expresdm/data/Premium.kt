@@ -18,6 +18,9 @@ object Premium {
     /** Las que guarda una cuenta Premium. */
     const val PREMIUM_SAVED_ROUTES = SavedRoutes.MAX_SAVED
 
+    /** Lugares favoritos de una cuenta gratuita; con Premium no hay tope. */
+    const val FREE_FAVORITE_PLACES = 3
+
     fun isActive(session: Session?, now: Long = System.currentTimeMillis()): Boolean =
         (session?.premiumUntil ?: 0L) > now
 
@@ -27,4 +30,8 @@ object Premium {
     /** Cuántas rutas puede guardar sin conexión esa cuenta. */
     fun savedRoutesLimit(premium: Boolean = active): Int =
         if (premium) PREMIUM_SAVED_ROUTES else FREE_SAVED_ROUTES
+
+    /** Cuántos lugares favoritos puede tener esa cuenta. */
+    fun favoritePlacesLimit(premium: Boolean = active): Int =
+        if (premium) Int.MAX_VALUE else FREE_FAVORITE_PLACES
 }

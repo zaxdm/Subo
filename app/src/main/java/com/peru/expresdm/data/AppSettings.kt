@@ -110,6 +110,11 @@ class AppSettings private constructor(context: Context) {
             prefs.edit().putString(KEY_CUSTOM_SOUNDS, array.toString()).apply()
         }
 
+    /** Avisar también unas cuadras antes de la parada. Solo tiene efecto con Premium. */
+    var arrivalEarlyWarning: Boolean
+        get() = prefs.getBoolean(KEY_ARRIVAL_EARLY, true)
+        set(value) = prefs.edit().putBoolean(KEY_ARRIVAL_EARLY, value).apply()
+
     /** Avisar con una notificación cuando alguien reporta algo cerca o en una ruta que el usuario usa. */
     var alertNotifications: Boolean
         get() = prefs.getBoolean(KEY_ALERT_NOTIFICATIONS, true)
@@ -172,6 +177,7 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_CUSTOM_SOUNDS = "custom_sounds"
         private const val KEY_ALERT_NOTIFICATIONS = "alert_notifications"
         private const val KEY_ARRIVAL_VOICE = "arrival_voice"
+        private const val KEY_ARRIVAL_EARLY = "arrival_early"
 
         /** Más que esto ya no es una lista para elegir de un vistazo. */
         const val MAX_CUSTOM_SOUNDS = 10

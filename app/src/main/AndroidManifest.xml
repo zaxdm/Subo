@@ -80,6 +80,12 @@
             android:exported="false"
             android:foregroundServiceType="location" />
 
+        <!-- Viaje en vivo: manda por dónde va mientras el usuario lo comparte. -->
+        <service
+            android:name=".tracking.LiveTripService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
+
         <!--
           Permite que AppCompat recuerde el idioma elegido en Android 12 y
           anteriores. En Android 13+ lo guarda el propio sistema.
