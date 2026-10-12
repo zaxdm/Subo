@@ -226,6 +226,64 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!--
+          La voz en el mapa: la esfera en pequeño y lo que se escucha o se dice.
+          Solo aparece mientras se habla con Subo.
+        -->
+        <com.google.android.material.card.MaterialCardView
+            android:id="@+id/voiceBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:visibility="gone"
+            app:cardBackgroundColor="@color/voice_stage"
+            app:cardCornerRadius="28dp"
+            app:cardElevation="6dp"
+            app:strokeWidth="0dp"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:minHeight="56dp"
+                android:orientation="horizontal"
+                android:paddingStart="6dp"
+                android:paddingEnd="4dp">
+
+                <com.peru.expresdm.voice.VoiceOrbView
+                    android:id="@+id/voiceBarOrb"
+                    android:layout_width="52dp"
+                    android:layout_height="52dp"
+                    android:importantForAccessibility="no" />
+
+                <TextView
+                    android:id="@+id/voiceBarText"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:accessibilityLiveRegion="polite"
+                    android:ellipsize="end"
+                    android:maxLines="3"
+                    android:paddingStart="8dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="4dp"
+                    android:paddingBottom="8dp"
+                    android:textColor="@color/voice_stage_text"
+                    android:textSize="14sp"
+                    tools:text="¿A dónde quieres ir?" />
+
+                <ImageButton
+                    android:id="@+id/btnCloseVoice"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:background="?attr/selectableItemBackgroundBorderless"
+                    android:contentDescription="@string/voice_stop"
+                    android:src="@drawable/ic_close"
+                    app:tint="@color/voice_stage_text" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
         <!-- Eligiendo en el mapa dónde bajarse, sobre el recorrido del micro -->
         <com.google.android.material.card.MaterialCardView
             android:id="@+id/pickCard"

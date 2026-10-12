@@ -24,6 +24,10 @@ import kotlin.random.Random
  * del usuario mientras escucha y de la del asistente mientras habla.
  *
  * Se dibuja sola mientras está a la vista; al ocultarla deja de animarse.
+ *
+ * Se adapta a su tamaño: en una franja ancha caben las líneas de código a los
+ * lados; en [compact], pensada para un círculo pequeño sobre el mapa, quedan
+ * solo la esfera y sus anillos, sin fondo propio.
  */
 class VoiceOrbView @JvmOverloads constructor(
     context: Context,
@@ -34,6 +38,13 @@ class VoiceOrbView @JvmOverloads constructor(
     enum class Mode { LISTENING, THINKING, SPEAKING }
 
     var mode: Mode = Mode.LISTENING
+        set(value) {
+            field = value
+            invalidate()
+        }
+
+    /** Solo la esfera y los anillos, sin escenario ni código: para pintarla en pequeño. */
+    var compact = false
         set(value) {
             field = value
             invalidate()
@@ -57,6 +68,9 @@ class VoiceOrbView @JvmOverloads constructor(
         textSize = 10f * density
     }
     private val oval = RectF()
+
+    /** El grosor de los trazos y puntos: se afina cuando la esfera es pequeña. */
+    private var unit = density
 
     private val random = Random(7)
     private val codeLeft = MutableList(CODE_LINES) { randomCode() }
@@ -97,11 +111,16 @@ class VoiceOrbView @JvmOverloads constructor(
 
         val cx = width / 2f
         val cy = height / 2f
-        val base = min(width, height) * 0.16f
+        val size = min(width, height).toFloat()
+        // Los anillos llegan a 3,5 veces la esfera: con esto caben enteros.
+        val base = size * 0.125f
+        unit = density * (size / (FULL_SIZE_DP * density)).coerceIn(0.4f, 1f)
         val (core, glow, accent) = colors()
 
-        drawBackdrop(canvas, cx, cy, glow)
-        drawCode(canvas, now, energy, accent)
+        if (!compact) {
+            drawBackdrop(canvas, cx, cy, glow)
+            drawCode(canvas, now, energy, accent)
+        }
         drawSpheres(canvas, cx, cy, base, energy, seconds, glow)
         drawRings(canvas, cx, cy, base, energy, seconds, accent)
         drawCore(canvas, cx, cy, base, energy, core, glow)
@@ -141,11 +160,14 @@ class VoiceOrbView @JvmOverloads constructor(
             }
         }
         val lineHeight = text.textSize * 1.55f
-        val top = height / 2f - lineHeight * CODE_LINES / 2f
+        // Solo las líneas que quepan en la altura que hay.
+        val lines = min(CODE_LINES, (height / lineHeight).toInt() - 1)
+        if (lines < 3) return
+        val top = height / 2f - lineHeight * lines / 2f - text.textSize * 0.3f
         val margin = 14f * density
-        for (index in 0 until CODE_LINES) {
+        for (index in 0 until lines) {
             // Más tenues arriba y abajo, para que no corten contra el borde.
-            val middle = 1f - kotlin.math.abs(index - (CODE_LINES - 1) / 2f) / (CODE_LINES / 2f)
+            val middle = 1f - kotlin.math.abs(index - (lines - 1) / 2f) / (lines / 2f)
             text.color = withAlpha(accent, (40 + 110 * middle * (0.5f + energy * 0.5f)).toInt())
             val y = top + lineHeight * (index + 1)
             text.textAlign = Paint.Align.LEFT
@@ -163,7 +185,7 @@ class VoiceOrbView @JvmOverloads constructor(
             fill.color = withAlpha(glow, (26 - index * 5).coerceAtLeast(6))
             canvas.drawCircle(cx, cy, radius, fill)
             stroke.pathEffect = null
-            stroke.strokeWidth = 1.2f * density
+            stroke.strokeWidth = 1.2f * unit
             stroke.color = withAlpha(glow, (120 - index * 28 + 60 * energy).toInt().coerceIn(20, 255))
             canvas.drawCircle(cx, cy, radius, stroke)
         }
@@ -181,7 +203,7 @@ class VoiceOrbView @JvmOverloads constructor(
             canvas.rotate(ring.tilt + seconds * ring.drift, cx, cy)
             oval.set(cx - radius, cy - radius * ring.flatten, cx + radius, cy + radius * ring.flatten)
 
-            stroke.strokeWidth = ring.width * density
+            stroke.strokeWidth = ring.width * unit
             stroke.color = withAlpha(accent, (90 + 130 * energy).toInt().coerceAtMost(255))
             // Trazos sueltos en vez de una línea entera: parecen bloques de datos.
             val segments = ring.segments
@@ -197,7 +219,7 @@ class VoiceOrbView @JvmOverloads constructor(
                 canvas.drawCircle(
                     cx + cos(angle) * radius,
                     cy + sin(angle) * radius * ring.flatten,
-                    (1.4f + 1.6f * energy) * density,
+                    (1.4f + 1.6f * energy) * unit,
                     fill
                 )
             }
@@ -244,6 +266,9 @@ class VoiceOrbView @JvmOverloads constructor(
     private companion object {
         const val SPHERES = 3
         const val CODE_LINES = 9
+
+        /** Desde este tamaño (en dp) los trazos se pintan con todo su grosor. */
+        const val FULL_SIZE_DP = 220f
 
         val COLOR_STAGE = Color.rgb(8, 12, 24)
         val COLOR_GOLD = Color.rgb(255, 196, 37)

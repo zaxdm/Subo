@@ -13,6 +13,7 @@ import com.peru.expresdm.data.RouteUsageStore
 import com.peru.expresdm.data.net.Session
 import com.peru.expresdm.data.net.SessionStore
 import com.peru.expresdm.ui.routes.RouteDetailFragment
+import com.peru.expresdm.voice.VoiceOrbView
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.bottomsheet.BottomSheetBehavior
 import org.junit.Test
@@ -201,6 +202,29 @@ class ScreenshotTest {
 
                 sheet.state = BottomSheetBehavior.STATE_COLLAPSED
                 capture(activity, "13-hoja-minima")
+            }
+        }
+    }
+
+    /** La esfera de la voz: pequeña sobre el mapa y en una franja dentro del asistente. */
+    @Test
+    @Config(qualifiers = "es-rPE-w411dp-h891dp-xhdpi")
+    fun `captura la esfera de la voz`() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                activity.findViewById<android.widget.TextView>(R.id.voiceBarText).setText(R.string.voice_prompt)
+                activity.findViewById<VoiceOrbView>(R.id.voiceBarOrb).apply {
+                    compact = true
+                    mode = VoiceOrbView.Mode.SPEAKING
+                }
+                activity.findViewById<View>(R.id.voiceBar).visibility = View.VISIBLE
+                capture(activity, "18-voz-en-el-mapa")
+
+                activity.findViewById<View>(R.id.assistantBubble).performClick()
+                idle()
+                val sheet = ShadowDialog.getLatestDialog().window!!.decorView
+                sheet.findViewById<View>(R.id.voiceOrb).visibility = View.VISIBLE
+                capture(activity, "19-voz-en-el-asistente", sheet)
             }
         }
     }

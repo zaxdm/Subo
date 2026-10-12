@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -38,16 +39,21 @@ class VoiceInput(context: Context) {
      * habla y [onLevel] lo fuerte que suena la voz, de 0 a 1; [onResult] recibe
      * la frase entera, o `null` si no se oyó nada o no se pudo escuchar
      * ([failed] distingue el fallo del silencio).
+     *
+     * El teléfono suele dar varias formas de escribir lo que oyó: [pick] elige
+     * cuál vale (por defecto la primera, la más probable).
      */
     fun listen(
         onPartial: (String) -> Unit = {},
         onLevel: (Float) -> Unit = {},
+        pick: (List<String>) -> String? = { it.firstOrNull() },
         onResult: (text: String?, failed: Boolean) -> Unit
-    ) = start(onPartial, onLevel, onResult, retries = CONNECTION_RETRIES)
+    ) = start(onPartial, onLevel, pick, onResult, retries = CONNECTION_RETRIES)
 
     private fun start(
         onPartial: (String) -> Unit,
         onLevel: (Float) -> Unit,
+        pick: (List<String>) -> String?,
         onResult: (text: String?, failed: Boolean) -> Unit,
         retries: Int
     ) {
@@ -81,10 +87,10 @@ class VoiceInput(context: Context) {
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
             override fun onPartialResults(partialResults: Bundle?) {
-                if (mine == session) best(partialResults)?.takeIf { it.isNotBlank() }?.let(onPartial)
+                if (mine == session) pick(heard(partialResults))?.takeIf { it.isNotBlank() }?.let(onPartial)
             }
 
-            override fun onResults(results: Bundle?) = deliver(best(results), false)
+            override fun onResults(results: Bundle?) = deliver(pick(heard(results)), false)
 
             override fun onError(error: Int) {
                 if (mine != session) return
@@ -100,7 +106,7 @@ class VoiceInput(context: Context) {
                         destroy()
                         val retry = ++session
                         handler.postDelayed({
-                            if (retry == session) start(onPartial, onLevel, onResult, retries - 1)
+                            if (retry == session) start(onPartial, onLevel, pick, onResult, retries - 1)
                         }, RETRY_DELAY_MS)
                     }
 
@@ -116,8 +122,12 @@ class VoiceInput(context: Context) {
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, language())
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
-            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_ALTERNATIVES)
             .putExtra(RecognizerIntent.EXTRA_CALLING_PACKAGE, appContext.packageName)
+        // "Subo" no es una palabra que el teléfono espere oír sola: se le da de pista.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            intent.putStringArrayListExtra(RecognizerIntent.EXTRA_BIASING_STRINGS, arrayListOf("Subo", "oye Subo"))
+        }
         try {
             speech.startListening(intent)
         } catch (e: RuntimeException) {
@@ -162,8 +172,8 @@ class VoiceInput(context: Context) {
         null
     }
 
-    private fun best(results: Bundle?): String? =
-        results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
+    private fun heard(results: Bundle?): List<String> =
+        results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION).orEmpty()
 
     /** El idioma de la app; el español sin país se entiende como el de Perú. */
     private fun language(): String {
@@ -181,6 +191,7 @@ class VoiceInput(context: Context) {
             11 // ERROR_SERVER_DISCONNECTED, de Android 12 en adelante
         )
         private const val CONNECTION_RETRIES = 2
+        private const val MAX_ALTERNATIVES = 5
         private const val RETRY_DELAY_MS = 300L
 
         /** El teléfono tiene reconocimiento de voz (casi todos, con la app de Google). */

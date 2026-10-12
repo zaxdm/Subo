@@ -85,6 +85,7 @@ import com.peru.expresdm.voice.Speaker
 import com.peru.expresdm.voice.VoiceCommand
 import com.peru.expresdm.voice.VoiceCommands
 import com.peru.expresdm.voice.VoiceInput
+import com.peru.expresdm.voice.VoiceOrbView
 import com.peru.expresdm.voice.VoiceWake
 import com.peru.expresdm.tracking.RecorderState
 import com.peru.expresdm.tracking.RecorderStatus
@@ -300,20 +301,104 @@ class RoutesFragment : Fragment() {
             context,
             // Con una hoja o un diálogo abierto no se escucha: o es el propio
             // asistente, o el usuario está en otra cosa.
-            isBusy = { !isResumed || childFragmentManager.fragments.any { it is DialogFragment } },
-            onWake = { said -> if (isResumed && !childFragmentManager.isStateSaved) onVoiceSaid(said) }
+            isBusy = {
+                !isResumed || voiceTalking || childFragmentManager.fragments.any { it is DialogFragment }
+            },
+            // En cuanto se oye «Subo» sale la esfera: se ve que ya está atendiendo.
+            onHearing = { soFar ->
+                showVoiceBar(VoiceOrbView.Mode.LISTENING, soFar.ifBlank { getString(R.string.voice_listening) })
+            },
+            onLevel = { level -> _binding?.voiceBarOrb?.setLevel(level) },
+            onWake = { said -> if (isResumed && !childFragmentManager.isStateSaved) onWake(said) else endMapVoice() }
         ).also { voiceWake = it }
         wake.start()
+    }
+
+    /** Escucha lo que se contesta a Subo cuando pregunta en el mapa. */
+    private var mapVoice: VoiceInput? = null
+
+    /** Se está hablando con Subo sobre el mapa: mientras, no se espera otro «Subo». */
+    private var voiceTalking = false
+
+    private val hideVoiceBar = Runnable { endMapVoice() }
+
+    /**
+     * Enseña la esfera pequeña del mapa con lo que se escucha o se dice. Se
+     * quita sola pasado [timeoutMs], por si la voz se corta sin avisar.
+     */
+    private fun showVoiceBar(mode: VoiceOrbView.Mode, text: String, timeoutMs: Long = VOICE_BAR_TIMEOUT_MS) {
+        val binding = _binding ?: return
+        voiceTalking = true
+        binding.voiceBarOrb.mode = mode
+        binding.voiceBarText.text = text
+        binding.voiceBar.isVisible = true
+        binding.voiceBar.removeCallbacks(hideVoiceBar)
+        binding.voiceBar.postDelayed(hideVoiceBar, timeoutMs)
+    }
+
+    /** Termina la conversación hablada del mapa y quita la esfera. */
+    private fun endMapVoice() {
+        voiceTalking = false
+        mapVoice?.cancel()
+        _binding?.voiceBar?.let { bar ->
+            bar.removeCallbacks(hideVoiceBar)
+            bar.isVisible = false
+        }
+    }
+
+    /** Se dijo «Subo»: con una frase detrás se cumple; a secas, Subo pregunta a dónde se va. */
+    private fun onWake(said: String) {
+        if (said.isBlank()) {
+            askDestination()
+        } else {
+            endMapVoice()
+            onVoiceSaid(said)
+        }
+    }
+
+    /** Pregunta en voz alta a dónde se quiere ir y escucha la respuesta, sin salir del mapa. */
+    private fun askDestination() {
+        val question = getString(R.string.voice_prompt)
+        showVoiceBar(VoiceOrbView.Mode.SPEAKING, question)
+        Speaker.speak(
+            requireContext(),
+            question,
+            asAlarm = false,
+            onWord = { _binding?.voiceBarOrb?.pulse() }
+        ) {
+            if (_binding != null && isResumed && voiceTalking) listenOnMap() else endMapVoice()
+        }
+    }
+
+    private fun listenOnMap() {
+        val input = mapVoice ?: VoiceInput(requireContext()).also { mapVoice = it }
+        showVoiceBar(VoiceOrbView.Mode.LISTENING, getString(R.string.voice_listening))
+        input.listen(
+            onPartial = { heard -> _binding?.voiceBarText?.text = heard },
+            onLevel = { level -> _binding?.voiceBarOrb?.setLevel(level) }
+        ) { text, failed ->
+            if (_binding == null) return@listen
+            endMapVoice()
+            when {
+                text != null -> onVoiceSaid(text, answering = true)
+                failed -> showLongMessage(getString(R.string.voice_failed))
+                // Silencio: no quería nada.
+                else -> Unit
+            }
+        }
     }
 
     /**
      * Hace lo que se pidió hablando. Las órdenes fijas (ir a un sitio, el aviso,
      * compartir) se cumplen aquí; cualquier otra frase es una pregunta para el
      * asistente, que se abre contestándola. Sin frase, se abre escuchando.
+     *
+     * Con [answering] la frase contesta a "¿a dónde quieres ir?": un lugar dicho
+     * a secas es el destino.
      */
-    private fun onVoiceSaid(said: String) {
+    private fun onVoiceSaid(said: String, answering: Boolean = false) {
         val rides = lastState?.chosenJourney?.rides.orEmpty()
-        when (val command = VoiceCommands.parse(said)) {
+        when (val command = if (answering) VoiceCommands.parseDestination(said) else VoiceCommands.parse(said)) {
             is VoiceCommand.Ask -> AssistantSheet.show(childFragmentManager, voice = true, question = command.question)
             is VoiceCommand.GoTo -> goToByVoice(command.place)
             VoiceCommand.ArrivalOn -> when {
@@ -337,14 +422,31 @@ class RoutesFragment : Fragment() {
                     say(getString(R.string.live_trip_stopped))
                 }
             VoiceCommand.WhereAmI -> whereAmI()
-            VoiceCommand.Close -> Speaker.stop()
+            VoiceCommand.Close -> {
+                Speaker.stop()
+                endMapVoice()
+            }
         }
     }
 
-    /** Contesta a una orden: se lee en alto y, por si no se oye, también se escribe. */
+    /**
+     * Contesta a una orden: se lee en alto y, por si no se oye, también se
+     * escribe junto a la esfera, que se mueve con cada palabra.
+     */
     private fun say(text: String) {
-        showLongMessage(text)
-        Speaker.speak(requireContext(), text, asAlarm = false)
+        showVoiceBar(VoiceOrbView.Mode.SPEAKING, text)
+        Speaker.speak(
+            requireContext(),
+            text,
+            asAlarm = false,
+            onWord = { _binding?.voiceBarOrb?.pulse() }
+        ) {
+            // Se queda un momento más, para acabar de leerlo.
+            _binding?.voiceBar?.let { bar ->
+                bar.removeCallbacks(hideVoiceBar)
+                bar.postDelayed(hideVoiceBar, VOICE_BAR_LINGER_MS)
+            }
+        }
     }
 
     /** "Llévame a casa", "llévame al Mall Plaza": busca el sitio y enseña cómo llegar. */
@@ -355,6 +457,8 @@ class RoutesFragment : Fragment() {
             getString(SavedPlaceStyle.label(favorite.kind)).lowercase() == wanted ||
                 favorite.place.name.lowercase() == wanted
         }?.place
+        // Buscar el sitio tarda: mientras, la esfera "piensa" con lo que se pidió.
+        showVoiceBar(VoiceOrbView.Mode.THINKING, spoken)
         viewLifecycleOwner.lifecycleScope.launch {
             val place = favorite ?: viewModel.bestPlace(spoken)
             if (_binding == null) return@launch
@@ -427,6 +531,11 @@ class RoutesFragment : Fragment() {
         binding.routePanel.isNestedScrollingEnabled = false
 
         binding.fabMyLocation.setOnClickListener { centerOnUser() }
+        binding.voiceBarOrb.compact = true
+        binding.btnCloseVoice.setOnClickListener {
+            Speaker.stop()
+            endMapVoice()
+        }
         // Una orden dicha al asistente ("llévame a…") se cumple aquí, en el mapa.
         childFragmentManager.setFragmentResultListener(AssistantSheet.REQUEST_COMMAND, viewLifecycleOwner) { _, result ->
             onVoiceSaid(result.getString(AssistantSheet.RESULT_SAID).orEmpty())
@@ -2688,12 +2797,16 @@ class RoutesFragment : Fragment() {
         locationOverlay?.disableMyLocation()
         _binding?.mapView?.onPause()
         voiceWake?.stop()
+        endMapVoice()
         super.onPause()
     }
 
     override fun onDestroyView() {
         cancelPendingFrame()
+        mapVoice?.release()
+        mapVoice = null
         _binding?.let { b ->
+            b.voiceBar.removeCallbacks(hideVoiceBar)
             b.assistantBubble.removeCallbacks(shrinkBubble)
             b.recordingDot.clearAnimation()
             val center = b.mapView.mapCenter
@@ -2749,6 +2862,10 @@ class RoutesFragment : Fragment() {
 
     private companion object {
         const val DEFAULT_ZOOM = 13.5
+
+        /** Lo máximo que la esfera de la voz se queda en el mapa sin que nada la quite. */
+        const val VOICE_BAR_TIMEOUT_MS = 25_000L
+        const val VOICE_BAR_LINGER_MS = 2_500L
 
         /** Mientras uno no se aleje más que esto, vale el camino a pie ya trazado. */
         const val STREET_WALK_REUSE_METERS = 30.0

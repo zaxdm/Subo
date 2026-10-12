@@ -48,4 +48,24 @@ class VoiceCommandsTest {
         assertEquals(VoiceCommand.Ask("cuánto cuesta el pasaje"), VoiceCommands.parse("cuánto cuesta el pasaje"))
         assertEquals(VoiceCommand.Ask(""), VoiceCommands.parse(""))
     }
+
+    @Test
+    fun `al preguntar a donde va un lugar a secas es el destino`() {
+        assertEquals(VoiceCommand.GoTo("Huanchaco"), VoiceCommands.parseDestination("Huanchaco"))
+        assertEquals(VoiceCommand.GoTo("Mall Plaza"), VoiceCommands.parseDestination("al Mall Plaza."))
+        assertEquals(VoiceCommand.GoTo("la Avenida España"), VoiceCommands.parseDestination("A la Avenida España"))
+        assertEquals(VoiceCommand.GoTo("casa"), VoiceCommands.parseDestination("llévame a casa"))
+    }
+
+    @Test
+    fun `al preguntar a donde va una pregunta sigue siendo pregunta y una orden orden`() {
+        assertEquals(
+            VoiceCommand.Ask("qué micro va al centro"),
+            VoiceCommands.parseDestination("qué micro va al centro")
+        )
+        assertEquals(VoiceCommand.Ask("¿Hay paro hoy?"), VoiceCommands.parseDestination("¿Hay paro hoy?"))
+        assertEquals(VoiceCommand.Close, VoiceCommands.parseDestination("gracias"))
+        assertEquals(VoiceCommand.WhereAmI, VoiceCommands.parseDestination("dónde estoy"))
+        assertEquals(VoiceCommand.Ask(""), VoiceCommands.parseDestination(""))
+    }
 }

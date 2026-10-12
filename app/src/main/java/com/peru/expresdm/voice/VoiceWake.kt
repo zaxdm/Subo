@@ -12,7 +12,9 @@ object WakeWord {
      * Cómo suele escribir el teléfono "Subo" cuando lo oye: a veces lo parte
      * o le cambia una letra.
      */
-    private val WORDS = listOf("subo", "zubo", "suvo", "su vo", "su bo")
+    private val WORDS = listOf(
+        "subo", "zubo", "suvo", "subu", "supo", "tubo", "su vo", "su bo", "su voz", "su bus"
+    )
 
     private val GREETINGS = setOf("oye", "hey", "ey", "hola", "ok", "okay")
 
@@ -55,6 +57,10 @@ class VoiceWake(
     context: Context,
     /** Mientras devuelva `true` no se escucha (el asistente abierto, por ejemplo). */
     private val isBusy: () -> Boolean,
+    /** Ya se oyó «Subo» y se sigue escuchando el resto: [soFar] es lo que va después. */
+    private val onHearing: (soFar: String) -> Unit = {},
+    /** Lo fuerte que suena la voz, de 0 a 1, desde que se oyó «Subo». */
+    private val onLevel: (Float) -> Unit = {},
     private val onWake: (said: String) -> Unit
 ) {
 
@@ -84,9 +90,22 @@ class VoiceWake(
             handler.postDelayed(cycle, BUSY_RETRY_MS)
             return
         }
-        input.listen { text, failed ->
+        // Lo que va detrás de «Subo» según lo último que se entendió a medias:
+        // si el teléfono no llega a dar la frase entera, vale esto.
+        var soFar: String? = null
+        input.listen(
+            onPartial = { heard ->
+                WakeWord.match(heard)?.let {
+                    soFar = it
+                    if (running) onHearing(it)
+                }
+            },
+            onLevel = { level -> if (soFar != null && running) onLevel(level) },
+            // De las formas en que el teléfono escribe lo que oyó, la que nombre a Subo.
+            pick = { heard -> heard.firstOrNull { WakeWord.match(it) != null } ?: heard.firstOrNull() }
+        ) { text, failed ->
             if (!running) return@listen
-            val said = text?.let(WakeWord::match)
+            val said = text?.let(WakeWord::match) ?: soFar
             if (said != null) {
                 failures = 0
                 onWake(said)
@@ -105,6 +124,6 @@ class VoiceWake(
         const val RESTART_MS = 350L
         const val BUSY_RETRY_MS = 1_500L
         const val MAX_FAILURES = 4
-        const val BACKOFF_MS = 30_000L
+        const val BACKOFF_MS = 10_000L
     }
 }

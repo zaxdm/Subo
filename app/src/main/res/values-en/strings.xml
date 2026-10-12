@@ -671,6 +671,7 @@
     <string name="voice_arrival_already">The arrival alert is already on.</string>
     <string name="voice_no_arrival">There is no alert on.</string>
     <string name="voice_not_sharing">You are not sharing any trip.</string>
+    <string name="voice_prompt">Where do you want to go?</string>
     <string name="voice_place_not_found">I could not find %1$s. Try another name or a street.</string>
     <string name="voice_going_to">Here is how to get to %1$s.</string>
     <string name="voice_no_location">I do not know where you are yet. Turn on location.</string>

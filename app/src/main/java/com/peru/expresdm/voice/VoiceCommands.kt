@@ -90,6 +90,34 @@ object VoiceCommands {
         }
     }
 
+    /**
+     * Lo que se contesta a "¿a dónde quieres ir?": además de las órdenes de
+     * siempre, un lugar dicho a secas ("Huanchaco", "al Mall Plaza") es a donde
+     * se quiere ir. Una pregunta sigue siendo para el asistente.
+     */
+    fun parseDestination(said: String): VoiceCommand {
+        val command = parse(said)
+        if (command !is VoiceCommand.Ask) return command
+        val words = plain(said).split(' ').filter { it.isNotEmpty() }
+        if (words.isEmpty() || words.size > MAX_PLACE_WORDS || '?' in said || words.first() in QUESTION_STARTS) {
+            return command
+        }
+        val skip = if (words.first() in TOWARDS) 1 else 0
+        val place = said.trim().split(Regex("\\s+")).drop(skip).joinToString(" ")
+            .trim(' ', '.', ',', '?', '¿', '!', '¡')
+        return if (place.isEmpty()) command else VoiceCommand.GoTo(place)
+    }
+
+    /** Un lugar se dice en pocas palabras; una frase más larga es otra cosa. */
+    private const val MAX_PLACE_WORDS = 6
+
+    private val TOWARDS = setOf("a", "al", "hacia", "hasta", "para")
+
+    private val QUESTION_STARTS = setOf(
+        "que", "cual", "cuales", "como", "cuanto", "cuanta", "cuantos", "cuantas", "donde", "cuando", "quien",
+        "por", "hay", "puedo", "puedes", "sabes", "dime", "necesito", "quiero", "pasa", "pasan", "es", "si", "no"
+    )
+
     /** En minúsculas, sin tildes ni signos y con un solo espacio entre palabras. */
     private fun plain(text: String): String =
         Normalizer.normalize(text.lowercase(), Normalizer.Form.NFD)

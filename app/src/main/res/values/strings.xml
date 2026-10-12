@@ -669,6 +669,7 @@
     <string name="voice_arrival_already">El aviso de llegada ya está activo.</string>
     <string name="voice_no_arrival">No hay ningún aviso activo.</string>
     <string name="voice_not_sharing">No estás compartiendo ningún viaje.</string>
+    <string name="voice_prompt">¿A dónde quieres ir?</string>
     <string name="voice_place_not_found">No encontré %1$s. Prueba con otro nombre o una calle.</string>
     <string name="voice_going_to">Te muestro cómo llegar a %1$s.</string>
     <string name="voice_no_location">Todavía no sé dónde estás. Activa la ubicación.</string>
