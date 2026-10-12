@@ -119,6 +119,10 @@
     <string name="arrival_bar_distance">Aviso de llegada · %1$s · faltan %2$s</string>
     <string name="arrival_action_enable">Activar</string>
     <string name="arrival_action_cancel">Cancelar</string>
+    <string name="background_access_title">Que el aviso suene con la app cerrada</string>
+    <string name="background_access_message">Para ahorrar batería, tu teléfono puede cerrar Subo cuando no la estás mirando, y el aviso de bajada no llegaría. Permite que Subo siga en segundo plano para que te avise aunque cierres la app o apagues la pantalla.</string>
+    <string name="background_access_allow">Permitir</string>
+    <string name="background_access_later">Ahora no</string>
     <string name="arrival_pick_hint">Toca el mapa donde te bajas, sobre el recorrido</string>
     <string name="arrival_pick_far">Por ahí no pasa este micro: toca sobre su recorrido</string>
     <string name="arrival_pick_point">Punto del recorrido</string>
