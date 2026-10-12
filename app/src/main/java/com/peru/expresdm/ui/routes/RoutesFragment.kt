@@ -81,6 +81,9 @@ import com.peru.expresdm.tracking.ArrivalState
 import com.peru.expresdm.tracking.ArrivalTarget
 import com.peru.expresdm.tracking.LiveTrip
 import com.peru.expresdm.tracking.LiveTripService
+import com.peru.expresdm.voice.Speaker
+import com.peru.expresdm.voice.VoiceCommand
+import com.peru.expresdm.voice.VoiceCommands
 import com.peru.expresdm.voice.VoiceInput
 import com.peru.expresdm.voice.VoiceWake
 import com.peru.expresdm.tracking.RecorderState
@@ -298,13 +301,85 @@ class RoutesFragment : Fragment() {
             // Con una hoja o un diálogo abierto no se escucha: o es el propio
             // asistente, o el usuario está en otra cosa.
             isBusy = { !isResumed || childFragmentManager.fragments.any { it is DialogFragment } },
-            onWake = { said ->
-                if (isResumed && !childFragmentManager.isStateSaved) {
-                    AssistantSheet.show(childFragmentManager, voice = true, question = said)
-                }
-            }
+            onWake = { said -> if (isResumed && !childFragmentManager.isStateSaved) onVoiceSaid(said) }
         ).also { voiceWake = it }
         wake.start()
+    }
+
+    /**
+     * Hace lo que se pidió hablando. Las órdenes fijas (ir a un sitio, el aviso,
+     * compartir) se cumplen aquí; cualquier otra frase es una pregunta para el
+     * asistente, que se abre contestándola. Sin frase, se abre escuchando.
+     */
+    private fun onVoiceSaid(said: String) {
+        val rides = lastState?.chosenJourney?.rides.orEmpty()
+        when (val command = VoiceCommands.parse(said)) {
+            is VoiceCommand.Ask -> AssistantSheet.show(childFragmentManager, voice = true, question = command.question)
+            is VoiceCommand.GoTo -> goToByVoice(command.place)
+            VoiceCommand.ArrivalOn -> when {
+                rides.isEmpty() -> say(getString(R.string.voice_no_trip))
+                arrivalOn(rides) -> say(getString(R.string.voice_arrival_already))
+                else -> onJourneyArrival()
+            }
+            VoiceCommand.ArrivalOff ->
+                if (ArrivalAlarmService.state.value.target == null) {
+                    say(getString(R.string.voice_no_arrival))
+                } else {
+                    ArrivalAlarmService.cancel(requireContext().applicationContext)
+                    say(getString(R.string.arrival_cancelled))
+                }
+            VoiceCommand.ShareTrip -> if (rides.isEmpty()) say(getString(R.string.voice_no_trip)) else shareJourney()
+            VoiceCommand.StopSharing ->
+                if (LiveTripService.state.value == null) {
+                    say(getString(R.string.voice_not_sharing))
+                } else {
+                    LiveTripService.stop(requireContext().applicationContext)
+                    say(getString(R.string.live_trip_stopped))
+                }
+            VoiceCommand.WhereAmI -> whereAmI()
+            VoiceCommand.Close -> Speaker.stop()
+        }
+    }
+
+    /** Contesta a una orden: se lee en alto y, por si no se oye, también se escribe. */
+    private fun say(text: String) {
+        showLongMessage(text)
+        Speaker.speak(requireContext(), text, asAlarm = false)
+    }
+
+    /** "Llévame a casa", "llévame al Mall Plaza": busca el sitio y enseña cómo llegar. */
+    private fun goToByVoice(spoken: String) {
+        // Primero entre los favoritos: "casa", "el trabajo", "mi casa".
+        val wanted = spoken.lowercase().removePrefix("mi ").removePrefix("la ").removePrefix("el ").trim()
+        val favorite = favorites.firstOrNull { favorite ->
+            getString(SavedPlaceStyle.label(favorite.kind)).lowercase() == wanted ||
+                favorite.place.name.lowercase() == wanted
+        }?.place
+        viewLifecycleOwner.lifecycleScope.launch {
+            val place = favorite ?: viewModel.bestPlace(spoken)
+            if (_binding == null) return@launch
+            if (place == null) {
+                say(getString(R.string.voice_place_not_found, spoken))
+            } else {
+                viewModel.planTrip(null, place)
+                say(getString(R.string.voice_going_to, place.name))
+            }
+        }
+    }
+
+    /** Dice en qué calle está el usuario y lleva el mapa ahí. */
+    private fun whereAmI() {
+        val here = lastState?.user
+        if (here == null) {
+            say(getString(R.string.voice_no_location))
+            return
+        }
+        centerOnUser()
+        viewLifecycleOwner.lifecycleScope.launch {
+            val street = PlaceSearch.streetName(here.latitude, here.longitude)
+            if (_binding == null) return@launch
+            say(if (street == null) getString(R.string.voice_where_unknown) else getString(R.string.voice_where, street))
+        }
     }
 
     /** El viaje que se quiere compartir en vivo mientras se piden los permisos. */
@@ -352,6 +427,10 @@ class RoutesFragment : Fragment() {
         binding.routePanel.isNestedScrollingEnabled = false
 
         binding.fabMyLocation.setOnClickListener { centerOnUser() }
+        // Una orden dicha al asistente ("llévame a…") se cumple aquí, en el mapa.
+        childFragmentManager.setFragmentResultListener(AssistantSheet.REQUEST_COMMAND, viewLifecycleOwner) { _, result ->
+            onVoiceSaid(result.getString(AssistantSheet.RESULT_SAID).orEmpty())
+        }
         binding.btnStreetView.setOnClickListener { openStreetView() }
         binding.streetPane.btnCloseStreet.setOnClickListener { closeStreetView() }
         binding.btnStatusAction.setOnClickListener { onStatusAction() }

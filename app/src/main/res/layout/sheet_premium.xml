@@ -81,6 +81,59 @@
             android:textAppearance="@style/TextAppearance.Expresdm.Body"
             android:textSize="13sp" />
 
+        <!-- Pagar por Yape: el plan, el QR y a nombre de quién sale. Lo rellena PremiumSheet. -->
+        <LinearLayout
+            android:id="@+id/paymentSection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/premium_pay_title"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/premium_pay_steps"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="13sp" />
+
+            <RadioGroup
+                android:id="@+id/planGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:orientation="vertical" />
+
+            <ImageView
+                android:id="@+id/qrImage"
+                android:layout_width="230dp"
+                android:layout_height="230dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginTop="10dp"
+                android:adjustViewBounds="true"
+                android:scaleType="fitCenter"
+                android:visibility="gone"
+                tools:ignore="ContentDescription" />
+
+            <TextView
+                android:id="@+id/yapeHolder"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:gravity="center"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textStyle="bold"
+                tools:text="A nombre de Esteban D." />
+        </LinearLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnPremiumAction"
             style="@style/Widget.Expresdm.ButtonPrimary"

@@ -27,7 +27,10 @@ object ImageUploader {
     /** Para qué es la foto: el servidor es más o menos exigente según el caso. */
     enum class Purpose(val key: String, val maxSidePx: Int) {
         ALERT("alert", 1280),
-        AVATAR("avatar", 512)
+        AVATAR("avatar", 512),
+
+        /** La captura de un pago: tiene que poder leerse el monto y la confirmación. */
+        PAYMENT("payment", 1600)
     }
 
     suspend fun upload(context: Context, source: Uri, purpose: Purpose): ApiResult<String> {

@@ -75,7 +75,7 @@ class VoiceWake(
     fun stop() {
         running = false
         handler.removeCallbacks(cycle)
-        input.cancel()
+        input.release()
     }
 
     private fun listenOnce() {

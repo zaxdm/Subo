@@ -11,6 +11,7 @@ import android.view.inputmethod.InputMethodManager
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.getSystemService
 import androidx.core.os.bundleOf
+import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentManager
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Lifecycle
@@ -28,7 +29,10 @@ import com.peru.expresdm.databinding.FragmentAssistantBinding
 import com.peru.expresdm.ui.MapRouteRequests
 import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.voice.Speaker
+import com.peru.expresdm.voice.VoiceCommand
+import com.peru.expresdm.voice.VoiceCommands
 import com.peru.expresdm.voice.VoiceInput
+import com.peru.expresdm.voice.VoiceOrbView
 import kotlinx.coroutines.launch
 
 /**
@@ -50,6 +54,9 @@ class AssistantSheet : BottomSheetDialogFragment() {
     private val viewModel: AssistantViewModel by activityViewModels()
 
     private var voiceInput: VoiceInput? = null
+
+    /** Se está leyendo una respuesta en voz alta. */
+    private var speaking = false
 
     private val askMicrophone = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (_binding == null) return@registerForActivityResult
@@ -188,13 +195,14 @@ class AssistantSheet : BottomSheetDialogFragment() {
         hideKeyboard()
         val input = voiceInput ?: VoiceInput(context).also { voiceInput = it }
         input.listen(
-            onPartial = { heard -> _binding?.messageInput?.setText(heard) }
+            onPartial = { heard -> _binding?.messageInput?.setText(heard) },
+            onLevel = { level -> _binding?.voiceOrb?.setLevel(level) }
         ) { text, failed ->
             val binding = _binding ?: return@listen
             renderListening(false)
             binding.messageInput.text?.clear()
             when {
-                text != null -> viewModel.send(text, byVoice = true)
+                text != null -> onHeard(text)
                 failed -> showMessage(R.string.voice_failed)
                 // Silencio: la conversación hablada se da por terminada.
                 else -> Unit
@@ -203,10 +211,40 @@ class AssistantSheet : BottomSheetDialogFragment() {
         renderListening(input.isListening)
     }
 
+    /**
+     * Lo que se dijo: una pregunta se le hace al asistente; una orden ("llévame
+     * a…", "avísame al llegar") es cosa del mapa, que la recibe al cerrarse esto.
+     */
+    private fun onHeard(text: String) {
+        when (VoiceCommands.parse(text)) {
+            is VoiceCommand.Ask -> viewModel.send(text, byVoice = true)
+            VoiceCommand.Close -> dismiss()
+            else -> {
+                parentFragmentManager.setFragmentResult(REQUEST_COMMAND, bundleOf(RESULT_SAID to text))
+                dismiss()
+            }
+        }
+    }
+
     private fun stopVoice() {
+        // Lo que se iba entendiendo ya no vale: no se queda escrito en la caja.
+        if (voiceInput?.isListening == true) _binding?.messageInput?.text?.clear()
         voiceInput?.cancel()
         Speaker.stop()
+        speaking = false
         renderListening(false)
+    }
+
+    /** La esfera se ve mientras hay voz: escuchando, pensando una pregunta hablada o contestándola. */
+    private fun renderOrb(listening: Boolean) {
+        val binding = _binding ?: return
+        val thinking = viewModel.isThinking.value && viewModel.lastAskedByVoice
+        binding.voiceOrb.isVisible = listening || speaking || thinking
+        binding.voiceOrb.mode = when {
+            listening -> VoiceOrbView.Mode.LISTENING
+            speaking -> VoiceOrbView.Mode.SPEAKING
+            else -> VoiceOrbView.Mode.THINKING
+        }
     }
 
     private fun renderListening(listening: Boolean) {
@@ -221,6 +259,7 @@ class AssistantSheet : BottomSheetDialogFragment() {
                 else -> R.string.assistant_hint
             }
         )
+        renderOrb(listening)
     }
 
     /**
@@ -237,7 +276,16 @@ class AssistantSheet : BottomSheetDialogFragment() {
 
         // Un error no invita a seguir hablando: se dice y ya.
         val followUp = byVoice && !message.isError
-        Speaker.speak(context, message.text, asAlarm = false) {
+        speaking = true
+        renderOrb(listening = false)
+        Speaker.speak(
+            context,
+            message.text,
+            asAlarm = false,
+            onWord = { _binding?.voiceOrb?.pulse() }
+        ) {
+            speaking = false
+            renderOrb(listening = false)
             if (followUp && _binding != null && isResumed) listen()
         }
     }
@@ -295,7 +343,7 @@ class AssistantSheet : BottomSheetDialogFragment() {
     }
 
     override fun onDestroyView() {
-        voiceInput?.cancel()
+        voiceInput?.release()
         voiceInput = null
         Speaker.stop()
         binding.messagesRecycler.adapter = null
@@ -305,6 +353,10 @@ class AssistantSheet : BottomSheetDialogFragment() {
 
     companion object {
         const val TAG = "assistant"
+
+        /** Con esto avisa al mapa de una orden dicha en voz alta; [RESULT_SAID] es la frase. */
+        const val REQUEST_COMMAND = "assistant_voice_command"
+        const val RESULT_SAID = "said"
         private const val ARG_VOICE = "voice"
         private const val ARG_QUESTION = "question"
         private const val SHEET_HEIGHT_RATIO = 0.88

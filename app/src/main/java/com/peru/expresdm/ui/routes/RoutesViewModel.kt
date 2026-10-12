@@ -350,6 +350,12 @@ class RoutesViewModel(app: Application) : AndroidViewModel(app) {
         NearbyRoutes.distanceMeters(it.latitude, it.longitude, place.latitude, place.longitude)
     }
 
+    /**
+     * El lugar que mejor responde a [query], para ir a él sin elegirlo en una
+     * lista: lo usan las órdenes de voz. `null` si no se encontró ninguno.
+     */
+    suspend fun bestPlace(query: String): Place? = findPlaces(query.trim()).places.firstOrNull()
+
     /** La posición del usuario como lugar, para usarla de origen o destino. */
     fun currentPlace(): Place? = position.value?.let {
         Place(getApplication<Application>().getString(R.string.my_location), "", it.latitude, it.longitude)

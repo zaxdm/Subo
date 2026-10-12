@@ -1,7 +1,6 @@
 package com.peru.expresdm.voice
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.os.Handler
 import android.os.Looper
 import android.speech.tts.TextToSpeech
@@ -34,18 +33,23 @@ object Speaker {
      * silencio, que es lo que hace falta para no pasarse de parada. Sin él
      * suena con el volumen de la música, como cualquier asistente.
      *
-     * [onDone] se llama al terminar de hablar, también si no se pudo.
+     * Con audífonos puestos suena siempre por ellos: ver [AudioRoute].
+     *
+     * [onWord] avisa de cada palabra que se va diciendo (Android 8 en
+     * adelante), para mover algo al ritmo de la voz. [onDone] se llama al
+     * terminar de hablar, también si no se pudo.
      */
     fun speak(
         context: Context,
         text: String,
         asAlarm: Boolean = true,
         delayMs: Long = 0,
+        onWord: (() -> Unit)? = null,
         onDone: (() -> Unit)? = null
     ) {
         val appContext = context.applicationContext
         pending?.let(handler::removeCallbacks)
-        val job = Runnable { start(appContext, text, asAlarm, onDone) }
+        val job = Runnable { start(appContext, text, asAlarm, onWord, onDone) }
         pending = job
         handler.postDelayed(job, delayMs)
     }
@@ -57,7 +61,13 @@ object Speaker {
         release()
     }
 
-    private fun start(context: Context, text: String, asAlarm: Boolean, onDone: (() -> Unit)?) {
+    private fun start(
+        context: Context,
+        text: String,
+        asAlarm: Boolean,
+        onWord: (() -> Unit)?,
+        onDone: (() -> Unit)?
+    ) {
         release()
         var created: TextToSpeech? = null
         // Solo termina lo que sigue siendo lo último pedido: si otra frase lo
@@ -77,14 +87,14 @@ object Speaker {
             }
             // La voz, en el idioma de la app; si el teléfono no lo tiene, usa el suyo.
             tts.setLanguage(Locale.getDefault())
-            tts.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(if (asAlarm) AudioAttributes.USAGE_ALARM else AudioAttributes.USAGE_ASSISTANT)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
+            tts.setAudioAttributes(AudioRoute.attributes(context, urgent = asAlarm, speech = true))
             tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
                 override fun onStart(utteranceId: String?) = Unit
+
+                override fun onRangeStart(utteranceId: String?, start: Int, end: Int, frame: Int) {
+                    if (onWord != null) handler.post { if (engine === created) onWord() }
+                }
+
                 override fun onDone(utteranceId: String?) {
                     finish()
                 }

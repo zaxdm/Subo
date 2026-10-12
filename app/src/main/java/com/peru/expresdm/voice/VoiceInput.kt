@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.speech.RecognitionListener
 import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
@@ -22,6 +24,10 @@ class VoiceInput(context: Context) {
 
     private val appContext = context.applicationContext
     private var recognizer: SpeechRecognizer? = null
+    private val handler = Handler(Looper.getMainLooper())
+
+    /** Cambia con cada escucha y cada vez que se cancela: así no se atiende a una vieja. */
+    private var session = 0
 
     /** `true` mientras se espera a que el usuario hable o termine de hablar. */
     var isListening = false
@@ -29,26 +35,34 @@ class VoiceInput(context: Context) {
 
     /**
      * Escucha una frase. [onPartial] va recibiendo lo que se entiende mientras
-     * habla; [onResult] recibe la frase entera, o `null` si no se oyó nada o
-     * no se pudo escuchar ([failed] distingue el fallo del silencio).
+     * habla y [onLevel] lo fuerte que suena la voz, de 0 a 1; [onResult] recibe
+     * la frase entera, o `null` si no se oyó nada o no se pudo escuchar
+     * ([failed] distingue el fallo del silencio).
      */
-    fun listen(onPartial: (String) -> Unit = {}, onResult: (text: String?, failed: Boolean) -> Unit) {
-        if (!canListen(appContext)) {
-            onResult(null, true)
-            return
-        }
-        cancel()
-        val speech = create()
+    fun listen(
+        onPartial: (String) -> Unit = {},
+        onLevel: (Float) -> Unit = {},
+        onResult: (text: String?, failed: Boolean) -> Unit
+    ) = start(onPartial, onLevel, onResult, retries = CONNECTION_RETRIES)
+
+    private fun start(
+        onPartial: (String) -> Unit,
+        onLevel: (Float) -> Unit,
+        onResult: (text: String?, failed: Boolean) -> Unit,
+        retries: Int
+    ) {
+        // Cada escucha tiene su número: lo que llegue de una anterior se ignora.
+        val mine = ++session
+        val speech = if (canListen(appContext)) recognizer ?: create().also { recognizer = it } else null
         if (speech == null) {
+            isListening = false
             onResult(null, true)
             return
         }
-        recognizer = speech
         isListening = true
-        var delivered = false
         fun deliver(text: String?, failed: Boolean) {
-            if (delivered) return
-            delivered = true
+            if (mine != session) return
+            session++
             isListening = false
             onResult(text?.trim()?.takeIf { it.isNotEmpty() }, failed)
         }
@@ -56,22 +70,45 @@ class VoiceInput(context: Context) {
         speech.setRecognitionListener(object : RecognitionListener {
             override fun onReadyForSpeech(params: Bundle?) = Unit
             override fun onBeginningOfSpeech() = Unit
-            override fun onRmsChanged(rmsdB: Float) = Unit
+
+            // El teléfono lo da en decibelios, más o menos de -2 (silencio) a 10 (voz fuerte).
+            override fun onRmsChanged(rmsdB: Float) {
+                if (mine == session) onLevel(((rmsdB + 2f) / 12f).coerceIn(0f, 1f))
+            }
+
             override fun onBufferReceived(buffer: ByteArray?) = Unit
             override fun onEndOfSpeech() = Unit
             override fun onEvent(eventType: Int, params: Bundle?) = Unit
 
             override fun onPartialResults(partialResults: Bundle?) {
-                best(partialResults)?.takeIf { it.isNotBlank() }?.let(onPartial)
+                if (mine == session) best(partialResults)?.takeIf { it.isNotBlank() }?.let(onPartial)
             }
 
             override fun onResults(results: Bundle?) = deliver(best(results), false)
 
             override fun onError(error: Int) {
-                val silence = error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT
-                // Algunos teléfonos mandan un segundo error tras el silencio: ese ya no cuenta.
-                if (!silence && !delivered) Log.i(TAG, "El reconocimiento de voz falló con el código $error")
-                deliver(null, !silence)
+                if (mine != session) return
+                when {
+                    error == SpeechRecognizer.ERROR_NO_MATCH || error == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ->
+                        deliver(null, false)
+
+                    // Se cortó la conexión con el servicio de voz del teléfono
+                    // (pasa al reabrirlo muy seguido): se suelta, se vuelve a
+                    // conectar y se escucha de nuevo, sin molestar al usuario.
+                    error in CONNECTION_LOST && retries > 0 -> {
+                        Log.i(TAG, "El servicio de voz se cortó (código $error): se reintenta")
+                        destroy()
+                        val retry = ++session
+                        handler.postDelayed({
+                            if (retry == session) start(onPartial, onLevel, onResult, retries - 1)
+                        }, RETRY_DELAY_MS)
+                    }
+
+                    else -> {
+                        Log.i(TAG, "El reconocimiento de voz falló con el código $error")
+                        deliver(null, true)
+                    }
+                }
             }
         })
 
@@ -89,13 +126,27 @@ class VoiceInput(context: Context) {
         }
     }
 
-    /** Deja de escuchar sin entregar nada. */
+    /** Deja de escuchar sin entregar nada. La conexión con el servicio de voz se conserva. */
     fun cancel() {
+        session++
         isListening = false
+        try {
+            recognizer?.cancel()
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "No se pudo parar el reconocimiento de voz", e)
+        }
+    }
+
+    /** Deja de escuchar y suelta el servicio de voz: al terminar de usarlo. */
+    fun release() {
+        cancel()
+        destroy()
+    }
+
+    private fun destroy() {
         recognizer?.let { speech ->
             try {
                 speech.setRecognitionListener(null)
-                speech.cancel()
                 speech.destroy()
             } catch (e: RuntimeException) {
                 Log.w(TAG, "No se pudo soltar el reconocimiento de voz", e)
@@ -122,6 +173,15 @@ class VoiceInput(context: Context) {
 
     companion object {
         private const val TAG = "VoiceInput"
+
+        /** Los códigos con los que el teléfono dice que perdió su servicio de voz, o que aún está ocupado. */
+        private val CONNECTION_LOST = setOf(
+            SpeechRecognizer.ERROR_CLIENT,
+            SpeechRecognizer.ERROR_RECOGNIZER_BUSY,
+            11 // ERROR_SERVER_DISCONNECTED, de Android 12 en adelante
+        )
+        private const val CONNECTION_RETRIES = 2
+        private const val RETRY_DELAY_MS = 300L
 
         /** El teléfono tiene reconocimiento de voz (casi todos, con la app de Google). */
         fun isAvailable(context: Context): Boolean = try {

@@ -1,7 +1,6 @@
 package com.peru.expresdm.tracking
 
 import android.content.Context
-import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
 import android.os.Build
@@ -17,6 +16,7 @@ import com.peru.expresdm.R
 import com.peru.expresdm.data.AppSettings
 import com.peru.expresdm.data.ArrivalTone
 import com.peru.expresdm.data.Premium
+import com.peru.expresdm.voice.AudioRoute
 
 /**
  * La vibración y el sonido del aviso de bajada.
@@ -107,13 +107,9 @@ object ArrivalSignal {
         val media = MediaPlayer()
         return try {
             // Como alarma suena aunque el teléfono esté en silencio, con el
-            // volumen de alarmas: de eso se trata un aviso para bajarse.
-            media.setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ALARM)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .build()
-            )
+            // volumen de alarmas: de eso se trata un aviso para bajarse. Con
+            // audífonos puestos suena por ellos, no por el altavoz.
+            media.setAudioAttributes(AudioRoute.attributes(context, urgent = true, speech = false))
             setSource(media)
             media.setOnCompletionListener { stopSound.run() }
             media.prepare()

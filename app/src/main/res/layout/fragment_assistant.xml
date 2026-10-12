@@ -72,6 +72,23 @@
         app:layout_constraintTop_toBottomOf="@id/header"
         tools:listitem="@layout/item_assistant_message" />
 
+    <!-- La esfera de la voz: tapa la conversación mientras se escucha o se habla. -->
+    <com.peru.expresdm.voice.VoiceOrbView
+        android:id="@+id/voiceOrb"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginBottom="6dp"
+        android:background="@drawable/bg_voice_stage"
+        android:clipToOutline="true"
+        android:importantForAccessibility="no"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/suggestionsScroll"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/header" />
+
     <HorizontalScrollView
         android:id="@+id/suggestionsScroll"
         android:layout_width="0dp"
