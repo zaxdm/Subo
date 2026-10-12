@@ -17,9 +17,25 @@
     <!-- Aviso de bajada: vibra al llegar a la parada, si el usuario lo deja encendido -->
     <uses-permission android:name="android.permission.VIBRATE" />
 
+    <!-- Voz (Premium): preguntarle al asistente hablando. La app funciona sin él. -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
     <uses-feature
         android:name="android.hardware.location.gps"
         android:required="false" />
+    <uses-feature
+        android:name="android.hardware.microphone"
+        android:required="false" />
+
+    <!-- Para saber si el teléfono tiene reconocimiento de voz y poder usarlo. -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
 
     <application
         android:name=".ExpresdmApp"

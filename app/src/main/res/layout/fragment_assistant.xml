@@ -143,6 +143,18 @@
                 android:textSize="14sp" />
         </LinearLayout>
 
+        <!-- Preguntar hablando (Premium). Mientras escucha, sirve para parar. -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnVoice"
+            style="?attr/floatingActionButtonSecondaryStyle"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:layout_marginStart="10dp"
+            android:contentDescription="@string/voice_ask"
+            app:fabCustomSize="50dp"
+            app:maxImageSize="22dp"
+            app:srcCompat="@drawable/ic_mic" />
+
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/btnSend"
             android:layout_width="50dp"

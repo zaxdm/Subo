@@ -51,9 +51,17 @@ class AssistantViewModel(app: Application) : AndroidViewModel(app) {
     /** Con servidor, la clave de Gemini está allí; sin él, tiene que estar en la app. */
     val isAssistantAvailable: Boolean get() = ApiClient.isConfigured || GeminiClient.isConfigured
 
-    fun send(question: String) {
+    /** La última pregunta se hizo hablando: su respuesta se lee en voz alta. */
+    var lastAskedByVoice = false
+        private set
+
+    /** Hasta qué mensaje se leyó ya en voz alta, para no repetirlo al reabrir el chat. */
+    var lastSpokenId = 0L
+
+    fun send(question: String, byVoice: Boolean = false) {
         val text = question.trim()
         if (text.isEmpty() || _isThinking.value) return
+        lastAskedByVoice = byVoice
 
         // El historial que se manda al modelo debe capturarse antes de añadir
         // la pregunta nueva, que se envía aparte.

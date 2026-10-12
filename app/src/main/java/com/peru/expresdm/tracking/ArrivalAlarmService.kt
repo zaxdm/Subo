@@ -30,6 +30,7 @@ import com.peru.expresdm.data.ArrivalRules
 import com.peru.expresdm.data.NearbyRoutes
 import com.peru.expresdm.data.Premium
 import com.peru.expresdm.ui.formatDistance
+import com.peru.expresdm.voice.Speaker
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -41,7 +42,14 @@ data class ArrivalTarget(
     val routeName: String,
     val stopName: String,
     val latitude: Double,
-    val longitude: Double
+    val longitude: Double,
+    /**
+     * Con transbordo, la bajada del micro siguiente: al llegar a esta se pasa
+     * a vigilar aquella, sin que el usuario tenga que tocar nada.
+     */
+    val next: ArrivalTarget? = null,
+    /** Lo que la guía hablada dice al empezar: hasta dónde caminar y qué micro tomar. */
+    val intro: String? = null
 )
 
 data class ArrivalState(
@@ -96,7 +104,10 @@ class ArrivalAlarmService : Service(), LocationListener {
         return START_REDELIVER_INTENT
     }
 
-    private fun startWatching(target: ArrivalTarget) {
+    /** La guía hablada del viaje es de Premium y se apaga en Ajustes. */
+    private fun guideOn(): Boolean = Premium.active && AppSettings.get(this).voiceGuide
+
+    private fun startWatching(target: ArrivalTarget, announce: Boolean = true) {
         // Android exige mostrar la notificación nada más arrancar el servicio.
         createChannels()
         startForegroundCompat(buildTrackingNotification(target, distanceMeters = null))
@@ -132,6 +143,10 @@ class ArrivalAlarmService : Service(), LocationListener {
 
         handler.removeCallbacks(giveUp)
         handler.postDelayed(giveUp, MAX_WATCH_MS)
+
+        if (announce && guideOn()) {
+            Speaker.speak(this, target.intro ?: getString(R.string.voice_guide_start, target.stopName))
+        }
     }
 
     override fun onLocationChanged(location: Location) {
@@ -193,8 +208,8 @@ class ArrivalAlarmService : Service(), LocationListener {
             notifyArrival(notification)
         }
         if (settings.arrivalVibration) ArrivalSignal.nudge(this)
-        if (settings.arrivalVoice) {
-            ArrivalVoice.speak(this, getString(R.string.arrival_early_voice, distance, target.stopName), delayMs = 0)
+        if (settings.arrivalVoice || guideOn()) {
+            Speaker.speak(this, getString(R.string.arrival_early_voice, distance, target.stopName))
         }
     }
 
@@ -203,13 +218,22 @@ class ArrivalAlarmService : Service(), LocationListener {
         postArrivalNotification(target)
         val settings = AppSettings.get(this)
         ArrivalSignal.play(this, vibrate = settings.arrivalVibration, sound = settings.arrivalSound)
-        if (settings.arrivalVoice) {
+        // Con transbordo y guía, lo que toca ahora es el micro siguiente.
+        val next = target.next?.takeIf { guideOn() }
+        if (settings.arrivalVoice || guideOn()) {
+            val text = if (next != null) {
+                getString(R.string.voice_guide_transfer, target.stopName, next.routeName, next.stopName)
+            } else {
+                getString(R.string.arrival_arrived, target.stopName)
+            }
             // Después del tono, para que se entienda lo que dice.
-            ArrivalVoice.speak(
-                this,
-                getString(R.string.arrival_arrived, target.stopName),
-                delayMs = if (settings.arrivalSound) VOICE_AFTER_SOUND_MS else 0
-            )
+            Speaker.speak(this, text, delayMs = if (settings.arrivalSound) VOICE_AFTER_SOUND_MS else 0)
+        }
+        if (next != null) {
+            startWatching(next, announce = false)
+            // Si no se pudo seguir, startWatching ya lo dejó todo parado.
+            if (_state.value.target == next) _state.value = _state.value.copy(arrivedAt = target)
+            return
         }
         _state.value = ArrivalState(arrivedAt = target)
         stopEverything()
@@ -355,8 +379,23 @@ class ArrivalAlarmService : Service(), LocationListener {
             routeName = getStringExtra(EXTRA_ROUTE_NAME).orEmpty(),
             stopName = getStringExtra(EXTRA_STOP_NAME).orEmpty(),
             latitude = getDoubleExtra(EXTRA_LAT, Double.NaN).takeUnless { it.isNaN() } ?: return null,
-            longitude = getDoubleExtra(EXTRA_LON, Double.NaN).takeUnless { it.isNaN() } ?: return null
+            longitude = getDoubleExtra(EXTRA_LON, Double.NaN).takeUnless { it.isNaN() } ?: return null,
+            next = nextTargets(),
+            intro = getStringExtra(EXTRA_INTRO)
         )
+    }
+
+    /** Las bajadas que vienen después de la primera, encadenadas. */
+    private fun Intent.nextTargets(): ArrivalTarget? {
+        val ids = getStringArrayExtra(EXTRA_NEXT_ROUTE_IDS) ?: return null
+        val names = getStringArrayExtra(EXTRA_NEXT_ROUTE_NAMES) ?: return null
+        val stops = getStringArrayExtra(EXTRA_NEXT_STOP_NAMES) ?: return null
+        val lats = getDoubleArrayExtra(EXTRA_NEXT_LATS) ?: return null
+        val lons = getDoubleArrayExtra(EXTRA_NEXT_LONS) ?: return null
+        if (listOf(names.size, stops.size, lats.size, lons.size).any { it != ids.size }) return null
+        return ids.indices.reversed().fold(null as ArrivalTarget?) { following, index ->
+            ArrivalTarget(ids[index], names[index], stops[index], lats[index], lons[index], next = following)
+        }
     }
 
     companion object {
@@ -373,6 +412,12 @@ class ArrivalAlarmService : Service(), LocationListener {
         private const val EXTRA_STOP_NAME = "stopName"
         private const val EXTRA_LAT = "lat"
         private const val EXTRA_LON = "lon"
+        private const val EXTRA_INTRO = "intro"
+        private const val EXTRA_NEXT_ROUTE_IDS = "nextRouteIds"
+        private const val EXTRA_NEXT_ROUTE_NAMES = "nextRouteNames"
+        private const val EXTRA_NEXT_STOP_NAMES = "nextStopNames"
+        private const val EXTRA_NEXT_LATS = "nextLats"
+        private const val EXTRA_NEXT_LONS = "nextLons"
 
         private const val UPDATE_INTERVAL_MS = 5_000L
 
@@ -396,6 +441,15 @@ class ArrivalAlarmService : Service(), LocationListener {
                 .putExtra(EXTRA_STOP_NAME, target.stopName)
                 .putExtra(EXTRA_LAT, target.latitude)
                 .putExtra(EXTRA_LON, target.longitude)
+                .putExtra(EXTRA_INTRO, target.intro)
+            val following = generateSequence(target.next) { it.next }.toList()
+            if (following.isNotEmpty()) {
+                intent.putExtra(EXTRA_NEXT_ROUTE_IDS, following.map { it.routeId }.toTypedArray())
+                    .putExtra(EXTRA_NEXT_ROUTE_NAMES, following.map { it.routeName }.toTypedArray())
+                    .putExtra(EXTRA_NEXT_STOP_NAMES, following.map { it.stopName }.toTypedArray())
+                    .putExtra(EXTRA_NEXT_LATS, following.map { it.latitude }.toDoubleArray())
+                    .putExtra(EXTRA_NEXT_LONS, following.map { it.longitude }.toDoubleArray())
+            }
             // Se marca ya, para que la interfaz no espere a que arranque el servicio.
             _state.value = ArrivalState(target = target)
             ContextCompat.startForegroundService(context, intent)

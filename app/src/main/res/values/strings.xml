@@ -623,4 +623,24 @@
     <string name="live_trip_channel_description">Se ve mientras compartes por dónde vas</string>
     <string name="live_trip_notification_title">Compartiendo tu viaje en vivo</string>
     <string name="live_trip_notification_text">Vas en %1$s. Quien tiene tu enlace ve por dónde vas.</string>
+
+    <!-- Voz (Premium) -->
+    <string name="premium_benefit_voice">Voz: pregúntale al asistente hablando, llámalo diciendo «Subo» y deja que te guíe en el viaje</string>
+    <string name="voice_ask">Preguntar hablando</string>
+    <string name="voice_stop">Dejar de escuchar</string>
+    <string name="voice_listening">Te escucho…</string>
+    <string name="voice_failed">No pude escucharte. Revisa tu conexión e inténtalo de nuevo.</string>
+    <string name="voice_unavailable">Este teléfono no tiene reconocimiento de voz</string>
+    <string name="voice_needs_microphone">Para hablarle a Subo hace falta el permiso del micrófono</string>
+    <string name="settings_voice_label">VOZ · PREMIUM</string>
+    <string name="settings_voice_title">Habla con Subo</string>
+    <string name="settings_voice_wake">Llamar al asistente diciendo «Subo»</string>
+    <string name="settings_voice_guide">Guía hablada durante el viaje</string>
+    <string name="settings_voice_answers">Leer en voz alta todas las respuestas del asistente</string>
+    <string name="settings_voice_note">Con el mapa abierto, di «Subo» y tu pregunta: «Subo, ¿qué micro va al centro?». Solo escucha mientras ves el mapa. Las preguntas que haces hablando siempre se contestan en voz alta.</string>
+    <string name="voice_guide_start">Listo. Te aviso cuando estés llegando a %1$s.</string>
+    <string name="voice_guide_walk">Camina unos %1$d minutos hasta %2$s y toma el micro %3$s. Te aviso para bajar en %4$s.</string>
+    <string name="voice_guide_board">Toma el micro %1$s en %2$s. Te aviso para bajar en %3$s.</string>
+    <string name="voice_guide_board_plain">Toma el micro %1$s. Te aviso para bajar en %2$s.</string>
+    <string name="voice_guide_transfer">Baja aquí, en %1$s. Ahora toma el micro %2$s y te aviso para bajar en %3$s.</string>
 </resources>

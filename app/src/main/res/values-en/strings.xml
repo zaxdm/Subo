@@ -625,4 +625,24 @@
     <string name="live_trip_channel_description">Shown while you share where you are</string>
     <string name="live_trip_notification_title">Sharing your trip live</string>
     <string name="live_trip_notification_text">You are on %1$s. Whoever has your link sees where you are.</string>
+
+    <!-- Voice (Premium) -->
+    <string name="premium_benefit_voice">Voice: ask the assistant by speaking, call it by saying “Subo” and let it guide your trip</string>
+    <string name="voice_ask">Ask by voice</string>
+    <string name="voice_stop">Stop listening</string>
+    <string name="voice_listening">Listening…</string>
+    <string name="voice_failed">I could not hear you. Check your connection and try again.</string>
+    <string name="voice_unavailable">This phone has no speech recognition</string>
+    <string name="voice_needs_microphone">Talking to Subo needs the microphone permission</string>
+    <string name="settings_voice_label">VOICE · PREMIUM</string>
+    <string name="settings_voice_title">Talk to Subo</string>
+    <string name="settings_voice_wake">Call the assistant by saying “Subo”</string>
+    <string name="settings_voice_guide">Spoken guide during the trip</string>
+    <string name="settings_voice_answers">Read every assistant answer aloud</string>
+    <string name="settings_voice_note">With the map open, say “Subo” and your question: “Subo, which bus goes downtown?”. It only listens while you see the map. Questions you ask by voice are always answered aloud.</string>
+    <string name="voice_guide_start">Done. I will tell you when you are getting to %1$s.</string>
+    <string name="voice_guide_walk">Walk about %1$d minutes to %2$s and take the %3$s bus. I will tell you when to get off at %4$s.</string>
+    <string name="voice_guide_board">Take the %1$s bus at %2$s. I will tell you when to get off at %3$s.</string>
+    <string name="voice_guide_board_plain">Take the %1$s bus. I will tell you when to get off at %2$s.</string>
+    <string name="voice_guide_transfer">Get off here, at %1$s. Now take the %2$s bus and I will tell you when to get off at %3$s.</string>
 </resources>

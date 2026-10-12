@@ -30,11 +30,12 @@ import com.peru.expresdm.databinding.FragmentSettingsBinding
 import com.peru.expresdm.tracking.AlertWatchWorker
 import com.peru.expresdm.tracking.ArrivalAlarmService
 import com.peru.expresdm.tracking.ArrivalSignal
-import com.peru.expresdm.tracking.ArrivalVoice
 import com.peru.expresdm.tracking.PushRegistration
 import com.peru.expresdm.ui.AlertStyle
 import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.ui.themeColor
+import com.peru.expresdm.voice.Speaker
+import com.peru.expresdm.voice.VoiceInput
 
 /**
  * Ajustes del aviso de bajada, de las alertas, de apariencia y de idioma.
@@ -54,6 +55,16 @@ class SettingsFragment : Fragment() {
 
     /** El permiso de notificaciones de Android 13 en adelante; si lo niegan, no se insiste. */
     private val askNotifications = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
+
+    /** El micrófono, para la activación por voz: sin él la casilla no se queda marcada. */
+    private val askMicrophone = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        val binding = _binding ?: return@registerForActivityResult
+        settings.voiceWake = granted
+        bindingSelection = true
+        binding.voiceWake.isChecked = granted
+        bindingSelection = false
+        if (!granted) showMessage(getString(R.string.voice_needs_microphone))
+    }
 
     /** El selector de archivos de Android, para añadir un sonido propio. */
     private val pickSound = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -115,6 +126,22 @@ class SettingsFragment : Fragment() {
                 PremiumSheet.show(childFragmentManager)
             } else {
                 settings.arrivalEarlyWarning = checked
+            }
+        }
+
+        // La voz es de Premium: sin él las casillas no se quedan marcadas.
+        premiumCheck(binding.voiceAnswers) { settings.voiceAnswers = it }
+        premiumCheck(binding.voiceGuide) { settings.voiceGuide = it }
+        premiumCheck(binding.voiceWake) { checked ->
+            val context = requireContext()
+            when {
+                !checked -> settings.voiceWake = false
+                !VoiceInput.isAvailable(context) -> {
+                    uncheck(binding.voiceWake)
+                    showMessage(getString(R.string.voice_unavailable))
+                }
+                VoiceInput.hasPermission(context) -> settings.voiceWake = true
+                else -> askMicrophone.launch(Manifest.permission.RECORD_AUDIO)
             }
         }
 
@@ -188,6 +215,10 @@ class SettingsFragment : Fragment() {
         binding.arrivalSound.isChecked = settings.arrivalSound
         binding.arrivalVoice.isChecked = settings.arrivalVoice
         binding.arrivalEarly.isChecked = settings.arrivalEarlyWarning && Premium.active
+        binding.voiceAnswers.isChecked = settings.voiceAnswers && Premium.active
+        binding.voiceGuide.isChecked = settings.voiceGuide && Premium.active
+        binding.voiceWake.isChecked = settings.voiceWake && Premium.active &&
+            VoiceInput.hasPermission(requireContext())
         binding.alertNotifications.isChecked = settings.alertNotifications
 
         binding.themeGroup.check(
@@ -206,6 +237,28 @@ class SettingsFragment : Fragment() {
             }
         )
 
+        bindingSelection = false
+    }
+
+    /**
+     * Una casilla de algo que es de Premium: marcarla sin serlo la deja como
+     * estaba y enseña qué trae Premium.
+     */
+    private fun premiumCheck(box: MaterialCheckBox, onChanged: (Boolean) -> Unit) {
+        box.setOnCheckedChangeListener { _, checked ->
+            if (bindingSelection) return@setOnCheckedChangeListener
+            if (checked && !Premium.active) {
+                uncheck(box)
+                PremiumSheet.show(childFragmentManager)
+            } else {
+                onChanged(checked)
+            }
+        }
+    }
+
+    private fun uncheck(box: MaterialCheckBox) {
+        bindingSelection = true
+        box.isChecked = false
         bindingSelection = false
     }
 
@@ -319,7 +372,7 @@ class SettingsFragment : Fragment() {
         val sound = settings.arrivalSound
         ArrivalSignal.play(requireContext(), vibrate = vibrate, sound = sound)
         if (settings.arrivalVoice) {
-            ArrivalVoice.speak(
+            Speaker.speak(
                 requireContext(),
                 getString(R.string.arrival_arrived, getString(R.string.settings_arrival_voice_sample)),
                 delayMs = if (sound) ArrivalAlarmService.VOICE_AFTER_SOUND_MS else 0

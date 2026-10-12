@@ -154,7 +154,8 @@ class PremiumSheet : BottomSheetDialogFragment() {
             R.string.premium_benefit_live,
             R.string.premium_benefit_arrival,
             R.string.premium_benefit_places,
-            R.string.premium_benefit_assistant
+            R.string.premium_benefit_assistant,
+            R.string.premium_benefit_voice
         )
 
         fun show(manager: FragmentManager) {

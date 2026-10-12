@@ -196,6 +196,60 @@
                 app:icon="@drawable/ic_arrival_alarm"
                 app:iconGravity="textStart" />
 
+            <!-- Voz (Premium) -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="26dp"
+                android:text="@string/settings_voice_label"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionLabel" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingTop="2dp"
+                android:text="@string/settings_voice_title"
+                android:textAppearance="@style/TextAppearance.Expresdm.SectionTitle"
+                android:textSize="17sp" />
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                app:cardCornerRadius="22dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:paddingTop="6dp"
+                    android:paddingBottom="6dp">
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/voiceWake"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_voice_wake" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/voiceGuide"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_voice_guide" />
+
+                    <com.google.android.material.checkbox.MaterialCheckBox
+                        android:id="@+id/voiceAnswers"
+                        style="@style/Widget.Expresdm.Check"
+                        android:text="@string/settings_voice_answers" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/settings_voice_note"
+                android:textAppearance="@style/TextAppearance.Expresdm.Body"
+                android:textSize="12sp" />
+
             <!-- Notificaciones -->
             <TextView
                 android:layout_width="wrap_content"

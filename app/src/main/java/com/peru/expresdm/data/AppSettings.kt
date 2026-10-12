@@ -115,6 +115,23 @@ class AppSettings private constructor(context: Context) {
         get() = prefs.getBoolean(KEY_ARRIVAL_EARLY, true)
         set(value) = prefs.edit().putBoolean(KEY_ARRIVAL_EARLY, value).apply()
 
+    // --- Voz (Premium): solo tienen efecto con la cuenta de pago ---
+
+    /** Leer en alto todas las respuestas del asistente, no solo las de preguntas habladas. */
+    var voiceAnswers: Boolean
+        get() = prefs.getBoolean(KEY_VOICE_ANSWERS, false)
+        set(value) = prefs.edit().putBoolean(KEY_VOICE_ANSWERS, value).apply()
+
+    /** Guía hablada del viaje: dónde subir, cuánto falta, dónde bajar y el transbordo. */
+    var voiceGuide: Boolean
+        get() = prefs.getBoolean(KEY_VOICE_GUIDE, true)
+        set(value) = prefs.edit().putBoolean(KEY_VOICE_GUIDE, value).apply()
+
+    /** Con el mapa a la vista, escuchar hasta oír «Subo» y abrir el asistente. */
+    var voiceWake: Boolean
+        get() = prefs.getBoolean(KEY_VOICE_WAKE, false)
+        set(value) = prefs.edit().putBoolean(KEY_VOICE_WAKE, value).apply()
+
     /** Avisar con una notificación cuando alguien reporta algo cerca o en una ruta que el usuario usa. */
     var alertNotifications: Boolean
         get() = prefs.getBoolean(KEY_ALERT_NOTIFICATIONS, true)
@@ -178,6 +195,9 @@ class AppSettings private constructor(context: Context) {
         private const val KEY_ALERT_NOTIFICATIONS = "alert_notifications"
         private const val KEY_ARRIVAL_VOICE = "arrival_voice"
         private const val KEY_ARRIVAL_EARLY = "arrival_early"
+        private const val KEY_VOICE_ANSWERS = "voice_answers"
+        private const val KEY_VOICE_GUIDE = "voice_guide"
+        private const val KEY_VOICE_WAKE = "voice_wake"
 
         /** Más que esto ya no es una lista para elegir de un vistazo. */
         const val MAX_CUSTOM_SOUNDS = 10

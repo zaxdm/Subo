@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
 import androidx.core.view.doOnLayout
 import androidx.core.view.isVisible
+import androidx.fragment.app.DialogFragment
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
@@ -80,6 +81,8 @@ import com.peru.expresdm.tracking.ArrivalState
 import com.peru.expresdm.tracking.ArrivalTarget
 import com.peru.expresdm.tracking.LiveTrip
 import com.peru.expresdm.tracking.LiveTripService
+import com.peru.expresdm.voice.VoiceInput
+import com.peru.expresdm.voice.VoiceWake
 import com.peru.expresdm.tracking.RecorderState
 import com.peru.expresdm.tracking.RecorderStatus
 import com.peru.expresdm.tracking.RouteRecorderService
@@ -273,6 +276,35 @@ class RoutesFragment : Fragment() {
         startLocationUpdates()
         refreshLocationAccess()
         startArrival(target)
+    }
+
+    /** Escucha «Subo» mientras el mapa está a la vista, si así se pidió en Ajustes. */
+    private var voiceWake: VoiceWake? = null
+
+    /**
+     * Enciende o apaga la activación por voz según la cuenta, Ajustes y el
+     * permiso del micrófono. Solo escucha con esta pantalla en primer plano.
+     */
+    private fun syncVoiceWake() {
+        val context = context ?: return
+        val wanted = isResumed && Premium.active && AppSettings.get(context).voiceWake &&
+            VoiceInput.canListen(context)
+        if (!wanted) {
+            voiceWake?.stop()
+            return
+        }
+        val wake = voiceWake ?: VoiceWake(
+            context,
+            // Con una hoja o un diálogo abierto no se escucha: o es el propio
+            // asistente, o el usuario está en otra cosa.
+            isBusy = { !isResumed || childFragmentManager.fragments.any { it is DialogFragment } },
+            onWake = { said ->
+                if (isResumed && !childFragmentManager.isStateSaved) {
+                    AssistantSheet.show(childFragmentManager, voice = true, question = said)
+                }
+            }
+        ).also { voiceWake = it }
+        wake.start()
     }
 
     /** El viaje que se quiere compartir en vivo mientras se piden los permisos. */
@@ -1325,6 +1357,13 @@ class RoutesFragment : Fragment() {
             cancelArrival()
             return
         }
+        // Con la guía hablada no se pregunta en cuál bajada: se va avisando de
+        // todas, una detrás de otra, y de qué micro tomar en cada transbordo.
+        val journey = state.chosenJourney
+        if (journey != null && rides.isNotEmpty() && Premium.active && AppSettings.get(requireContext()).voiceGuide) {
+            requestArrival(guidedTarget(state, journey))
+            return
+        }
         pickRide(R.string.journey_arrival_which, { ride ->
             getString(R.string.journey_arrival_option, ride.route.name, exitName(ride, state))
         }) { ride ->
@@ -1338,6 +1377,36 @@ class RoutesFragment : Fragment() {
                 )
             )
         }
+    }
+
+    /**
+     * El viaje entero para la guía hablada: la bajada de cada micro encadenada
+     * con la siguiente, y lo que se dice al empezar (hasta dónde caminar y qué
+     * micro tomar).
+     */
+    private fun guidedTarget(state: HomeState, journey: Journey): ArrivalTarget {
+        val rides = journey.rides
+        val first = rides.first()
+        val exit = exitName(first, state)
+        val walk = journey.legs.firstOrNull() as? JourneyLeg.Walk
+        val boarding = first.from.name.takeIf { it.isNotBlank() && first.fromKind != RidePoint.ON_ROUTE }
+        val intro = when {
+            boarding == null -> getString(R.string.voice_guide_board_plain, first.route.name, exit)
+            walk != null && walk.minutes > 0 ->
+                getString(R.string.voice_guide_walk, walk.minutes, boarding, first.route.name, exit)
+            else -> getString(R.string.voice_guide_board, first.route.name, boarding, exit)
+        }
+        return rides.foldRight(null as ArrivalTarget?) { ride, following ->
+            ArrivalTarget(
+                routeId = ride.route.id,
+                routeName = ride.route.name,
+                stopName = exitName(ride, state),
+                latitude = ride.to.latitude,
+                longitude = ride.to.longitude,
+                next = following,
+                intro = intro.takeIf { ride === first }
+            )
+        }!!
     }
 
     /**
@@ -2349,7 +2418,13 @@ class RoutesFragment : Fragment() {
 
                 launch { ArrivalAlarmService.state.collect { renderArrival(it) } }
                 // Al entrar o salir de una cuenta cambia quién puede grabar rutas.
-                launch { AccountRepository.session.collect { renderAddRoute() } }
+                launch {
+                    AccountRepository.session.collect {
+                        renderAddRoute()
+                        // Premium pudo llegar o irse: la activación por voz va con él.
+                        syncVoiceWake()
+                    }
+                }
                 launch {
                     SavedPlaceStore.get(requireContext()).favorites.collect {
                         favorites = it
@@ -2525,6 +2600,7 @@ class RoutesFragment : Fragment() {
         // El usuario pudo activar la ubicación o dar el permiso desde los ajustes.
         refreshLocationAccess()
         viewLifecycleOwner.lifecycleScope.launch { RouteRepository.refresh() }
+        syncVoiceWake()
     }
 
     override fun onPause() {
@@ -2532,6 +2608,7 @@ class RoutesFragment : Fragment() {
         // La grabación de rutas usa su propio servicio y sigue funcionando.
         locationOverlay?.disableMyLocation()
         _binding?.mapView?.onPause()
+        voiceWake?.stop()
         super.onPause()
     }
 

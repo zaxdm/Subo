@@ -12,6 +12,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.setupWithNavController
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.data.RouteRepository
 import com.peru.expresdm.data.SavedRoutes
 import com.peru.expresdm.data.SharedLink
@@ -37,6 +38,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // adb shell am start -n <paquete>/com.peru.expresdm.MainActivity --ez debug_premium true
+        if (BuildConfig.DEBUG) {
+            Premium.debugForced = intent.getBooleanExtra(EXTRA_DEBUG_PREMIUM, Premium.debugForced)
+        }
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
@@ -112,6 +117,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
+        const val EXTRA_DEBUG_PREMIUM = "debug_premium"
+
         val TOP_LEVEL_DESTINATIONS = setOf(
             R.id.routesFragment,
             R.id.reportsFragment,

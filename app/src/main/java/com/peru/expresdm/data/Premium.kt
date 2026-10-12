@@ -24,8 +24,15 @@ object Premium {
     fun isActive(session: Session?, now: Long = System.currentTimeMillis()): Boolean =
         (session?.premiumUntil ?: 0L) > now
 
+    /**
+     * Solo para la compilación de pruebas: trata la cuenta como Premium, para
+     * probar sus funciones sin activarla en el servidor. Lo que el servidor
+     * decide (el tope del asistente, el viaje en vivo) no cambia con esto.
+     */
+    var debugForced = false
+
     /** La cuenta con la sesión abierta es Premium ahora mismo. */
-    val active: Boolean get() = isActive(AccountRepository.session.value)
+    val active: Boolean get() = debugForced || isActive(AccountRepository.session.value)
 
     /** Cuántas rutas puede guardar sin conexión esa cuenta. */
     fun savedRoutesLimit(premium: Boolean = active): Int =
