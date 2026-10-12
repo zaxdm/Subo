@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Una de las cosas que trae Subo Premium. -->
+<TextView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:drawablePadding="12dp"
+    android:gravity="center_vertical"
+    android:minHeight="44dp"
+    android:textColor="?attr/colorOnSurface"
+    android:textSize="15sp"
+    app:drawableStartCompat="@drawable/ic_map"
+    app:drawableTint="?attr/colorSecondary"
+    tools:text="Hasta 20 rutas con su mapa para verlas sin internet" />

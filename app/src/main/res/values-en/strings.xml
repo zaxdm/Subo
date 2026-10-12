@@ -487,7 +487,7 @@
     <string name="route_save_downloading">Downloading…</string>
     <string name="route_save_done">Route saved: you\'ll be able to see its map offline</string>
     <string name="route_save_partial">Route saved, but its map didn\'t download completely. Save it again with a good connection.</string>
-    <string name="route_save_limit">You can save up to %1$d routes. Remove one to save another; more are coming with a subscription.</string>
+    <string name="route_save_limit">You can save up to %1$d routes. Remove one to save another.</string>
     <string name="route_save_count">%1$d of %2$d routes saved for offline use</string>
     <string name="route_detail_ratings">Ratings</string>
     <string name="route_detail_rate">Rate</string>
@@ -562,4 +562,26 @@
     <string name="shared_route_missing">That route is no longer on Subo</string>
 
 
+    <!-- Subo Premium -->
+    <string name="premium_title">Subo Premium</string>
+    <string name="premium_status_active">Active until %1$s</string>
+    <string name="premium_status_free">Your account is free</string>
+    <string name="premium_status_signed_out">It goes with your account: sign in to get it</string>
+    <string name="premium_badge_active">Active</string>
+    <string name="premium_includes">WHAT YOU GET</string>
+    <string name="premium_benefit_offline">Up to %1$d routes with their map to use without internet</string>
+    <string name="premium_free_note">Trip planning, alerts, the arrival alert and your favorite places stay free.</string>
+    <string name="premium_action_request">I want Subo Premium</string>
+    <string name="premium_action_requested">Request sent</string>
+    <string name="premium_action_sign_in">Sign in</string>
+    <string name="premium_how_request">We get your request and write back to turn it on for your account.</string>
+    <string name="premium_how_requested">We will answer in Profile › Support. Once it is on, it shows up here by itself.</string>
+    <string name="premium_how_sign_in">Premium is kept in your account, so you have it on any phone.</string>
+    <string name="premium_request_subject">Subo Premium</string>
+    <string name="premium_request_message">I want to turn on Subo Premium for my account %1$s.</string>
+    <string name="premium_request_failed">The request could not be sent. Check your connection and try again.</string>
+    <plurals name="route_save_count_free">
+        <item quantity="one">Free: %1$d offline route · Premium: up to %2$d</item>
+        <item quantity="other">Free: %1$d offline routes · Premium: up to %2$d</item>
+    </plurals>
 </resources>

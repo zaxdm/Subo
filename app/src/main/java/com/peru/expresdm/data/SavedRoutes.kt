@@ -18,7 +18,7 @@ import org.osmdroid.util.GeoPoint
  * descarga las teselas por donde pasa, y solo esas: OpenStreetMap no permite
  * bajarse zonas enteras, y con el trazado basta para orientarse.
  *
- * Hay un tope de rutas guardadas por cuenta gratuita.
+ * Cuántas se pueden guardar depende de la cuenta: ver [Premium].
  */
 class SavedRoutes private constructor(context: Context) {
 
@@ -32,8 +32,14 @@ class SavedRoutes private constructor(context: Context) {
 
     fun isSaved(routeId: String): Boolean = routeId in _ids.value
 
-    /** Queda sitio para guardar otra. */
-    val hasRoom: Boolean get() = _ids.value.size < MAX_SAVED
+    /** Cuántas puede guardar la cuenta que está usando la app. */
+    val limit: Int get() = Premium.savedRoutesLimit()
+
+    /**
+     * Queda sitio para guardar otra. Quien tenía más guardadas que su tope (dejó
+     * de ser Premium) las conserva, pero no puede añadir.
+     */
+    val hasRoom: Boolean get() = _ids.value.size < limit
 
     /**
      * Guarda la ruta y descarga su mapa. [onDone] dice si el mapa llegó entero;
@@ -83,7 +89,10 @@ class SavedRoutes private constructor(context: Context) {
         private const val PREFS_NAME = "expresdm_saved_routes"
         private const val KEY_IDS = "ids"
 
-        /** Tope de la cuenta gratuita; con suscripción podrá ser mayor. */
+        /**
+         * Tope con Premium. No es mayor porque OpenStreetMap no permite bajarse
+         * la ciudad entera: son los mapas de las rutas de uno, no un atlas.
+         */
         const val MAX_SAVED = 20
 
         /** De ver el barrio a ver la calle. Más cerca serían demasiadas teselas. */

@@ -485,7 +485,7 @@
     <string name="route_save_downloading">Descargando…</string>
     <string name="route_save_done">Ruta guardada: podrás ver su mapa sin conexión</string>
     <string name="route_save_partial">Ruta guardada, pero su mapa no se descargó entero. Vuelve a guardarla con buena conexión.</string>
-    <string name="route_save_limit">Puedes guardar hasta %1$d rutas. Quita una para guardar otra; pronto habrá más con la suscripción.</string>
+    <string name="route_save_limit">Puedes guardar hasta %1$d rutas. Quita una para guardar otra.</string>
     <string name="route_save_count">%1$d de %2$d rutas guardadas para ver sin conexión</string>
     <string name="route_detail_ratings">Calificaciones</string>
     <string name="route_detail_rate">Calificar</string>
@@ -560,4 +560,26 @@
     <string name="shared_route_missing">Esa ruta ya no está en Subo</string>
 
 
+    <!-- Subo Premium -->
+    <string name="premium_title">Subo Premium</string>
+    <string name="premium_status_active">Activo hasta el %1$s</string>
+    <string name="premium_status_free">Tu cuenta es gratuita</string>
+    <string name="premium_status_signed_out">Va con tu cuenta: inicia sesión para tenerlo</string>
+    <string name="premium_badge_active">Activo</string>
+    <string name="premium_includes">LO QUE TRAE DE MÁS</string>
+    <string name="premium_benefit_offline">Hasta %1$d rutas con su mapa para verlas sin internet</string>
+    <string name="premium_free_note">Buscar cómo llegar, las alertas, el aviso de llegada y tus lugares favoritos siguen siendo gratis.</string>
+    <string name="premium_action_request">Quiero Subo Premium</string>
+    <string name="premium_action_requested">Solicitud enviada</string>
+    <string name="premium_action_sign_in">Iniciar sesión</string>
+    <string name="premium_how_request">Nos llega tu solicitud y te escribimos para activarlo en tu cuenta.</string>
+    <string name="premium_how_requested">Te responderemos en Perfil › Soporte. Al activarlo, aparece aquí solo.</string>
+    <string name="premium_how_sign_in">Premium se guarda en tu cuenta, para que lo tengas en cualquier teléfono.</string>
+    <string name="premium_request_subject">Subo Premium</string>
+    <string name="premium_request_message">Quiero activar Subo Premium en mi cuenta %1$s.</string>
+    <string name="premium_request_failed">No se pudo enviar la solicitud. Revisa tu conexión e inténtalo de nuevo.</string>
+    <plurals name="route_save_count_free">
+        <item quantity="one">Gratis: %1$d ruta sin conexión · Premium: hasta %2$d</item>
+        <item quantity="other">Gratis: %1$d rutas sin conexión · Premium: hasta %2$d</item>
+    </plurals>
 </resources>

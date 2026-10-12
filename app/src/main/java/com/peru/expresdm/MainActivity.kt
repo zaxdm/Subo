@@ -57,6 +57,10 @@ class MainActivity : AppCompatActivity() {
         // Al girar la pantalla el enlace ya se atendió: la ficha sigue abierta.
         if (savedInstanceState == null) openSharedRoute(intent)
 
+        // Premium y el permiso de administrador se activan en el servidor: al
+        // abrir la app se pregunta cómo está la cuenta.
+        if (savedInstanceState == null) lifecycleScope.launch { AccountRepository.refresh() }
+
         // Al entrar o salir de la cuenta, el servidor sabe de quién es este
         // teléfono: así no le avisa a alguien de su propia alerta.
         lifecycleScope.launch {

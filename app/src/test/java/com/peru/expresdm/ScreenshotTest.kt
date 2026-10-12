@@ -171,6 +171,22 @@ class ScreenshotTest {
         }
     }
 
+    /** Subo Premium, tal como lo ve una cuenta gratuita desde su perfil. */
+    @Test
+    @Config(qualifiers = "es-rPE-w411dp-h891dp-xhdpi")
+    fun `captura subo premium`() {
+        ActivityScenario.launch(MainActivity::class.java).use { scenario ->
+            scenario.onActivity { activity ->
+                selectTab(activity, R.id.profileFragment)
+                capture(activity, "16-perfil-premium")
+                activity.findViewById<View>(R.id.rowPremium).performClick()
+                idle()
+                val sheet = ShadowDialog.getLatestDialog().window!!.decorView
+                capture(activity, "17-subo-premium", sheet)
+            }
+        }
+    }
+
     /** Las tres alturas de la hoja del inicio: reposo (carrusel), arriba (tarjetas) y mínima. */
     @Test
     @Config(qualifiers = "es-rPE-w411dp-h891dp-night-xhdpi")

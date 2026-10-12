@@ -121,10 +121,14 @@ object AccountRepository {
         when (val result = ApiClient.get("/api/me", token)) {
             is ApiResult.Failure -> if (result.reason == ApiFailure.UNAUTHORIZED) signOut()
             is ApiResult.Success -> {
-                // El permiso de administrador se da y se quita en el servidor:
-                // aquí se pone al día sin obligar a cerrar sesión.
+                // El permiso de administrador y Premium se dan y se quitan en el
+                // servidor: aquí se ponen al día sin obligar a cerrar sesión.
                 val current = session.value ?: return
-                val updated = current.copy(isAdmin = isAdminRole(result.data), avatarUrl = avatarOf(result.data))
+                val updated = current.copy(
+                    isAdmin = isAdminRole(result.data),
+                    avatarUrl = avatarOf(result.data),
+                    premiumUntil = premiumOf(result.data)
+                )
                 if (updated != current) store.save(updated)
             }
         }
@@ -164,6 +168,9 @@ object AccountRepository {
     private fun avatarOf(user: JSONObject): String? =
         if (user.isNull("avatarUrl")) null else user.optString("avatarUrl").takeIf { it.isNotBlank() }
 
+    private fun premiumOf(user: JSONObject): Long? =
+        if (user.isNull("premiumUntil")) null else user.optLong("premiumUntil").takeIf { it > 0L }
+
     private val ROUTE_ROLES = setOf("contributor", "admin", "super_admin")
 
     private suspend fun authenticate(path: String, body: JSONObject): ApiResult<Session> =
@@ -183,7 +190,8 @@ object AccountRepository {
             email = user.optString("email"),
             displayName = user.optString("displayName"),
             isAdmin = isAdminRole(user),
-            avatarUrl = avatarOf(user)
+            avatarUrl = avatarOf(user),
+            premiumUntil = premiumOf(user)
         )
         store.save(session)
         return ApiResult.Success(session)

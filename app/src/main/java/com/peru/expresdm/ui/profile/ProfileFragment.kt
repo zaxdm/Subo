@@ -19,6 +19,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import com.peru.expresdm.R
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.data.ProfilePhotoStore
 import com.peru.expresdm.data.ProfileStats
 import com.peru.expresdm.data.RouteRepository
@@ -33,6 +34,7 @@ import com.peru.expresdm.databinding.FragmentProfileBinding
 import com.peru.expresdm.ui.Initials
 import com.peru.expresdm.ui.RouteImages
 import com.peru.expresdm.ui.account.AccountSheet
+import com.peru.expresdm.ui.account.PremiumSheet
 import com.peru.expresdm.ui.routes.RouteAdapter
 import com.peru.expresdm.ui.showRouteOnMap
 import kotlinx.coroutines.launch
@@ -78,6 +80,8 @@ class ProfileFragment : Fragment() {
         // se desplaza. En XML este atributo revienta en algunos teléfonos.
         binding.favoritesRecycler.isNestedScrollingEnabled = false
 
+        binding.rowPremium.setOnClickListener { PremiumSheet.show(childFragmentManager) }
+
         binding.rowSettings.setOnClickListener {
             findNavController().navigate(R.id.action_profile_to_settings)
         }
@@ -116,7 +120,13 @@ class ProfileFragment : Fragment() {
 
                 launch { viewModel.stats.collect { renderStats(it) } }
 
-                launch { AccountRepository.session.collect { renderAccount(it) } }
+                launch {
+                    AccountRepository.session.collect {
+                        renderAccount(it)
+                        binding.premiumBadge.text =
+                            if (Premium.isActive(it)) getString(R.string.premium_badge_active) else ""
+                    }
+                }
 
                 launch {
                     viewModel.messages.collect { message ->

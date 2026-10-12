@@ -11,6 +11,7 @@ import com.peru.expresdm.ai.ModerationService
 import com.peru.expresdm.ai.ModerationVerdict
 import com.peru.expresdm.data.BusRoute
 import com.peru.expresdm.data.FareTable
+import com.peru.expresdm.data.Premium
 import com.peru.expresdm.data.RouteCommunity
 import com.peru.expresdm.data.RouteCommunityRepository
 import com.peru.expresdm.data.SavedRoutes
@@ -25,6 +26,7 @@ import com.peru.expresdm.databinding.ViewRouteInfoBinding
 import com.peru.expresdm.ui.AlertStyle
 import com.peru.expresdm.ui.RouteAccent
 import com.peru.expresdm.ui.RouteImages
+import com.peru.expresdm.ui.account.PremiumSheet
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -154,7 +156,13 @@ class RouteInfoPanel(
                 renderSaved(route)
             }
 
-            !saved.hasRoom -> showMessage(context.getString(R.string.route_save_limit, SavedRoutes.MAX_SAVED))
+            // Sin sitio: con Premium es que llegó al tope; sin él, es lo que Premium da de más.
+            !saved.hasRoom ->
+                if (Premium.active) {
+                    showMessage(context.getString(R.string.route_save_limit, saved.limit))
+                } else {
+                    PremiumSheet.show(fragment.childFragmentManager)
+                }
 
             else -> {
                 binding.btnSaveOffline.isEnabled = false
@@ -177,8 +185,13 @@ class RouteInfoPanel(
         binding.btnSaveOffline.setText(
             if (saved.isSaved(route.id)) R.string.route_detail_saved else R.string.route_detail_save
         )
-        binding.saveOfflineNote.text =
-            context.getString(R.string.route_save_count, saved.ids.value.size, SavedRoutes.MAX_SAVED)
+        binding.saveOfflineNote.text = if (Premium.active) {
+            context.getString(R.string.route_save_count, saved.ids.value.size, saved.limit)
+        } else {
+            context.resources.getQuantityString(
+                R.plurals.route_save_count_free, saved.limit, saved.limit, Premium.PREMIUM_SAVED_ROUTES
+            )
+        }
     }
 
     // --- Calificaciones ---

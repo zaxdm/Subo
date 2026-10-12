@@ -18,7 +18,9 @@ data class Session(
      */
     val isAdmin: Boolean = false,
     /** Foto de perfil guardada en el servidor, para verla en cualquier teléfono. */
-    val avatarUrl: String? = null
+    val avatarUrl: String? = null,
+    /** Hasta cuándo es Premium la cuenta, en milisegundos; `null` si es gratuita. */
+    val premiumUntil: Long? = null
 )
 
 /**
@@ -46,6 +48,7 @@ class SessionStore private constructor(context: Context) {
             .putString(KEY_NAME, session.displayName)
             .putBoolean(KEY_ADMIN, session.isAdmin)
             .putString(KEY_AVATAR, session.avatarUrl)
+            .putLong(KEY_PREMIUM_UNTIL, session.premiumUntil ?: 0L)
             .apply()
         _session.value = session
     }
@@ -63,7 +66,8 @@ class SessionStore private constructor(context: Context) {
             email = prefs.getString(KEY_EMAIL, "").orEmpty(),
             displayName = prefs.getString(KEY_NAME, "").orEmpty(),
             isAdmin = prefs.getBoolean(KEY_ADMIN, false),
-            avatarUrl = prefs.getString(KEY_AVATAR, null)
+            avatarUrl = prefs.getString(KEY_AVATAR, null),
+            premiumUntil = prefs.getLong(KEY_PREMIUM_UNTIL, 0L).takeIf { it > 0L }
         )
     }
 
@@ -75,6 +79,7 @@ class SessionStore private constructor(context: Context) {
         private const val KEY_NAME = "display_name"
         private const val KEY_ADMIN = "is_admin"
         private const val KEY_AVATAR = "avatar_url"
+        private const val KEY_PREMIUM_UNTIL = "premium_until"
 
         @Volatile
         private var instance: SessionStore? = null
