@@ -42,18 +42,23 @@ class VoiceInput(context: Context) {
      *
      * El teléfono suele dar varias formas de escribir lo que oyó: [pick] elige
      * cuál vale (por defecto la primera, la más probable).
+     *
+     * Con [shortPhrases] se le pide al teléfono que espere frases cortas, como
+     * las de una búsqueda: una sola palabra suelta se entiende mejor así.
      */
     fun listen(
         onPartial: (String) -> Unit = {},
         onLevel: (Float) -> Unit = {},
         pick: (List<String>) -> String? = { it.firstOrNull() },
+        shortPhrases: Boolean = false,
         onResult: (text: String?, failed: Boolean) -> Unit
-    ) = start(onPartial, onLevel, pick, onResult, retries = CONNECTION_RETRIES)
+    ) = start(onPartial, onLevel, pick, shortPhrases, onResult, retries = CONNECTION_RETRIES)
 
     private fun start(
         onPartial: (String) -> Unit,
         onLevel: (Float) -> Unit,
         pick: (List<String>) -> String?,
+        shortPhrases: Boolean,
         onResult: (text: String?, failed: Boolean) -> Unit,
         retries: Int
     ) {
@@ -106,7 +111,7 @@ class VoiceInput(context: Context) {
                         destroy()
                         val retry = ++session
                         handler.postDelayed({
-                            if (retry == session) start(onPartial, onLevel, pick, onResult, retries - 1)
+                            if (retry == session) start(onPartial, onLevel, pick, shortPhrases, onResult, retries - 1)
                         }, RETRY_DELAY_MS)
                     }
 
@@ -119,7 +124,10 @@ class VoiceInput(context: Context) {
         })
 
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(
+                RecognizerIntent.EXTRA_LANGUAGE_MODEL,
+                if (shortPhrases) RecognizerIntent.LANGUAGE_MODEL_WEB_SEARCH else RecognizerIntent.LANGUAGE_MODEL_FREE_FORM
+            )
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, language())
             .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
             .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, MAX_ALTERNATIVES)

@@ -3,6 +3,8 @@ package com.peru.expresdm
 import com.peru.expresdm.voice.VoiceCommand
 import com.peru.expresdm.voice.VoiceCommands
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class VoiceCommandsTest {
@@ -50,6 +52,18 @@ class VoiceCommandsTest {
     }
 
     @Test
+    fun `entiende el si y el no a lo que Subo pregunta`() {
+        assertTrue(VoiceCommands.isYes("Sí"))
+        assertTrue(VoiceCommands.isYes("claro, por favor"))
+        assertTrue(VoiceCommands.isYes("sí avísame"))
+        assertFalse(VoiceCommands.isYes("no"))
+        assertFalse(VoiceCommands.isYes("siempre tomo ese"))
+        assertTrue(VoiceCommands.isNo("No, gracias"))
+        assertFalse(VoiceCommands.isNo("nos vamos"))
+        assertFalse(VoiceCommands.isNo("llévame a casa"))
+    }
+
+    @Test
     fun `al preguntar a donde va un lugar a secas es el destino`() {
         assertEquals(VoiceCommand.GoTo("Huanchaco"), VoiceCommands.parseDestination("Huanchaco"))
         assertEquals(VoiceCommand.GoTo("Mall Plaza"), VoiceCommands.parseDestination("al Mall Plaza."))
@@ -65,6 +79,7 @@ class VoiceCommandsTest {
         )
         assertEquals(VoiceCommand.Ask("¿Hay paro hoy?"), VoiceCommands.parseDestination("¿Hay paro hoy?"))
         assertEquals(VoiceCommand.Close, VoiceCommands.parseDestination("gracias"))
+        assertEquals(VoiceCommand.Close, VoiceCommands.parseDestination("Sí, por favor"))
         assertEquals(VoiceCommand.WhereAmI, VoiceCommands.parseDestination("dónde estoy"))
         assertEquals(VoiceCommand.Ask(""), VoiceCommands.parseDestination(""))
     }

@@ -27,6 +27,7 @@ class WakeWordTest {
         assertEquals("", WakeWord.match("Súbo."))
         assertEquals("llévame al centro", WakeWord.match("Tubo llévame al centro"))
         assertEquals("", WakeWord.match("hola su voz"))
+        assertEquals("", WakeWord.match("tsubo"))
     }
 
     @Test

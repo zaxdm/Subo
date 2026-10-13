@@ -366,11 +366,15 @@ class RoutesFragment : Fragment() {
             asAlarm = false,
             onWord = { _binding?.voiceBarOrb?.pulse() }
         ) {
-            if (_binding != null && isResumed && voiceTalking) listenOnMap() else endMapVoice()
+            if (_binding != null && isResumed && voiceTalking) listenOnMap(answering = true) else endMapVoice()
         }
     }
 
-    private fun listenOnMap() {
+    /**
+     * Escucha lo que se contesta en el mapa. Con [answering] se contesta a
+     * "¿a dónde quieres ir?"; con [arrivalOffered], a "¿te aviso al llegar?".
+     */
+    private fun listenOnMap(answering: Boolean = false, arrivalOffered: Boolean = false) {
         val input = mapVoice ?: VoiceInput(requireContext()).also { mapVoice = it }
         showVoiceBar(VoiceOrbView.Mode.LISTENING, getString(R.string.voice_listening))
         input.listen(
@@ -380,7 +384,9 @@ class RoutesFragment : Fragment() {
             if (_binding == null) return@listen
             endMapVoice()
             when {
-                text != null -> onVoiceSaid(text, answering = true)
+                text != null && arrivalOffered && VoiceCommands.isYes(text) -> onVoiceSaid(ARRIVAL_ON_PHRASE)
+                text != null && arrivalOffered && VoiceCommands.isNo(text) -> say(getString(R.string.voice_ok))
+                text != null -> onVoiceSaid(text, answering = answering)
                 failed -> showLongMessage(getString(R.string.voice_failed))
                 // Silencio: no quería nada.
                 else -> Unit
@@ -432,8 +438,12 @@ class RoutesFragment : Fragment() {
     /**
      * Contesta a una orden: se lee en alto y, por si no se oye, también se
      * escribe junto a la esfera, que se mueve con cada palabra.
+     *
+     * Con [offersArrival] lo dicho termina preguntando si se quiere el aviso
+     * de llegada: al acabar se escucha la respuesta, sin tener que volver a
+     * llamar a Subo.
      */
-    private fun say(text: String) {
+    private fun say(text: String, offersArrival: Boolean = false) {
         showVoiceBar(VoiceOrbView.Mode.SPEAKING, text)
         Speaker.speak(
             requireContext(),
@@ -441,6 +451,12 @@ class RoutesFragment : Fragment() {
             asAlarm = false,
             onWord = { _binding?.voiceBarOrb?.pulse() }
         ) {
+            if (offersArrival && _binding != null && isResumed && voiceTalking &&
+                VoiceInput.canListen(requireContext())
+            ) {
+                listenOnMap(arrivalOffered = true)
+                return@speak
+            }
             // Se queda un momento más, para acabar de leerlo.
             _binding?.voiceBar?.let { bar ->
                 bar.removeCallbacks(hideVoiceBar)
@@ -466,7 +482,12 @@ class RoutesFragment : Fragment() {
                 say(getString(R.string.voice_place_not_found, spoken))
             } else {
                 viewModel.planTrip(null, place)
-                say(getString(R.string.voice_going_to, place.name))
+                // La conversación sigue: se ofrece el aviso y se escucha la respuesta.
+                val offer = Premium.active && VoiceInput.canListen(requireContext())
+                say(
+                    getString(if (offer) R.string.voice_going_to_offer else R.string.voice_going_to, place.name),
+                    offersArrival = offer
+                )
             }
         }
     }
@@ -2866,6 +2887,9 @@ class RoutesFragment : Fragment() {
         /** Lo máximo que la esfera de la voz se queda en el mapa sin que nada la quite. */
         const val VOICE_BAR_TIMEOUT_MS = 25_000L
         const val VOICE_BAR_LINGER_MS = 2_500L
+
+        /** Lo que vale un "sí" a "¿te aviso al llegar?". */
+        const val ARRIVAL_ON_PHRASE = "avísame al llegar"
 
         /** Mientras uno no se aleje más que esto, vale el camino a pie ya trazado. */
         const val STREET_WALK_REUSE_METERS = 30.0

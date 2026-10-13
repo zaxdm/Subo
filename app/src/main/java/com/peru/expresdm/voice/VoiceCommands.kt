@@ -98,6 +98,8 @@ object VoiceCommands {
     fun parseDestination(said: String): VoiceCommand {
         val command = parse(said)
         if (command !is VoiceCommand.Ask) return command
+        // Un "sí" o un "no" sueltos no son un lugar ni una pregunta: no se hace nada.
+        if (isYes(said) || isNo(said)) return VoiceCommand.Close
         val words = plain(said).split(' ').filter { it.isNotEmpty() }
         if (words.isEmpty() || words.size > MAX_PLACE_WORDS || '?' in said || words.first() in QUESTION_STARTS) {
             return command
@@ -107,6 +109,24 @@ object VoiceCommands {
             .trim(' ', '.', ',', '?', '¿', '!', '¡')
         return if (place.isEmpty()) command else VoiceCommand.GoTo(place)
     }
+
+    /** Se contestó que sí a algo que Subo preguntó ("sí", "claro, por favor"). */
+    fun isYes(said: String): Boolean = startsWithAny(said, YES)
+
+    /** Se contestó que no ("no", "no, gracias"). */
+    fun isNo(said: String): Boolean = startsWithAny(said, NO)
+
+    private fun startsWithAny(said: String, starts: List<String>): Boolean {
+        val plain = plain(said)
+        return starts.any { plain == it || plain.startsWith("$it ") }
+    }
+
+    private val YES = listOf(
+        "si", "claro", "dale", "ok", "okay", "ya", "bueno", "por favor", "de acuerdo", "esta bien", "hazlo",
+        "avisame", "obvio", "listo", "yes"
+    )
+
+    private val NO = listOf("no", "nop", "nada", "tampoco", "asi esta bien", "mejor no")
 
     /** Un lugar se dice en pocas palabras; una frase más larga es otra cosa. */
     private const val MAX_PLACE_WORDS = 6

@@ -1,8 +1,11 @@
 package com.peru.expresdm.voice
 
 import android.content.Context
+import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
+import androidx.core.content.getSystemService
 import java.text.Normalizer
 
 /** Reconoce la palabra con la que se llama al asistente. Lógica pura, para probarla. */
@@ -13,7 +16,7 @@ object WakeWord {
      * o le cambia una letra.
      */
     private val WORDS = listOf(
-        "subo", "zubo", "suvo", "subu", "supo", "tubo", "su vo", "su bo", "su voz", "su bus"
+        "subo", "zubo", "suvo", "subu", "sugo", "tsubo", "supo", "tubo", "su vo", "su bo", "su voz", "su bus"
     )
 
     private val GREETINGS = setOf("oye", "hey", "ey", "hola", "ok", "okay")
@@ -64,6 +67,7 @@ class VoiceWake(
     private val onWake: (said: String) -> Unit
 ) {
 
+    private val appContext = context.applicationContext
     private val input = VoiceInput(context)
     private val handler = Handler(Looper.getMainLooper())
     private var running = false
@@ -75,6 +79,7 @@ class VoiceWake(
         if (running) return
         running = true
         failures = 0
+        quietBeeps(true)
         handler.post(cycle)
     }
 
@@ -82,6 +87,33 @@ class VoiceWake(
         running = false
         handler.removeCallbacks(cycle)
         input.release()
+        quietBeeps(false)
+    }
+
+    /**
+     * El reconocimiento de voz del teléfono pita cada vez que empieza y termina
+     * de escuchar, y aquí lo hace cada pocos segundos: mientras se espera a
+     * «Subo» se silencia ese pitido (suena como una notificación).
+     *
+     * Se apunta que el silencio lo puso la app, para quitarlo aunque se cerrara
+     * a medias, y no tocar el de quien ya tenía el teléfono callado.
+     */
+    private fun quietBeeps(quiet: Boolean) {
+        val audio = appContext.getSystemService<AudioManager>() ?: return
+        val prefs = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+        try {
+            if (quiet) {
+                if (prefs.getBoolean(KEY_MUTED, false) || audio.isStreamMute(BEEP_STREAM)) return
+                audio.adjustStreamVolume(BEEP_STREAM, AudioManager.ADJUST_MUTE, 0)
+                prefs.edit().putBoolean(KEY_MUTED, true).apply()
+            } else if (prefs.getBoolean(KEY_MUTED, false)) {
+                audio.adjustStreamVolume(BEEP_STREAM, AudioManager.ADJUST_UNMUTE, 0)
+                prefs.edit().putBoolean(KEY_MUTED, false).apply()
+            }
+        } catch (e: SecurityException) {
+            // Con "No molestar" el teléfono no deja tocar ese volumen: se queda el pitido.
+            Log.i(TAG, "No se pudo silenciar el pitido del reconocimiento de voz", e)
+        }
     }
 
     private fun listenOnce() {
@@ -102,7 +134,9 @@ class VoiceWake(
             },
             onLevel = { level -> if (soFar != null && running) onLevel(level) },
             // De las formas en que el teléfono escribe lo que oyó, la que nombre a Subo.
-            pick = { heard -> heard.firstOrNull { WakeWord.match(it) != null } ?: heard.firstOrNull() }
+            pick = { heard -> heard.firstOrNull { WakeWord.match(it) != null } ?: heard.firstOrNull() },
+            // «Subo» a secas es muy corto: con el modo de frases largas el teléfono lo descarta.
+            shortPhrases = true
         ) { text, failed ->
             if (!running) return@listen
             val said = text?.let(WakeWord::match) ?: soFar
@@ -121,6 +155,13 @@ class VoiceWake(
     }
 
     private companion object {
+        const val TAG = "VoiceWake"
+        const val PREFS = "voice_wake"
+        const val KEY_MUTED = "beeps_muted"
+
+        /** Por dónde suena el pitido del reconocimiento de voz de Google. */
+        const val BEEP_STREAM = AudioManager.STREAM_NOTIFICATION
+
         const val RESTART_MS = 350L
         const val BUSY_RETRY_MS = 1_500L
         const val MAX_FAILURES = 4
